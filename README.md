@@ -18,4 +18,5 @@ Actually prototype is 500 grams and tested up to 100 kph
 
 
 Idea is based on the work of Blaise Gassend, PhD
-Game is based on https://neal.fun/
+
+Game is based on https://neal.fun/space-elevator/
