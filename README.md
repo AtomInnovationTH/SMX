@@ -1,6 +1,6 @@
 # SMX
 
-A silly Space Monkey game based on https://neal.fun/
+A silly Space Monkey game https://htmlpreview.github.io/?https://github.com/your-username/Space-Monkey/blob/main/Space_Monkey.html
 
 Shows how a low power ultralight climber can move up a vibrating tether all the way to space by non-contact grabbing with eddy currents.
 
@@ -13,3 +13,5 @@ Designe Guidelines to Protect Tether:
 - Climber Must NOT start or stop on tether (accelerate to cruise speed before attachment)
 
 Actually prototype is 500 grams and tested up to 100 kph
+
+games is based on https://neal.fun/
