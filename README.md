@@ -1,6 +1,6 @@
 # SMX
 
-A silly Space Monkey game https://htmlpreview.github.io/?https://github.com/your-username/Space-Monkey/blob/main/Space_Monkey.html
+A silly Space Monkey game https://htmlpreview.github.io/?https://github.com/SMX/Space-Monkey/blob/main/Space_Monkey.html
 
 Shows how a low power ultralight climber can move up a vibrating tether all the way to space by non-contact grabbing with eddy currents.
 
