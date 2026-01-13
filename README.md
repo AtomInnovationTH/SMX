@@ -1,7 +1,6 @@
 # SMX
 
-A silly Space Monkey game (https://AtomInnovationTH.github.io/Space-Monkey/)
-
+A silly Space Monkey game https://atominnovationth.github.io/SMX/
 Shows how a low power ultralight climber can move up a vibrating tether all the way to space by non-contact grabbing with eddy currents.
 
 Tether vibrations allow distributed power delivery to multiple ultralight climbers (space monkeys) simultaneously. Waste heat is generated inside tether from eddy currents and radiated to space at -206°C.  The game is mostly in the atmosphere, but the actually trip to GEO is 99.9% in the cold of space. Climber generates electricity from momentum, sacrificing 10% of speed/cargo to allow 24/7 operation with only minimal battery backup.
