@@ -1,8 +1,8 @@
 # SMX
 
-## “Space Monkey” Game  
+## Space Monkey Game  
 
-Click to play: https://atominnovationth.github.io/SMX/.
+Click to play: https://atominnovationth.github.io/SMX/
 
 A simple game shows how a low‑power ultralight climber can move up a vibrating tether all the way to space using non‑contact eddy‑current grabbing.  
 Selectable tether‑vibration shapes: sine, square, sawtooth.
@@ -19,4 +19,4 @@ The actual prototype weighs 500 g and has been tested up to 100 km h⁻¹.
 
 Idea is based on the work of Blaise Gassend, Ph.D.
 
-The game is based on https://neal.fun/space-elevator/.
+Game is based on https://neal.fun/space-elevator/.
