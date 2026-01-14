@@ -1,4 +1,3 @@
-# SMX
 
 ## Space Monkey Game  
 
