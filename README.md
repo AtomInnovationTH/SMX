@@ -1,5 +1,6 @@
 
 Space Monkey Game
+
 Play the demo: https://atominnovationth.github.io/SMX/
 
 A simple game shows how a low‑power ultralight climber can move up a vibrating tether all the way to space using non‑contact eddy‑current grabbing.
