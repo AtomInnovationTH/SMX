@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Monkey Elevator</title>
+    <style>
+        :root {
+            --scale-factor: 1.0;
+        }
+        
+        body { margin: 0; padding: 0; overflow: hidden; background: #000; font-family: monospace; }
+        
+        /* Canvas Layers */
+        #bgCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #clouds-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 11; }
+        .cloud-layer { position: absolute; opacity: 1; pointer-events: none; }
+        #landmarks-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+        .landmark { position: absolute; font-size: 19px; line-height: 1.3em; text-align: center; transform: translateY(-100%); z-index: 4; pointer-events: none; }
+        
+        .landmark.full-width {
+            left: 50% !important;
+            transform: translateX(-50vw) translateY(-100%) !important;
+            width: 100vw !important;
+        }
+        
+        .landmark.full-width .landmark-icon {
+            width: 100vw !important;
+            max-width: none !important;
+            object-fit: contain;
+        }
+        
+        .landmark-icon { display: block; margin: 0 auto 10px; max-width: 100%; height: auto; }
+        .landmark-caption { background: #fff; border: 1px solid #000; border-radius: 10px; box-shadow: 2px 2px 4px 1px rgba(0, 0, 0, 0.05); color: #000; line-height: 1.2em; padding: 5px 15px 6px; }
+        .landmark-subcaption { font-size: 15px; line-height: 1.1em; max-width: 200px; opacity: 0.5; margin-left: auto; margin-right: auto; }
+        #gameCanvas { position: fixed; top: 0; left: 0; display: block; image-rendering: pixelated; z-index: 10; pointer-events: none; }
+        
+        /* Visual Enhancements */
+        .grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('Space Elevator_files/grid-750.webp'); background-size: 210px 210px; opacity: 0.15; pointer-events: none; z-index: 8; }
+        .grass-ground { position: fixed; bottom: 0; left: -150px; width: calc(100% + 170px); height: 170px; background-image: url('Space Elevator_files/grass-1400.webp'); background-position: center; background-size: 100% 170px; pointer-events: none; z-index: 6; opacity: 0; transition: opacity 0.5s; }
+        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('Space Elevator_files/noise.jpeg'); background-size: 400px 400px; mix-blend-mode: overlay; opacity: 0.12; pointer-events: none; z-index: 9; }
+        .grass-ground.visible { opacity: 1; }
+        
+        @media only screen and (max-width: 1200px) {
+            .grass-ground {
+                background-image: url('Space Elevator_files/grass-1200.webp');
+            }
+        }
+        
+        @media only screen and (max-width: 950px) {
+            .grass-ground {
+                background-image: url('Space Elevator_files/grass-1000.webp');
+            }
+        }
+        
+        @media only screen and (max-width: 700px) {
+            .grass-ground {
+                background-image: url('Space Elevator_files/grass-900.webp');
+            }
+        }
+        
+        #settingsPanel { position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 100; }
+        #settingsPanel.visible { display: block; }
+        .slider-container { margin: 10px 0; }
+        .slider-container label { display: block; margin-bottom: 5px; }
+        input[type="range"] { width: 200px; }
+        
+        /* Style monkey sliders brown to match monkey */
+        #grip, #gravity, #weight { accent-color: #8B4513; }
+        
+        /* Style tether sliders green to match tether */
+        #frequency, #amplitude, #width, #tension { accent-color: #22C55E; }
+        
+        select { width: 210px; padding: 5px; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 3px; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <canvas id="bgCanvas"></canvas>
+    <div id="clouds-container"></div>
+    <div id="landmarks-container"></div>
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- Visual Enhancement Overlays -->
+    <div class="grid-overlay"></div>
+    <div class="noise-overlay"></div>
+    <div class="grass-ground"></div>
+    
+    <div id="settingsPanel">
+        <h3>Settings (Press S to toggle)</h3>
+        
+        <h4>Tether (Vine)</h4>
+        <div class="slider-container">
+            <label>Material: <span id="materialValue">300 GPa CC-CNT</span></label>
+            <select id="material">
+                <option value="50">50 GPa Pentalayer Rhombohedral Graphene</option>
+                <option value="100">100 GPa Polycrystalline Graphene</option>
+                <option value="130">130 GPa Monocrystalline Graphene</option>
+                <option value="150">150 GPa CNT</option>
+                <option value="300" selected>300 GPa CC-CNT</option>
+            </select>
+        </div>
+        <div class="slider-container">
+            <label>Frequency: <span id="frequencyValue">0.5 Hz</span></label>
+            <input type="range" id="frequency" min="0.5" max="1000" step="0.5" value="0.5">
+        </div>
+        <div class="slider-container">
+            <label>Amplitude: <span id="amplitudeValue">700 mm</span></label>
+            <input type="range" id="amplitude" min="100" max="1000" step="50" value="700">
+        </div>
+        <div class="slider-container">
+            <label>Width: <span id="widthValue">45 mm</span></label>
+            <input type="range" id="width" min="10" max="1000" step="10" value="45">
+        </div>
+        <div class="slider-container">
+            <label>Tension: <span id="tensionValue">100 kg</span></label>
+            <input type="range" id="tension" min="1" max="20000" step="1" value="100">
+        </div>
+        
+        <h4>Monkey</h4>
+        <div class="slider-container">
+            <label>Grip: <span id="gripValue">1%</span></label>
+            <input type="range" id="grip" min="1" max="100" step="1" value="1">
+        </div>
+        <div class="slider-container">
+            <label>Gravity: <span id="gravityValue">1.00 G</span></label>
+            <input type="range" id="gravity" min="0.01" max="1" step="0.01" value="1.00">
+        </div>
+        <div class="slider-container">
+            <label>Weight: <span id="weightValue">1 kg</span></label>
+            <input type="range" id="weight" min="0.2" max="200" step="0.2" value="1">
+        </div>
+    </div>
+
+    <script>
+        const ASSET_BASE_PATH = 'Space Elevator_files/';
+        
+        const COLOR_PALETTE = {
+            // Vine/Tether colors
+            VINE_SINE: '#22C55E',
+            VINE_SQUARE: '#FF4757',
+            VINE_SAWTOOTH: '#FFA502',
+            
+            // Monkey colors
+            MONKEY_BROWN: '#8B4513',
+            MONKEY_LIGHT: '#A0522D',
+            MONKEY_DARK: '#654321',
+            
+            // Grab feedback
+            GRAB_PERFECT: '#00FF00',
+            GRAB_GOOD: '#FFFF00',
+            GRAB_POOR: '#FF0000',
+            GRAB_GOLD: '#FFD700',
+            
+            // Upgrade colors
+            UPGRADE_ALNICO: '#FF6B6B',
+            UPGRADE_CARBON: '#4ECDC4',
+            UPGRADE_NEODYMIUM: '#FFD93D',
+            UPGRADE_AERO: '#95E1D3',
+            UPGRADE_TITANIUM: '#C0C0C0',
+            UPGRADE_STREAMLINE: '#6BCB77',
+            UPGRADE_HALLBACH: '#FF006E',
+            
+            // UI colors
+            UI_WHITE: '#FFF',
+            UI_LIGHT_GRAY: '#CCC',
+            UI_BLACK: '#000',
+            UI_TRANSPARENT_BLACK: 'rgba(0, 0, 0, 0.5)',
+            UI_BADGE_DARK: 'rgba(10, 10, 10, 0.95)',
+            UI_BADGE_LIGHT: 'rgba(20, 20, 20, 0.95)'
+        };
+        
+        const VISUAL_CONSTANTS = {
+            CLOUD_PARALLAX_FACTOR: 0.2,
+            CLOUD_FADE_START_DISTANCE: 10000,
+            CLOUD_FADE_END_DISTANCE: 15000,
+            LANDMARK_BUFFER_NORMAL: 800,
+            LANDMARK_BUFFER_FULLWIDTH: 2000,
+            LANDMARK_PARALLAX_MIN: 0.25,
+            LANDMARK_PARALLAX_MAX: 0.92,
+            LANDMARK_SPEED_THRESHOLD: 500,
+            LANDMARK_MAX_ALTITUDE: 100000,
+            LANDMARK_POSITIONS_LARGE: ['5%', '8%'],
+            LANDMARK_POSITIONS_MEDIUM: ['12%', '18%'],
+            LANDMARK_POSITIONS_SMALL: ['15%', '22%'],
+            LANDMARK_POSITIONS_TINY: ['18%', '25%', '34%'],
+            BADGE_WAVE_X_OFFSET: 7,
+            BADGE_WAVE_Y_OFFSET: 66,
+            BADGE_WAVE_WIDTH: 74,
+            BADGE_WAVE_HEIGHT: 11,
+            BADGE_ICON_X_OFFSET: 7,
+            BADGE_ICON_Y_OFFSET: 85,
+            BADGE_ICON_SIZE: 9,
+            BADGE_ICON_SPACING: 11
+        };
+        
+        const LANDMARKS_DATA = [
+            { name: 'Hummingbird', altitude: 12, sprite: 'hummingbird-sm.webp', width: 112, position: 'left' },
+            { name: 'Fireworks', altitude: 28, sprite: 'fireworks-sm.webp', width: 240, position: 'right' },
+            { name: 'Mallard', altitude: 55, sprite: 'mallard-migrate-sm.webp', width: 176, position: 'left' },
+            { name: 'Pigeon', altitude: 82, sprite: 'pigeon-sm.webp', width: 144, position: 'right' },
+            { name: 'Blériot XI', altitude: 150, info: 'First flight across English Channel', sprite: 'bleriot-xi-sm.webp', width: 288, position: 'right' },
+            { name: 'Box Kite', altitude: 185, sprite: 'box-kite-sm.webp', width: 141, position: 'left' },
+            { name: 'Hot Air Balloon', altitude: 220, sprite: 'hotair-balloon-sm.webp', width: 256, position: 'right' },
+            { name: 'Osprey', altitude: 320, sprite: 'osprey-sm.webp', width: 184, position: 'left' },
+            { name: 'Bald Eagle', altitude: 355, sprite: 'bald-eagle-sm.webp', width: 184, position: 'right' },
+            { name: 'Alpine Chough', altitude: 385, sprite: 'alpine-chough-sm.webp', width: 128, position: 'left' },
+            { name: 'White Stork', altitude: 420, sprite: 'white-stork-sm.webp', width: 160, position: 'right' },
+            { name: 'Mil V-12', altitude: 480, info: 'Largest helicopter', sprite: 'mil-v-12-sm.webp', width: 560, position: 'right' },
+            { name: 'Monarch Butterfly', altitude: 600, sprite: 'monarch-butterfly-sm.webp', width: 96, position: 'left' },
+            { name: 'Bumblebee', altitude: 638, sprite: 'bumblebee-sm.webp', width: 72, position: 'right' },
+            { name: 'Hang Gliding', altitude: 685, sprite: 'hang-gliding-sm.webp', width: 272, position: 'left' },
+            { name: 'Cessna 172', altitude: 750, sprite: 'cessna-sm.webp', width: 320, position: 'right' },
+            { name: 'Vega 5b', altitude: 820, sprite: 'vega-5b-sm.webp', width: 288, position: 'left' },
+            { name: 'Mil Mi-8', altitude: 890, sprite: 'mil-mi-8-sm.webp', width: 496, position: 'right' },
+            { name: 'Skydiver', altitude: 980, sprite: 'skydiving-sm.webp', width: 224, position: 'left' },
+            { name: 'Pterodactyl', altitude: 1020, sprite: 'pterodactyl-sm.webp', width: 256, position: 'right' },
+            { name: 'Chilean Flamingo', altitude: 1065, sprite: 'flamingo-sm.webp', width: 240, position: 'left' },
+            { name: 'Ruppell\'s Griffon Vulture', altitude: 1100, sprite: 'ruppell-bird-sm.webp', width: 152, position: 'right' },
+            { name: 'Zeppelin', altitude: 1200, sprite: 'zeppelin-sm.webp', width: 688, position: 'right' },
+            { name: 'Sopwith Camel', altitude: 1400, sprite: 'sopwith-camel-sm.webp', width: 304, position: 'left' },
+            { name: 'P-51 Mustang', altitude: 1465, sprite: 'p-51-sm.webp', width: 320, position: 'right' },
+            { name: 'P-80 Shooting Star', altitude: 1530, sprite: 'p-80-sm.webp', width: 352, position: 'left' },
+            { name: 'Caproni Ca.161', altitude: 1595, sprite: 'caproni-sm.webp', width: 352, position: 'right' },
+            { name: 'Bell 47', altitude: 1720, sprite: 'bell-47-sm.webp', width: 312, position: 'left' },
+            { name: 'SA 315B Lama', altitude: 1780, sprite: 'sa-315-sm.webp', width: 400, position: 'right' },
+            { name: 'Bar-Tailed Godwit', altitude: 1900, sprite: 'godwit-sm.webp', width: 168, position: 'left' },
+            { name: 'Andean Condor', altitude: 1960, sprite: 'andean-condor-sm.webp', width: 272, position: 'right' },
+            { name: 'Whooper Swan', altitude: 2020, sprite: 'whooper-swan-sm.webp', width: 171, position: 'left' },
+            { name: 'Bar-headed Goose', altitude: 2080, sprite: 'bar-goose-sm.webp', width: 165, position: 'right' },
+            { name: 'Bearded Vulture', altitude: 2140, sprite: 'bearded-vulture-sm.webp', width: 240, position: 'left' },
+            { name: 'Douglas DC-3', altitude: 2300, sprite: 'douglas-dc-3-sm.webp', width: 464, position: 'right' },
+            { name: 'USSR-1', altitude: 2380, sprite: 'ussr-1-sm.webp', width: 208, position: 'left' },
+            { name: 'Party Balloons', altitude: 2600, sprite: 'party-balloons-sm.webp', width: 136, position: 'right' },
+            { name: 'Paratrooper', altitude: 2670, sprite: 'paratrooper-sm.webp', width: 240, position: 'left' },
+            { name: 'Common Crane', altitude: 2740, sprite: 'crane-sm.webp', width: 200, position: 'right' },
+            { name: 'Falcon 9 (staging)', altitude: 6500, info: 'Rocket staging', sprite: 'falcon-9-sm.webp', width: 200, position: 'left' },
+            { name: 'Mount Everest', altitude: 8848, info: 'Highest mountain', sprite: 'mount-everest-s-800.webp', width: '100vw', position: 'center', fullWidth: true },
+            { name: 'Spitfire', altitude: 10200, sprite: 'spitfire-sm.webp', width: 296, position: 'right' },
+            { name: 'An-225 Mriya', altitude: 10850, sprite: 'an-225-sm.webp', width: 528, position: 'left' },
+            { name: 'Passenger Jet', altitude: 11500, info: 'Cruising altitude', sprite: 'passenger-jet-sm.webp', width: 560, position: 'right' },
+            { name: 'Space Shuttle', altitude: 12150, sprite: 'space-shuttle-sm.webp', width: 400, position: 'left' },
+            
+            // === LONG GAP === Entering the stratosphere
+            
+            // === MILITARY JETS (15200-18500m) === High performance aircraft
+            { name: 'Learjet 45', altitude: 15200, sprite: 'learjet-45-sm.webp', width: 384, position: 'right' },
+            { name: 'F-35', altitude: 16100, sprite: 'f-35-sm.webp', width: 360, position: 'left' },
+            { name: 'Sukhoi Su-9', altitude: 17000, sprite: 'su-9-sm.webp', width: 424, position: 'right' },
+            { name: 'Concorde', altitude: 18500, info: 'Supersonic cruising', sprite: 'concorde-sm.webp', width: 440, position: 'left' },
+            
+            // === GAP === Thinning atmosphere
+            
+            // === SPY & EXPERIMENTAL ZONE (20800-24000m) === Record breakers
+            { name: 'U-2 Spy Plane', altitude: 20800, sprite: 'u-2-sm.webp', width: 480, position: 'right' },
+            { name: 'Bell X-1', altitude: 21900, sprite: 'bell-x-1-sm.webp', width: 448, position: 'left' },
+            { name: 'Explorer II', altitude: 23000, sprite: 'explorer-2-sm.webp', width: 192, position: 'right' },
+            { name: 'Airbus Zephyr', altitude: 24000, sprite: 'zephyr-sm.webp', width: 352, position: 'left' },
+            
+            // === SPEED DEMONS (25200-28800m) === Mach records
+            { name: 'Perlan II', altitude: 25200, sprite: 'perlan-sm.webp', width: 400, position: 'right' },
+            { name: 'Douglas Skyrocket', altitude: 26400, info: 'First aircraft to reach Mach 2', sprite: 'douglas-sm.webp', width: 496, position: 'left' },
+            { name: 'SR-71 Blackbird', altitude: 27600, info: '1976 altitude record', sprite: 'sr-71-sm.webp', width: 560, position: 'right' },
+            { name: 'Helios', altitude: 28800, sprite: 'helios-sm.webp', width: 320, position: 'left' },
+            
+            // === HUGE GAP === Edge of atmosphere approaches
+            
+            // === HYPERSONIC ZONE (32000-40000m) === Extreme altitude
+            { name: 'NASA X-43', altitude: 32000, info: 'Experimental hypersonic aircraft', sprite: 'nasa-x-43-sm.webp', width: 368, position: 'right' },
+            { name: 'Project Excelsior', altitude: 34500, info: '1960 skydive altitude record', sprite: 'highest-ejection-sm.webp', width: 96, position: 'left' },
+            { name: 'Weather Balloon', altitude: 37000, sprite: 'weather-balloon-sm.webp', width: 240, position: 'right' },
+            { name: 'Paper Airplane', altitude: 38500, info: 'Highest paper airplane flight', sprite: 'paper-airplane-sm.webp', width: 112, position: 'left' },
+            { name: 'Felix Baumgartner', altitude: 40000, info: 'First person to break sound barrier in freefall', sprite: 'felix-sm.webp', width: 139, position: 'right' },
+            
+            // === ENORMOUS GAP === Journey to space
+            
+            // === SPACE TRANSITIONS (62000-100000m) === Epic finale
+            { name: 'Sounding Rocket', altitude: 62000, sprite: 'sounding-rocket-sm.webp', width: 88, position: 'left' },
+            { name: 'Saturn V', altitude: 70000, info: 'First stage separation', sprite: 'saturn-v-sm.webp', width: 200, position: 'right' },
+            { name: 'Falcon 9 (orbit)', altitude: 78000, sprite: 'falcon-9-sm.webp', width: 200, position: 'left' },
+            { name: 'VSS Unity', altitude: 86000, sprite: 'vss-unity-sm.webp', width: 352, position: 'right' },
+            { name: 'X-15', altitude: 94000, info: 'Highest flying rocket plane', sprite: 'x-15-sm.webp', width: 336, position: 'left' },
+            
+            // === FINAL LANDMARK === The ultimate achievement
+            { name: 'Kármán Line', altitude: 100000, info: 'Edge of space', sprite: 'vostok-1-sm.webp', width: 224, position: 'center' }
+        ];
+        
+        const UPGRADES_CONFIG = [
+            { type: 'alnico', altitude: 1500 },
+            { type: 'carbon', altitude: 3000 },
+            { type: 'neodymium', altitude: 5000 },
+            { type: 'aero', altitude: 6000 },
+            { type: 'titanium', altitude: 8000 },
+            { type: 'streamline', altitude: 12000 },
+            { type: 'hallbach', altitude: 15000 }
+        ];
+        
+        const WAVE_RENDERERS = {
+            sine: (ctx, x, y, w, h) => {
+                for (let i = 0; i <= w; i += 2) {
+                    const px = x + i;
+                    const py = y + h / 2 + Math.sin(i / w * Math.PI * 2) * h / 2;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+            },
+            
+            square: (ctx, x, y, w, h) => {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + w / 4, y);
+                ctx.lineTo(x + w / 4, y + h);
+                ctx.lineTo(x + w / 2, y + h);
+                ctx.lineTo(x + w / 2, y);
+                ctx.lineTo(x + w * 3/4, y);
+                ctx.lineTo(x + w * 3/4, y + h);
+                ctx.lineTo(x + w, y + h);
+            },
+            
+            sawtooth: (ctx, x, y, w, h) => {
+                ctx.moveTo(x, y + h);
+                ctx.lineTo(x + w / 2, y);
+                ctx.lineTo(x + w / 2, y + h);
+                ctx.lineTo(x + w, y);
+            }
+        };
+        
+        const SHAPE_RENDERERS = {
+            circle: (ctx, x, y, size) => ctx.arc(x, y, size, 0, Math.PI * 2),
+            square: (ctx, x, y, size) => ctx.rect(x - size, y - size, size * 2, size * 2),
+            triangle: (ctx, x, y, size) => {
+                ctx.moveTo(x, y - size);
+                ctx.lineTo(x + size, y + size);
+                ctx.lineTo(x - size, y + size);
+                ctx.closePath();
+            }
+        };
+        
+        const WAVE_CALCULATORS = {
+            sine: {
+                position: (amp, t) => amp * Math.sin(t),
+                velocity: (amp, omega, t) => amp * omega * Math.cos(t)
+            },
+            square: {
+                position: (amp, t) => amp * Math.sign(Math.sin(t)),
+                velocity: (amp, omega, t) => Math.abs(Math.sin(t)) < 0.01 ? amp * omega * 100 : 0
+            },
+            sawtooth: {
+                position: (amp, t) => amp * (1 - 2 * ((t / (2 * Math.PI)) % 1)),
+                velocity: (amp, omega, t) => {
+                    const cycle = (t / (2 * Math.PI)) % 1;
+                    return cycle < 0.98 ? -amp * omega : amp * omega * 50;
+                }
+            }
+        };
+        
+        const vertexShaderSource = `
+            attribute vec4 position;
+            void main() {
+                gl_Position = position;
+            }
+        `;
+
+        const fragmentShaderSource = `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            uniform float scrollPos;
+            uniform float windowHeight;
+            uniform float rainScale;
+            uniform float auroraScale;
+            uniform float starScale;
+            uniform float auroraXOffset;
+            uniform float auroraYOffset;
+            uniform float pageAspectRatio;
+            uniform sampler2D rainTexture;
+            uniform sampler2D horizonTexture;
+            uniform sampler2D horizon2Texture;
+            uniform sampler2D horizon3Texture;
+            uniform sampler2D horizon4Texture;
+            uniform sampler2D airglowTexture;
+            uniform sampler2D auroraTexture;
+            uniform sampler2D aurora2Texture;
+            uniform sampler2D starsTexture;
+            uniform sampler2D meteorTexture;
+            uniform bool showRain;
+            uniform bool showAuroras;
+            uniform bool showMeteors;
+
+            float invLerp(float from, float to, float value){
+                return (value - from) / (to - from);
+            }
+
+            float blendDarken(float base, float blend) {
+                return min(blend,base);
+            }
+
+            vec3 blendDarken(vec3 base, vec3 blend) {
+                return vec3(blendDarken(base.r,blend.r),blendDarken(base.g,blend.g),blendDarken(base.b,blend.b));
+            }
+
+            vec3 blendDarken(vec3 base, vec3 blend, float opacity) {
+                return (blendDarken(base, blend) * opacity + base * (1.0 - opacity));
+            }
+
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution;
+                
+                float scaledUvY = uv.y * windowHeight;
+                
+                // Beautiful horizon offset that creates the changing sky
+                float horizonOffset = smoothstep(0.172, 1.0, scrollPos + scaledUvY) * 1.0;
+                float horizonUvY = 1.0 - (uv.y + horizonOffset);
+                
+                // Start with base horizon texture - the beautiful gradient sky!
+                vec4 color = texture2D(horizonTexture, vec2(uv.x, horizonUvY));
+                
+                // Layer horizon 4 - darker blue transitioning to space
+                float horizon4Opacity = smoothstep(0.09 - .008, 0.1 - .008, scrollPos + scaledUvY);
+                vec4 horizon4 = texture2D(horizon4Texture, vec2(uv.x, horizonUvY));
+                color.rgb = mix(color.rgb, horizon4.rgb, horizon4.a * horizon4Opacity);
+                
+                // Layer horizon 2 - mid-altitude atmosphere
+                float horizon2Opacity = smoothstep(0.1 - .008, 0.11 - .008, scrollPos + scaledUvY);
+                vec4 horizon2 = texture2D(horizon2Texture, vec2(uv.x, horizonUvY));
+                color.rgb = mix(color.rgb, horizon2.rgb, horizon2.a * horizon2Opacity);
+                
+                // Layer horizon 3 - upper atmosphere
+                float horizon3Opacity = smoothstep(0.157 - .008, 0.17 - .008, scrollPos + scaledUvY);
+                vec4 horizon3 = texture2D(horizon3Texture, vec2(uv.x, horizonUvY));
+                color.rgb = mix(color.rgb, horizon3.rgb, horizon3.a * horizon3Opacity);
+                
+                // Add beautiful airglow effect - atmospheric band
+                float airglowOpacity = smoothstep(0.23 - .008, 0.27 - .008, scrollPos + scaledUvY);
+                vec4 airglow = texture2D(airglowTexture, vec2(uv.x, horizonUvY));
+                color.rgb = blendDarken(color.rgb, airglow.rgb, airglow.a * airglowOpacity);
+                
+                // Beautiful stars that appear at high altitude
+                float starsOpacity = smoothstep(0.23, 0.27, scrollPos + scaledUvY) * step(0.37, horizonOffset + uv.y);
+                vec4 stars = texture2D(starsTexture, mod(vec2(uv.x * starScale, uv.y * starScale * pageAspectRatio * 1.3 + scrollPos), 1.0));
+                color = mix(color, stars, (1.0 - step(stars.r, .55)) * starsOpacity * .85);
+                
+                // Rain effect
+                if (showRain) {
+                    float rainOpacity = (1.0 - smoothstep(0.025, 0.0285, scrollPos + scaledUvY)) * smoothstep(0.013, 0.024, scrollPos + scaledUvY);
+                    vec4 rain = texture2D(rainTexture, mod(5.0 * vec2(rainScale * uv.x, 80.0 * (scrollPos + scaledUvY) + time * .2), 1.0));
+                    vec4 rain2 = texture2D(rainTexture, mod(4.5 * vec2(rainScale * uv.x, 80.0 * (scrollPos + scaledUvY) + time * .3), 1.0));
+                    color = mix(color, rain, rain.a * rainOpacity * .1);
+                    color = mix(color, rain2, rain2.a * rainOpacity * .25);
+                }
+                
+                // Beautiful aurora effects at very high altitude using procedural textures!
+                if (showAuroras) {
+                    float wiggle = .15 * sin(time * .1 + uv.y * 1.5 + uv.x * 10.0);
+                    float auroraRedMultiplier = sin(time + uv.y * .5 + uv.x * 10.0);
+                    
+                    // First aurora layer - green/purple waves
+                    float auroraOffset = (1.6 / auroraScale) * invLerp(.85, 1.0, scrollPos) + uv.y * 1.7 * pageAspectRatio - 2.0 * pageAspectRatio * auroraScale - auroraYOffset;
+                    vec4 aurora = texture2D(auroraTexture, vec2(uv.x * .8 * auroraScale + auroraXOffset, auroraScale * (auroraOffset + wiggle)));
+                    aurora.r += .1;
+                    aurora.b -= .1;
+                    aurora.r *= max(aurora.r, aurora.r * auroraRedMultiplier + .3);
+                    color = mix(color, aurora, aurora.a);
+                    
+                    // Second aurora layer for depth and color variation
+                    float aurora2Offset = (.9 / auroraScale) * invLerp(.89, 1.0, scrollPos) + uv.y * 1.5 * pageAspectRatio - 2.4 * pageAspectRatio * auroraScale - auroraYOffset;
+                    vec4 aurora2 = texture2D(aurora2Texture, vec2(uv.x * auroraScale + auroraXOffset - .1, auroraScale * (aurora2Offset + wiggle)));
+                    aurora2.r += .15;
+                    aurora2.b -= .1;
+                    aurora2.r *= max(aurora2.r, aurora2.r * auroraRedMultiplier + .5);
+                    color = mix(color, aurora2, aurora2.a);
+                }
+                
+                // Shooting meteors for dramatic effect - using beautiful procedural textures!
+                if (showMeteors) {
+                    float meteorYOffsets[5];
+                    meteorYOffsets[0] = -.6;
+                    meteorYOffsets[1] = -.8;
+                    meteorYOffsets[2] = -0.4;
+                    meteorYOffsets[3] = -.2;
+                    meteorYOffsets[4] = -.1;
+                    
+                    float meteorSizes[5];
+                    meteorSizes[0] = .7;
+                    meteorSizes[1] = .5;
+                    meteorSizes[2] = .9;
+                    meteorSizes[3] = .8;
+                    meteorSizes[4] = .6;
+                    
+                    float allMeteorOpacity = (1.0 - smoothstep(.852, 0.872, scrollPos + scaledUvY)) * smoothstep(0.772, 0.792, scrollPos + scaledUvY);
+                    float meteorSpacing = resolution.x / 200.0;
+                    
+                    for (int x = 0; x < 5; x++) {
+                        float meteorTime = mod(time - float(x) * 2.5, 11.0);
+                        float meteorOpacity = smoothstep(5.0, 8.0, meteorTime) * (1.0 - smoothstep(8.0, 10.0, meteorTime));
+                        vec4 meteor = texture2D(meteorTexture, vec2(uv.x - meteorTime * .11 + float(x) / 7.0 + .2, uv.y * pageAspectRatio + meteorTime * .11 - 1.0 + meteorYOffsets[x]) * (meteorSpacing / meteorSizes[x]));
+                        color = mix(color, meteor, allMeteorOpacity * clamp(meteor.a - (1.0 - meteorOpacity), 0.0, 1.0));
+                    }
+                }
+                
+                gl_FragColor = color;
+            }
+        `;
+
+        function createLinearGradientTexture(width, height, stops) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            stops.forEach(([pos, color]) => gradient.addColorStop(pos, color));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+            return canvas;
+        }
+        
+        function createProceduralTexture(type, width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
+            
+            if (type === 'aurora') {
+                const stops = [[0,'50,255,150'], [0.3,'100,255,100'], [0.5,'150,100,255'], [0.7,'100,255,100'], [1,'50,255,150']];
+                for (let y = 0; y < height; y++) {
+                    const gradient = ctx.createLinearGradient(0, y, width, y);
+                    const alpha = Math.sin(y / 40) * 0.3 + 0.2;
+                    stops.forEach(([pos, rgb], i) => gradient.addColorStop(pos, `rgba(${rgb}, ${i===1||i===3 ? alpha*1.2 : alpha})`));
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, y, width, 1);
+                }
+            } else if (type === 'stars') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+                ctx.fillRect(0, 0, width, height);
+                for (let i = 0; i < 500; i++) {
+                    const x = Math.random() * width, y = Math.random() * height;
+                    const size = Math.random() * 2, brightness = Math.random() * 0.8 + 0.2;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (type === 'meteor') {
+                const gradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width / 2);
+                gradient.addColorStop(0, 'rgba(255, 200, 100, 1)');
+                gradient.addColorStop(0.1, 'rgba(255, 150, 50, 0.8)');
+                gradient.addColorStop(0.3, 'rgba(255, 100, 30, 0.4)');
+                gradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+            } else if (type === 'rain') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+                ctx.fillRect(0, 0, width, height);
+                ctx.strokeStyle = 'rgba(150, 180, 220, 0.4)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 100; i++) {
+                    const x = Math.random() * width, y = Math.random() * height, len = Math.random() * 15 + 5;
+                    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + len); ctx.stroke();
+                }
+            }
+            
+            return canvas;
+        }
+        
+        const TEXTURE_CONFIGS = {
+            horizon: { type: 'gradient', stops: [[0, '#24a5f8'], [0.5, '#6bc8ff'], [1, '#bef0ff']], w: 1024, h: 1024 },
+            horizon2: { type: 'gradient', stops: [[0, '#1a7ab8'], [0.5, '#3D9CD8'], [1, '#5cb3e8']], w: 1024, h: 1024 },
+            horizon3: { type: 'gradient', stops: [[0, '#0d3d66'], [0.5, '#1e5a87'], [1, '#2976a8']], w: 1024, h: 1024 },
+            horizon4: { type: 'gradient', stops: [[0, '#082642'], [0.5, '#0f3a5f'], [1, '#1a4f7a']], w: 1024, h: 1024 },
+            airglow: { type: 'gradient', stops: [[0, 'rgba(30, 100, 150, 0)'], [0.3, 'rgba(40, 130, 180, 0.3)'], [0.5, 'rgba(50, 150, 200, 0.5)'], [0.7, 'rgba(40, 130, 180, 0.3)'], [1, 'rgba(30, 100, 150, 0)']], w: 1024, h: 512 },
+            aurora2: { type: 'gradient', stops: [[0, 'rgba(255, 100, 200, 0.15)'], [0.3, 'rgba(200, 100, 255, 0.35)'], [0.5, 'rgba(150, 150, 255, 0.25)'], [0.7, 'rgba(200, 100, 255, 0.35)'], [1, 'rgba(255, 100, 200, 0.15)']], w: 1024, h: 512 },
+            aurora: { type: 'aurora', w: 1024, h: 512 },
+            stars: { type: 'stars', w: 512, h: 512 },
+            meteor: { type: 'meteor', w: 128, h: 128 },
+            rain: { type: 'rain', w: 128, h: 128 }
+        };
+
+        function createTextureFromConfig(config) {
+            return config.type === 'gradient'
+                ? createLinearGradientTexture(config.w, config.h, config.stops)
+                : createProceduralTexture(config.type, config.w, config.h);
+        }
+
+        class WebGLBackground {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.gl = canvas.getContext('webgl');
+                if (!this.gl) {
+                    console.error('WebGL not supported');
+                    return;
+                }
+                this.setupShaders();
+            }
+
+            setupShaders() {
+                const gl = this.gl;
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertexShader, vertexShaderSource);
+                gl.compileShader(vertexShader);
+                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(fragmentShader, fragmentShaderSource);
+                gl.compileShader(fragmentShader);
+                this.program = gl.createProgram();
+                gl.attachShader(this.program, vertexShader);
+                gl.attachShader(this.program, fragmentShader);
+                gl.linkProgram(this.program);
+                gl.useProgram(this.program);
+                const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+                const buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+                const positionLocation = gl.getAttribLocation(this.program, 'position');
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                
+                const uniformNames = [
+                    'resolution', 'scrollPos', 'time', 'windowHeight',
+                    'rainTexture', 'horizonTexture', 'horizon2Texture', 'horizon3Texture',
+                    'horizon4Texture', 'airglowTexture', 'auroraTexture', 'aurora2Texture',
+                    'starsTexture', 'meteorTexture', 'showRain', 'showAuroras', 'showMeteors',
+                    'rainScale', 'auroraScale', 'starScale', 'auroraXOffset', 'auroraYOffset',
+                    'pageAspectRatio'
+                ];
+                
+                this.uniforms = {};
+                uniformNames.forEach(name => {
+                    this.uniforms[name] = gl.getUniformLocation(this.program, name);
+                });
+                
+                this.createPlaceholderTextures();
+            }
+            
+            createPlaceholderTextures() {
+                Object.entries(TEXTURE_CONFIGS).forEach(([key, config]) => {
+                    const canvas = createTextureFromConfig(config);
+                    if (canvas) this.createTextureFromCanvas(key + 'Texture', canvas);
+                });
+            }
+            
+            createTextureFromCanvas(name, canvas) {
+                const gl = this.gl;
+                const texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+                
+                this[name] = texture;
+            }
+            
+            update(altitude, time) {
+                this.rainTextureLoaded = true;
+                this.altitude = altitude;
+                this.time = time;
+            }
+
+            render() {
+                const gl = this.gl;
+                gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+                gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
+                
+                // Normalize altitude to 0-1 range for shader (0-100km)
+                const scrollPos = (this.altitude || 0) / 100000.0;
+                gl.uniform1f(this.uniforms.scrollPos, scrollPos);
+                gl.uniform1f(this.uniforms.time, this.time || 0);
+                gl.uniform1f(this.uniforms.windowHeight, window.innerHeight / 100000.0);
+                
+                // Calculate aspect ratio for effects
+                const pageAspectRatio = this.canvas.height / this.canvas.width;
+                gl.uniform1f(this.uniforms.pageAspectRatio, pageAspectRatio);
+                
+                gl.uniform1f(this.uniforms.auroraScale, 1.0);
+                gl.uniform1f(this.uniforms.starScale, 1.0);
+                gl.uniform1f(this.uniforms.auroraXOffset, 0.0);
+                gl.uniform1f(this.uniforms.auroraYOffset, 0.0);
+                
+                // Enable beautiful effects based on altitude
+                const showRain = this.rainTextureLoaded && (this.altitude >= 1300 && this.altitude <= 2850);
+                const showAuroras = scrollPos > 0.85; // Show auroras at very high altitude
+                const showMeteors = scrollPos > 0.77 && scrollPos < 0.87; // Show meteors in mesosphere
+                
+                gl.uniform1i(this.uniforms.showRain, showRain ? 1 : 0);
+                gl.uniform1i(this.uniforms.showAuroras, showAuroras ? 1 : 0);
+                gl.uniform1i(this.uniforms.showMeteors, showMeteors ? 1 : 0);
+                gl.uniform1f(this.uniforms.rainScale, 1.0);
+                
+                // Bind all textures in order
+                const textureNames = [
+                    'rainTexture', 'horizonTexture', 'horizon2Texture', 'horizon3Texture',
+                    'horizon4Texture', 'airglowTexture', 'auroraTexture', 'aurora2Texture',
+                    'starsTexture', 'meteorTexture'
+                ];
+                
+                textureNames.forEach((name, i) => {
+                    gl.activeTexture(gl.TEXTURE0 + i);
+                    gl.bindTexture(gl.TEXTURE_2D, this[name]);
+                    gl.uniform1i(this.uniforms[name], i);
+                });
+                
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            }
+        }
+
+        class CloudSystem {
+            constructor(container) {
+                this.container = container;
+                this.clouds = [
+                    { type: 'cumulus', altitude: 800, img: ASSET_BASE_PATH + 'cumulus-950.webp', width: '80vw', maxWidth: '1400px' },
+                    { type: 'stratus', altitude: 1500, img: ASSET_BASE_PATH + 'stratus-900.webp', width: '75vw', maxWidth: '1200px' },
+                    { type: 'nimbostratus', altitude: 2370, img: ASSET_BASE_PATH + 'nimbostratus-750.webp', width: '75vw', maxWidth: '1100px' },
+                    { type: 'altostratus', altitude: 2920, img: ASSET_BASE_PATH + 'altostratus-500.webp', width: '90vw', maxWidth: '1100px' },
+                    { type: 'cumulonimbus', altitude: 3350, img: ASSET_BASE_PATH + 'cumulonimbus-850.webp', width: '100vw', maxWidth: '1600px' },
+                    { type: 'altocumulus', altitude: 4900, img: ASSET_BASE_PATH + 'altocumulus-700.webp', width: '90vw', maxWidth: '1300px' },
+                    { type: 'cirrus3', altitude: 5600, img: ASSET_BASE_PATH + 'cirrus3-700.webp', width: '140vw', maxWidth: '1700px', minWidth: '1500px' },
+                    { type: 'cirrus2', altitude: 6000, img: ASSET_BASE_PATH + 'cirrus2-700.webp', width: '100vw', maxWidth: '1500px', minWidth: '1300px', opacity: '0.85' },
+                    { type: 'cirrus', altitude: 7000, img: ASSET_BASE_PATH + 'cirrus-700.webp', width: '100vw', maxWidth: '1300px', minWidth: '1000px', opacity: '0.85' },
+                    { type: 'cirrostratus3', altitude: 8500, img: ASSET_BASE_PATH + 'cirrostratus3-950.webp', width: '140vw', maxWidth: '2300px', minWidth: '2300px', opacity: '0.75' },
+                    { type: 'cirrostratus', altitude: 9100, img: ASSET_BASE_PATH + 'cirrostratus-950.webp', width: '140vw', maxWidth: '2300px', minWidth: '2300px', opacity: '0.9' },
+                    { type: 'cirrostratus2', altitude: 9200, img: ASSET_BASE_PATH + 'cirrostratus2-950.webp', width: '140vw', maxWidth: '2300px', minWidth: '2300px', opacity: '0.75' }
+                ];
+                this.createClouds();
+            }
+
+            applyStyles(element, styles) {
+                Object.entries(styles).forEach(([key, value]) => {
+                    if (value !== undefined) {
+                        element.style[key] = value;
+                    }
+                });
+            }
+
+            createClouds() {
+                this.clouds.forEach(cloud => {
+                    const img = document.createElement('img');
+                    img.src = cloud.img;
+                    img.className = 'cloud-layer';
+                    
+                    const styles = {
+                        position: 'absolute',
+                        width: cloud.width || '100vw',
+                        maxWidth: (cloud.maxWidth && !cloud.width.includes('vw')) ? cloud.maxWidth : undefined,
+                        minWidth: cloud.minWidth,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        opacity: cloud.opacity || '1',
+                        pointerEvents: 'none'
+                    };
+                    
+                    this.applyStyles(img, styles);
+                    img.dataset.altitude = cloud.altitude;
+                    this.container.appendChild(img);
+                    cloud.element = img;
+                });
+            }
+
+            update(cameraAltitude, screenHeight) {
+                this.clouds.forEach(cloud => {
+                    // Parallax: Clouds move slower than camera (0.2x speed = 5x distance effect)
+                    // This keeps clouds visible longer while maintaining proper vertical spacing
+                    const parallaxFactor = VISUAL_CONSTANTS.CLOUD_PARALLAX_FACTOR;
+                    const parallaxDiff = (cloud.altitude - cameraAltitude) * parallaxFactor;
+                    const screenY = screenHeight / 2 - parallaxDiff * 10;
+                    cloud.element.style.top = `${screenY}px`;
+                    
+                    const actualAltDiff = Math.abs(cameraAltitude - cloud.altitude);
+                    const fadeStart = VISUAL_CONSTANTS.CLOUD_FADE_START_DISTANCE;
+                    const fadeEnd = VISUAL_CONSTANTS.CLOUD_FADE_END_DISTANCE;
+                    const visible = actualAltDiff < fadeEnd;
+                    cloud.element.style.display = visible ? 'block' : 'none';
+                    if (visible) {
+                        const opacity = actualAltDiff < fadeStart ? 1 :
+                                       1 - ((actualAltDiff - fadeStart) / 5000);
+                        cloud.element.style.opacity = opacity * (parseFloat(cloud.opacity) || 1);
+                    }
+                });
+            }
+        }
+
+        class LandmarkSystem {
+            constructor(container) {
+                this.container = container;
+                this.landmarks = LANDMARKS_DATA;
+                this.createLandmarks();
+            }
+
+            createLandmarks() {
+                this.landmarks.forEach(landmark => {
+                    const div = document.createElement('div');
+                    div.className = 'landmark';
+                    
+                    // Add full-width class for special landmarks like Mount Everest
+                    if (landmark.fullWidth) {
+                        div.classList.add('full-width');
+                    }
+                    
+                    let content = '';
+                    if (landmark.sprite) {
+                        let widthStyle = '';
+                        if (!landmark.fullWidth) {
+                            if (typeof landmark.width === 'string' && landmark.width.includes('vw')) {
+                                widthStyle = `width: ${landmark.width};`;
+                            } else {
+                                widthStyle = `width: calc(${landmark.width}px * var(--scale-factor));`;
+                            }
+                        }
+                        content = `<img class="landmark-icon" src="Space Elevator_files/${landmark.sprite}" alt="${landmark.name}" style="${widthStyle}">`;
+                    }
+                    content += `
+                        <div class="landmark-caption">
+                            ${landmark.name}
+                            ${landmark.info ? '<div class="landmark-subcaption">' + landmark.info + '</div>' : ''}
+                        </div>
+                    `;
+                    
+                    div.innerHTML = content;
+                    div.dataset.altitude = landmark.altitude;
+                    div.dataset.width = landmark.width;
+                    this.container.appendChild(div);
+                    landmark.element = div;
+                });
+            }
+
+            update(cameraAltitude, screenHeight, monkeySpeed = 0) {
+                this.landmarks.forEach(landmark => {
+                    // Enhanced Parallax: creates strong depth perception
+                    // Lower altitude = faster scrolling (closer to camera)
+                    // Higher altitude = much slower scrolling (further from camera)
+                    // Increased parallax for better visual depth
+                    const maxAltitude = VISUAL_CONSTANTS.LANDMARK_MAX_ALTITUDE;
+                    
+                    // Speed-based parallax: enhanced at high speeds
+                    const speed = Math.abs(monkeySpeed);
+                    const speedThreshold = VISUAL_CONSTANTS.LANDMARK_SPEED_THRESHOLD;
+                    const speedFactor = Math.min(speed / speedThreshold, 1.8);
+                    
+                    // INCREASED parallax range for stronger depth effect
+                    const baseMinParallax = VISUAL_CONSTANTS.LANDMARK_PARALLAX_MIN;
+                    const baseMaxParallax = VISUAL_CONSTANTS.LANDMARK_PARALLAX_MAX;
+                    
+                    // At high speeds, enhance parallax significantly
+                    const minParallax = baseMinParallax * (1 - speedFactor * 0.35); // Min goes to ~0.16 at max speed
+                    const maxParallax = baseMaxParallax;
+                    
+                    // Calculate parallax factor based on landmark altitude
+                    // Lower altitude = higher parallax factor (faster scrolling)
+                    const altitudeRatio = Math.min(landmark.altitude / maxAltitude, 1);
+                    const parallaxFactor = maxParallax - (altitudeRatio * (maxParallax - minParallax));
+                    
+                    // Apply enhanced parallax to altitude difference
+                    const parallaxDiff = (landmark.altitude - cameraAltitude) * parallaxFactor;
+                    const screenY = screenHeight / 2 - parallaxDiff * 10;
+                    
+                    // Expanded visibility range - larger buffer for full-width landmarks (like Mount Everest)
+                    const bufferSize = landmark.fullWidth ? VISUAL_CONSTANTS.LANDMARK_BUFFER_FULLWIDTH : VISUAL_CONSTANTS.LANDMARK_BUFFER_NORMAL;
+                    if (screenY > -bufferSize && screenY < screenHeight + bufferSize) {
+                        landmark.element.style.display = 'block';
+                        landmark.element.style.opacity = '1';
+                        landmark.element.style.top = `${screenY}px`;
+                        landmark.element.style.color = landmark.altitude > 1500 ? 'white' : '#1c1c1c';
+                        
+                        if (!landmark.fullWidth) {
+                            const w = typeof landmark.width === 'number' ? landmark.width : 200;
+                            const positions = w > 500 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_LARGE : w > 350 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_MEDIUM : w > 200 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_SMALL : VISUAL_CONSTANTS.LANDMARK_POSITIONS_TINY;
+                            const idx = Math.floor(landmark.altitude / 100) % positions.length;
+                            
+                            if (landmark.position === 'left') {
+                                landmark.element.style.left = positions[idx];
+                                landmark.element.style.right = 'auto';
+                            } else if (landmark.position === 'right') {
+                                landmark.element.style.right = positions[idx];
+                                landmark.element.style.left = 'auto';
+                            } else {
+                                landmark.element.style.left = '50%';
+                                landmark.element.style.right = 'auto';
+                                landmark.element.style.transform = 'translate(-50%, -100%)';
+                                return;
+                            }
+                            landmark.element.style.transform = 'translateY(-100%)';
+                        }
+                    } else {
+                        landmark.element.style.opacity = '0';
+                        landmark.element.style.display = 'none';
+                    }
+                });
+            }
+        }
+
+        class Upgrade {
+            constructor(type, altitude, position) {
+                this.type = type;
+                this.altitude = altitude;
+                this.position = position;
+                this.collected = false;
+                this.config = this.getConfig();
+            }
+
+            getConfig() {
+                const configs = {
+                    alnico: { name: 'Alnico Magnet', gripMult: 1.5, color: COLOR_PALETTE.UPGRADE_ALNICO, shape: 'circle' },
+                    carbon: { name: 'Carbon Frame', weight: -10, color: COLOR_PALETTE.UPGRADE_CARBON, shape: 'square' },
+                    neodymium: { name: 'Neodymium Magnet', gripMult: 2.5, color: COLOR_PALETTE.UPGRADE_NEODYMIUM, shape: 'circle' },
+                    aero: { name: 'Aero Kit', dragMult: 0.95, color: COLOR_PALETTE.UPGRADE_AERO, shape: 'triangle' },
+                    titanium: { name: 'Titanium Frame', weight: -20, color: COLOR_PALETTE.UPGRADE_TITANIUM, shape: 'square' },
+                    streamline: { name: 'Streamline Kit', dragMult: 0.9, color: COLOR_PALETTE.UPGRADE_STREAMLINE, shape: 'triangle' },
+                    hallbach: { name: 'Hallbach Array', gripMult: 4.0, color: COLOR_PALETTE.UPGRADE_HALLBACH, shape: 'circle' }
+                };
+                return configs[this.type] || configs.alnico;
+            }
+
+            checkCollision(monkey) {
+                if (this.collected) return false;
+                const altitudeDiff = monkey.altitude - this.altitude;
+                return altitudeDiff >= 0 && altitudeDiff < 30;
+            }
+
+            render(ctx, cameraY, screenWidth, screenHeight) {
+                if (this.collected) return;
+                
+                const screenY = -this.altitude * 10 - cameraY;
+                if (screenY < -100 || screenY > screenHeight + 100) return;
+                
+                ctx.save();
+                ctx.fillStyle = this.config.color;
+                ctx.strokeStyle = COLOR_PALETTE.UI_WHITE;
+                ctx.lineWidth = 2;
+                
+                const x = screenWidth / 2;
+                const y = screenY;
+                const size = 25;
+                
+                ctx.beginPath();
+                SHAPE_RENDERERS[this.config.shape](ctx, x, y, size);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class GameConfig {
+            static MONKEY = {
+                WIDTH: 100,
+                HEIGHT: 160,
+                WEIGHT: 50,
+                COLOR: COLOR_PALETTE.MONKEY_BROWN,
+                INITIAL_Y_OFFSET: 200,
+                BADGE_WIDTH: 80,  // Smaller to fit on chest patch
+                BADGE_HEIGHT: 85,
+                BADGE_X_OFFSET: 10,  // Centered on chest
+                BADGE_Y_OFFSET: 45
+            };
+            
+            static WAVE = {
+                DEFAULT_FREQUENCY: 0.5,
+                DEFAULT_AMPLITUDE: 70,
+                WIDTH: 4,
+                SEGMENTS: 40,
+                SEGMENT_WIDTH: 12,
+                GLOW_THRESHOLD: 0.2,
+                GLOW_BASE_RADIUS: 30,
+                GLOW_VELOCITY_FACTOR: 20,
+                TYPES: { SINE: 'sine', SQUARE: 'square', SAWTOOTH: 'sawtooth' },
+                COLORS: { sine: COLOR_PALETTE.VINE_SINE, square: COLOR_PALETTE.VINE_SQUARE, sawtooth: COLOR_PALETTE.VINE_SAWTOOTH }
+            };
+            
+            static PHYSICS = {
+                GRAVITY: 160,
+                AIR_DRAG: 0.985,
+                HORIZONTAL_SPEED: 150,
+                MOMENTUM_MULTIPLIER: 3.6,
+                DRIFT_DECAY: 0.9,
+                ALTITUDE_CONVERSION: 10
+            };
+            
+            static GRAB = {
+                PERFECT_WINDOW: 0.12,
+                GOOD_WINDOW: 0.30,
+                POOR_QUALITY: 0.3,
+                FLASH_DURATION: 0.15,
+                PERFECT_COLOR: COLOR_PALETTE.GRAB_PERFECT,
+                GOOD_COLOR: COLOR_PALETTE.GRAB_GOOD,
+                POOR_COLOR: COLOR_PALETTE.GRAB_POOR
+            };
+            
+            static CAMERA = { VERTICAL_OFFSET: 0.7 };
+            
+            static PARTICLES = {
+                MIN_SPEED: 50,
+                MAX_SPEED_RANGE: 100,
+                MIN_DECAY: 2,
+                MAX_DECAY_RANGE: 2,
+                MIN_SIZE: 3,
+                MAX_SIZE_RANGE: 4,
+                MAX_COUNT: 30
+            };
+            
+            static SPEED_LINES = {
+                THRESHOLD: 100,
+                LENGTH_BASE: 10,
+                LENGTH_FACTOR: 10,
+                LIFE: 0.5,
+                ALPHA: 0.8,
+                DECAY_RATE: 2
+            };
+            
+            static RENDER = {
+                MAX_ALTITUDE_FOR_COLOR: 10000,
+                SHADOW_BLUR: { MONKEY: 15, BADGE: 5 },
+                BORDER_WIDTH: { VINE: 3, BADGE: 1, GRAB_FLASH: 5 },
+                CONTROLS_WIDTH: 180,
+                CONTROLS_HEIGHT: 70,
+                CONTROLS_OFFSET: 10,
+                CONTROLS_BOTTOM_OFFSET: 80
+            };
+        }
+        
+        class ObjectPool {
+            constructor(createFn, resetFn, initialSize = 50) {
+                this.createFn = createFn;
+                this.resetFn = resetFn;
+                this.pool = [];
+                this.active = [];
+                for (let i = 0; i < initialSize; i++) {
+                    this.pool.push(this.createFn());
+                }
+            }
+            
+            acquire() {
+                let obj;
+                if (this.pool.length > 0) {
+                    obj = this.pool.pop();
+                } else {
+                    obj = this.createFn();
+                }
+                this.active.push(obj);
+                return obj;
+            }
+            
+            release(obj) {
+                const index = this.active.indexOf(obj);
+                if (index !== -1) {
+                    this.active.splice(index, 1);
+                    this.resetFn(obj);
+                    this.pool.push(obj);
+                }
+            }
+            
+            getActive() { return this.active; }
+            
+            update(updateFn, dt) {
+                for (let i = this.active.length - 1; i >= 0; i--) {
+                    const obj = this.active[i];
+                    const shouldRemove = updateFn(obj, dt);
+                    if (shouldRemove) {
+                        this.active.splice(i, 1);
+                        this.resetFn(obj);
+                        this.pool.push(obj);
+                    }
+                }
+            }
+        }
+        
+        class EventBus {
+            constructor() {
+                this.listeners = new Map();
+            }
+            
+            on(event, callback) {
+                if (!this.listeners.has(event)) {
+                    this.listeners.set(event, []);
+                }
+                this.listeners.get(event).push(callback);
+            }
+            
+            emit(event, data) {
+                if (!this.listeners.has(event)) return;
+                this.listeners.get(event).forEach(callback => callback(data));
+            }
+        }
+        
+        class WaveSystem {
+            constructor(type = 'sine') {
+                this.type = type;
+                this.time = 0;
+                this.frequency = GameConfig.WAVE.DEFAULT_FREQUENCY;
+                this.amplitude = GameConfig.WAVE.DEFAULT_AMPLITUDE;
+                this.colors = GameConfig.WAVE.COLORS;
+                this.cachedRGB = null;
+                this.cachedColor = null;
+            }
+            
+            calculatePosition(time) {
+                const t = time * this.frequency * 2 * Math.PI;
+                return WAVE_CALCULATORS[this.type]?.position(this.amplitude, t) || 0;
+            }
+            
+            calculateVelocity(time) {
+                const t = time * this.frequency * 2 * Math.PI;
+                const omega = this.frequency * 2 * Math.PI;
+                return WAVE_CALCULATORS[this.type]?.velocity(this.amplitude, omega, t) || 0;
+            }
+            
+            getColor() { return this.colors[this.type]; }
+            
+            getRGB() {
+                const color = this.getColor();
+                if (this.cachedColor !== color) {
+                    this.cachedColor = color;
+                    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
+                    this.cachedRGB = m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 255, g: 255, b: 255 };
+                }
+                return this.cachedRGB;
+            }
+            
+            setType(type) {
+                if (this.colors[type]) {
+                    this.type = type;
+                    this.cachedColor = null;
+                }
+            }
+            
+            getType() { return this.type; }
+        }
+        
+        class PhysicsEngine {
+            constructor(gameConfig, eventBus) {
+                this.config = gameConfig;
+                this.eventBus = eventBus;
+            }
+            
+            calculateWavePosition(waveSystem) { return waveSystem.calculatePosition(waveSystem.time); }
+            
+            calculateWaveVelocity(waveSystem) { return waveSystem.calculateVelocity(waveSystem.time); }
+            
+            calculateGrabMomentum(waveSystem, monkey, gripMult, tetherMult) {
+                const waveVelocity = this.calculateWaveVelocity(waveSystem);
+                const wavePhase = (waveSystem.time * waveSystem.frequency) % 1;
+                const optimalPhase = 0.25;
+                const phaseDiff = Math.min(
+                    Math.abs(wavePhase - optimalPhase),
+                    Math.abs(wavePhase - (optimalPhase + 0.5))
+                );
+                
+                let quality, flashColor;
+                if (phaseDiff < GameConfig.GRAB.PERFECT_WINDOW) {
+                    quality = 1.0;
+                    flashColor = GameConfig.GRAB.PERFECT_COLOR;
+                } else if (phaseDiff < GameConfig.GRAB.GOOD_WINDOW) {
+                    quality = 0.5 + 0.5 * (1 - (phaseDiff - GameConfig.GRAB.PERFECT_WINDOW) /
+                              (GameConfig.GRAB.GOOD_WINDOW - GameConfig.GRAB.PERFECT_WINDOW));
+                    flashColor = GameConfig.GRAB.GOOD_COLOR;
+                } else {
+                    quality = GameConfig.GRAB.POOR_QUALITY;
+                    flashColor = GameConfig.GRAB.POOR_COLOR;
+                }
+                
+                const momentum = waveVelocity * quality * tetherMult * gripMult;
+                const weightFactor = 1.0 / (1.0 + monkey.weight / 100);
+                return { quality, momentum: momentum * weightFactor, flashColor };
+            }
+            
+            applyGravityAndDrag(monkey, dt, isGrabbing, gravityMult, dragMult) {
+                if (!isGrabbing) {
+                    monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
+                    monkey.velocityY *= GameConfig.PHYSICS.AIR_DRAG * dragMult;
+                }
+            }
+            
+            updatePosition(monkey, dt, screenWidth, vineX) {
+                monkey.x += monkey.velocityX * dt;
+                monkey.y += monkey.velocityY * dt;
+                
+                // Limit horizontal movement to stay near vine (within 150 pixels)
+                const vineCenter = vineX || screenWidth / 2;
+                const maxDistance = 150;
+                const minX = vineCenter - maxDistance;
+                const maxX = vineCenter + maxDistance - monkey.width;
+                monkey.x = Math.max(minX, Math.min(maxX, monkey.x));
+                
+                monkey.y = Math.min(0, monkey.y); // Prevent going below ground (y=0 is ground level)
+                monkey.altitude = Math.max(0, -monkey.y / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+            }
+            
+            updateHorizontalVelocity(monkey, dt, isLeft, isRight) {
+                if (isLeft) {
+                    monkey.velocityX = -GameConfig.PHYSICS.HORIZONTAL_SPEED;
+                } else if (isRight) {
+                    monkey.velocityX = GameConfig.PHYSICS.HORIZONTAL_SPEED;
+                } else {
+                    monkey.velocityX *= GameConfig.PHYSICS.DRIFT_DECAY;
+                }
+            }
+        }
+        
+        class Camera {
+            constructor(gameConfig) {
+                this.config = gameConfig;
+                this.y = 0;
+                this.targetY = 0;
+                this.shakeIntensity = 0;
+                this.shakeDecay = 5;
+                this.zoom = 1.0;
+                this.smoothing = 0.15;
+            }
+            
+            follow(targetY, dt, useSmoothing = true) {
+                this.targetY = targetY;
+                if (useSmoothing) {
+                    const diff = this.targetY - this.y;
+                    this.y += diff * this.smoothing;
+                } else {
+                    this.y = this.targetY;
+                }
+                if (this.shakeIntensity > 0) {
+                    const shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+                    this.y += shakeY;
+                    this.shakeIntensity -= this.shakeDecay * dt;
+                    if (this.shakeIntensity < 0) this.shakeIntensity = 0;
+                }
+            }
+            
+            shake(intensity = 10) { this.shakeIntensity = Math.max(this.shakeIntensity, intensity); }
+            getY() { return this.y; }
+        }
+        
+        class InputManager {
+            constructor(eventBus) {
+                this.eventBus = eventBus;
+                this.keys = {};
+                this.setupKeyboardHandlers();
+                this.setupUIHandlers();
+            }
+            
+            setupKeyboardHandlers() {
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.key] = true;
+                    if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: true });
+                    if (e.key === 'r' || e.key === 'R') this.eventBus.emit('input:restart', {});
+                    if (e.key === 's' || e.key === 'S') this.eventBus.emit('input:toggleSettings', {});
+                });
+                
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.key] = false;
+                    if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: false });
+                });
+            }
+            
+            setupUIHandlers() {
+                const UI_CONFIG = {
+                    frequency: { unit: ' Hz', formatter: null },
+                    amplitude: { unit: ' mm', formatter: null },
+                    width: { unit: ' mm', formatter: null },
+                    tension: { unit: ' kg', formatter: null },
+                    grip: { unit: '%', formatter: null },
+                    gravity: { unit: ' G', formatter: (v) => parseFloat(v).toFixed(2) },
+                    weight: { unit: ' kg', formatter: null }
+                };
+                
+                // Handle material dropdown
+                const materialElement = document.getElementById('material');
+                if (materialElement) {
+                    materialElement.addEventListener('change', (e) => {
+                        const selectedText = e.target.options[e.target.selectedIndex].text;
+                        document.getElementById('materialValue').textContent = selectedText;
+                    });
+                }
+                
+                // Setup handlers using config
+                Object.entries(UI_CONFIG).forEach(([id, config]) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener('input', (e) => {
+                            const value = e.target.value;
+                            const formatted = config.formatter ? config.formatter(value) : value;
+                            document.getElementById(id + 'Value').textContent = formatted + config.unit;
+                            this.eventBus.emit('settings:' + id, { value: parseFloat(value) });
+                        });
+                    }
+                });
+            }
+            
+            isKeyPressed(key) { return this.keys[key] || false; }
+            isLeft() { return this.isKeyPressed('ArrowLeft'); }
+            isRight() { return this.isKeyPressed('ArrowRight'); }
+        }
+        
+        class ParticleSystem {
+            constructor(gameConfig, eventBus, particlePool, speedLinePool) {
+                this.config = gameConfig;
+                this.eventBus = eventBus;
+                this.particlePool = particlePool;
+                this.speedLinePool = speedLinePool;
+            }
+            
+            spawnParticles(x, y, count, color) {
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = GameConfig.PARTICLES.MIN_SPEED + Math.random() * GameConfig.PARTICLES.MAX_SPEED_RANGE;
+                    const p = this.particlePool.acquire();
+                    p.x = x; p.y = y;
+                    p.vx = Math.cos(angle) * speed;
+                    p.vy = Math.sin(angle) * speed;
+                    p.life = 1.0;
+                    p.decay = GameConfig.PARTICLES.MIN_DECAY + Math.random() * GameConfig.PARTICLES.MAX_DECAY_RANGE;
+                    p.size = GameConfig.PARTICLES.MIN_SIZE + Math.random() * GameConfig.PARTICLES.MAX_SIZE_RANGE;
+                    p.color = color;
+                }
+            }
+            
+            spawnSpeedLines(monkey) {
+                const speed = Math.abs(monkey.velocityY);
+                if (speed > GameConfig.SPEED_LINES.THRESHOLD) {
+                    const count = Math.floor(speed / GameConfig.SPEED_LINES.THRESHOLD);
+                    for (let i = 0; i < count; i++) {
+                        const s = this.speedLinePool.acquire();
+                        s.x = monkey.x + Math.random() * monkey.width;
+                        s.y = monkey.y + Math.random() * monkey.height;
+                        s.length = GameConfig.SPEED_LINES.LENGTH_BASE + speed / GameConfig.SPEED_LINES.LENGTH_FACTOR;
+                        s.life = GameConfig.SPEED_LINES.LIFE;
+                        s.alpha = GameConfig.SPEED_LINES.ALPHA;
+                    }
+                }
+            }
+            
+            update(dt) {
+                this.particlePool.update((p, dt) => {
+                    p.x += p.vx * dt; p.y += p.vy * dt;
+                    p.life -= p.decay * dt;
+                    return p.life <= 0;
+                }, dt);
+                this.speedLinePool.update((s, dt) => {
+                    s.life -= dt * GameConfig.SPEED_LINES.DECAY_RATE;
+                    s.alpha = s.life;
+                    return s.life <= 0;
+                }, dt);
+            }
+            
+            getActiveParticles() { return this.particlePool.getActive(); }
+            getActiveSpeedLines() { return this.speedLinePool.getActive(); }
+        }
+        
+        class SpaceMonkeyGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.bgCanvas = document.getElementById('bgCanvas');
+                this.cloudsContainer = document.getElementById('clouds-container');
+                this.landmarksContainer = document.getElementById('landmarks-container');
+                this.resizeCanvas();
+                this.ctx.imageSmoothingEnabled = false;
+                
+                // Create and load cute monkey SVG
+                this.loadMonkeySvg();
+                
+                this.eventBus = new EventBus();
+                this.particlePool = new ObjectPool(
+                    () => ({ x: 0, y: 0, vx: 0, vy: 0, life: 0, decay: 0, size: 0, color: '' }),
+                    (p) => { p.life = 0; }
+                );
+                this.speedLinePool = new ObjectPool(
+                    () => ({ x: 0, y: 0, length: 0, life: 0, alpha: 0 }),
+                    (s) => { s.life = 0; }
+                );
+                
+                this.webglBg = new WebGLBackground(this.bgCanvas);
+                this.cloudSystem = new CloudSystem(this.cloudsContainer);
+                this.landmarkSystem = new LandmarkSystem(this.landmarksContainer);
+                this.grassGround = document.querySelector('.grass-ground');
+                
+                this.upgrades = UPGRADES_CONFIG.map(config =>
+                    new Upgrade(config.type, config.altitude, this.canvas.width / 2)
+                );
+                
+                this.waveSystem = new WaveSystem('sine');
+                this.physics = new PhysicsEngine(GameConfig, this.eventBus);
+                this.camera = new Camera(GameConfig);
+                this.inputManager = new InputManager(this.eventBus);
+                this.particleSystem = new ParticleSystem(GameConfig, this.eventBus, this.particlePool, this.speedLinePool);
+                
+                this.gripMultiplier = 1.0;
+                this.gravityMultiplier = 1.0;
+                this.dragMultiplier = 1.0;
+                this.tetherMultiplier = GameConfig.PHYSICS.MOMENTUM_MULTIPLIER;
+                this.vineWidth = 4.5;
+                this.vineTension = 100;
+                
+                this.setupEventListeners();
+                this.initGame();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.lastTime = 0;
+                requestAnimationFrame(this.update.bind(this));
+            }
+            
+            loadMonkeySvg() {
+                // Create grabbing pose SVG - right arm reaching HIGH above head to grab vine
+                const grabbingSvg = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 160 270">
+                        <!-- Left Leg (angled outward) -->
+                        <rect x="58" y="165" width="18" height="60" rx="9" fill="#8B4513" transform="rotate(-8 67 195)"/>
+                        
+                        <!-- Right Leg (angled outward) -->
+                        <rect x="84" y="165" width="18" height="60" rx="9" fill="#8B4513" transform="rotate(8 93 195)"/>
+                        
+                        <!-- Left Foot (wrapped around vine) -->
+                        <ellipse cx="70" cy="230" rx="16" ry="9" fill="#654321" transform="rotate(-15 70 230)"/>
+                        
+                        <!-- Right Foot (wrapped around vine) -->
+                        <ellipse cx="90" cy="230" rx="16" ry="9" fill="#654321" transform="rotate(15 90 230)"/>
+                        
+                        <!-- Torso/Body (proportioned to nicely frame badge) -->
+                        <ellipse cx="80" cy="125" rx="54" ry="78" fill="#8B4513"/>
+                        
+                        <!-- White chest patch (like real monkeys) -->
+                        <ellipse cx="80" cy="125" rx="42" ry="60" fill="#F5F5DC"/>
+                        
+                        <!-- Left Arm (reaching to vine, aligned with tether) -->
+                        <path d="M 50 110 Q 40 75, 50 40 Q 60 15, 70 0 Q 75 -10, 78 -18"
+                              fill="none" stroke="#8B4513" stroke-width="26" stroke-linecap="round"/>
+                        
+                        <!-- Left Hand - FIST gripping vine (aligned with tether center ~80) -->
+                        <!-- Palm -->
+                        <ellipse cx="78" cy="-20" rx="18" ry="20" fill="#A0522D" transform="rotate(-8 78 -20)"/>
+                        
+                        <!-- Thumb (wrapping around) -->
+                        <ellipse cx="86" cy="-24" rx="8" ry="13" fill="#A0522D" transform="rotate(25 86 -24)"/>
+                        
+                        <!-- Index finger -->
+                        <rect x="70" y="-32" width="11" height="15" rx="5" fill="#8B4513"/>
+                        <circle cx="75" cy="-18" r="5" fill="#654321"/>
+                        
+                        <!-- Middle finger -->
+                        <rect x="62" y="-30" width="11" height="14" rx="5" fill="#8B4513"/>
+                        <circle cx="67" cy="-17" r="5" fill="#654321"/>
+                        
+                        <!-- Ring finger -->
+                        <rect x="54" y="-28" width="10" height="13" rx="4" fill="#8B4513"/>
+                        <circle cx="59" cy="-16" r="4.5" fill="#654321"/>
+                        
+                        <!-- Pinky -->
+                        <rect x="47" y="-26" width="9" height="12" rx="4" fill="#8B4513"/>
+                        <circle cx="51" cy="-15" r="4" fill="#654321"/>
+                        
+                        <!-- Knuckles -->
+                        <ellipse cx="75" cy="-31" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+                        <ellipse cx="67" cy="-29" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+                        <ellipse cx="59" cy="-27" rx="3" ry="2" fill="#654321" opacity="0.4"/>
+                        
+                        <!-- Right Arm (reaching to vine, aligned with tether) -->
+                        <path d="M 110 110 Q 115 75, 105 40 Q 95 15, 85 0 Q 82 -8, 80 -14"
+                              fill="none" stroke="#8B4513" stroke-width="26" stroke-linecap="round"/>
+                        
+                        <!-- Right Hand - FIST gripping vine (aligned with tether center ~80) -->
+                        <!-- Palm base -->
+                        <ellipse cx="80" cy="-16" rx="18" ry="20" fill="#A0522D" transform="rotate(8 80 -16)"/>
+                        
+                        <!-- Thumb (wrapped around from other side) -->
+                        <ellipse cx="72" cy="-20" rx="8" ry="13" fill="#A0522D" transform="rotate(-25 72 -20)"/>
+                        
+                        <!-- Index finger -->
+                        <rect x="77" y="-28" width="11" height="15" rx="5" fill="#8B4513"/>
+                        <circle cx="82" cy="-14" r="5" fill="#654321"/>
+                        
+                        <!-- Middle finger -->
+                        <rect x="85" y="-26" width="11" height="14" rx="5" fill="#8B4513"/>
+                        <circle cx="90" cy="-13" r="5" fill="#654321"/>
+                        
+                        <!-- Ring finger -->
+                        <rect x="93" y="-24" width="10" height="13" rx="4" fill="#8B4513"/>
+                        <circle cx="98" cy="-12" r="4.5" fill="#654321"/>
+                        
+                        <!-- Pinky -->
+                        <rect x="100" y="-22" width="9" height="12" rx="4" fill="#8B4513"/>
+                        <circle cx="104" cy="-11" r="4" fill="#654321"/>
+                        
+                        <!-- Knuckles -->
+                        <ellipse cx="82" cy="-27" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+                        <ellipse cx="90" cy="-25" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+                        <ellipse cx="98" cy="-23" rx="3" ry="2" fill="#654321" opacity="0.4"/>
+                        
+                        <!-- Wrist -->
+                        <rect x="73" y="-2" width="16" height="12" rx="6" fill="#8B4513"/>
+                        
+                        <!-- Head -->
+                        <ellipse cx="80" cy="50" rx="38" ry="42" fill="#A0522D"/>
+                        
+                        <!-- Left Ear -->
+                        <ellipse cx="52" cy="37" rx="14" ry="17" fill="#8B4513"/>
+                        
+                        <!-- Right Ear -->
+                        <ellipse cx="108" cy="37" rx="14" ry="17" fill="#8B4513"/>
+                        
+                        <!-- Face -->
+                        <ellipse cx="80" cy="55" rx="28" ry="30" fill="#D2B48C"/>
+                        
+                        <!-- Left Eye (determined look) -->
+                        <ellipse cx="68" cy="47" rx="6" ry="7" fill="#000"/>
+                        <circle cx="70" cy="45" r="2" fill="#FFF"/>
+                        
+                        <!-- Right Eye (determined look) -->
+                        <ellipse cx="92" cy="47" rx="6" ry="7" fill="#000"/>
+                        <circle cx="94" cy="45" r="2" fill="#FFF"/>
+                        
+                        <!-- Nose -->
+                        <ellipse cx="80" cy="60" rx="5" ry="4" fill="#654321"/>
+                        
+                        <!-- Determined smile -->
+                        <path d="M 68 67 Q 80 72, 92 67" fill="none" stroke="#654321" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                `;
+                
+                // Create falling pose SVG - arms extended outward
+                const fallingSvg = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 180 270">
+                        <!-- Left Leg -->
+                        <rect x="55" y="165" width="20" height="60" rx="10" fill="#8B4513"/>
+                        
+                        <!-- Right Leg -->
+                        <rect x="105" y="165" width="20" height="60" rx="10" fill="#8B4513"/>
+                        
+                        <!-- Left Foot -->
+                        <ellipse cx="65" cy="230" rx="16" ry="9" fill="#654321"/>
+                        
+                        <!-- Right Foot -->
+                        <ellipse cx="115" cy="230" rx="16" ry="9" fill="#654321"/>
+                        
+                        <!-- Torso/Body (proportioned to nicely frame badge) -->
+                        <ellipse cx="90" cy="125" rx="54" ry="78" fill="#8B4513"/>
+                        
+                        <!-- White chest patch (like real monkeys) -->
+                        <ellipse cx="90" cy="125" rx="42" ry="60" fill="#F5F5DC"/>
+                        
+                        <!-- Left Arm (spread out) -->
+                        <ellipse cx="25" cy="105" rx="12" ry="38" fill="#8B4513" transform="rotate(-45 25 105)"/>
+                        
+                        <!-- Right Arm (spread out) -->
+                        <ellipse cx="155" cy="105" rx="12" ry="38" fill="#8B4513" transform="rotate(45 155 105)"/>
+                        
+                        <!-- Head -->
+                        <ellipse cx="90" cy="50" rx="38" ry="42" fill="#A0522D"/>
+                        
+                        <!-- Left Ear -->
+                        <ellipse cx="62" cy="37" rx="14" ry="17" fill="#8B4513"/>
+                        
+                        <!-- Right Ear -->
+                        <ellipse cx="118" cy="37" rx="14" ry="17" fill="#8B4513"/>
+                        
+                        <!-- Face -->
+                        <ellipse cx="90" cy="55" rx="28" ry="30" fill="#D2B48C"/>
+                        
+                        <!-- Left Eye (surprised look) -->
+                        <circle cx="78" cy="49" r="6" fill="#000"/>
+                        <circle cx="80" cy="47" r="2" fill="#FFF"/>
+                        
+                        <!-- Right Eye (surprised look) -->
+                        <circle cx="102" cy="49" r="6" fill="#000"/>
+                        <circle cx="104" cy="47" r="2" fill="#FFF"/>
+                        
+                        <!-- Nose -->
+                        <ellipse cx="90" cy="60" rx="5" ry="4" fill="#654321"/>
+                        
+                        <!-- Surprised mouth -->
+                        <ellipse cx="90" cy="69" rx="8" ry="6" fill="#654321"/>
+                    </svg>
+                `;
+                
+                // Create images for both poses
+                const grabbingBlob = new Blob([grabbingSvg], { type: 'image/svg+xml' });
+                const grabbingUrl = URL.createObjectURL(grabbingBlob);
+                this.monkeyGrabbingImage = new Image();
+                this.monkeyGrabbingImage.onload = () => URL.revokeObjectURL(grabbingUrl);
+                this.monkeyGrabbingImage.src = grabbingUrl;
+                
+                const fallingBlob = new Blob([fallingSvg], { type: 'image/svg+xml' });
+                const fallingUrl = URL.createObjectURL(fallingBlob);
+                this.monkeyFallingImage = new Image();
+                this.monkeyFallingImage.onload = () => URL.revokeObjectURL(fallingUrl);
+                this.monkeyFallingImage.src = fallingUrl;
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.bgCanvas.width = window.innerWidth;
+                this.bgCanvas.height = window.innerHeight;
+                if (this.wave) this.wave.x = this.canvas.width / 2;
+                if (this.monkey) this.monkey.x = (this.canvas.width / 2) - (this.monkey.width / 2);
+            }
+            
+            initGame() {
+                this.monkey = {
+                    x: (this.canvas.width / 2) - (GameConfig.MONKEY.WIDTH / 2),
+                    y: this.canvas.height - GameConfig.MONKEY.INITIAL_Y_OFFSET,
+                    width: GameConfig.MONKEY.WIDTH,
+                    height: GameConfig.MONKEY.HEIGHT,
+                    velocityX: 0,
+                    velocityY: 0,
+                    weight: GameConfig.MONKEY.WEIGHT,
+                    color: GameConfig.MONKEY.COLOR,
+                    isGrabbing: false,
+                    altitude: 0,
+                    equipment: {
+                        magnet: null,
+                        frame: null,
+                        aero: null
+                    }
+                };
+                
+                this.waveSystem.time = 0;
+                this.wave = {
+                    x: this.canvas.width / 2,
+                    width: GameConfig.WAVE.WIDTH,
+                    segments: GameConfig.WAVE.SEGMENTS
+                };
+                
+                this.running = true;
+                this.lastGrabQuality = 0;
+                this.grabFlashTimer = 0;
+                this.grabFlashColor = '';
+                // Reset upgrades
+                this.upgrades.forEach(u => u.collected = false);
+            }
+            
+            setupEventListeners() {
+                this.eventBus.on('input:grab', (data) => {
+                    if (data.pressed && !this.monkey.isGrabbing) this.attemptGrab();
+                    else if (!data.pressed) this.monkey.isGrabbing = false;
+                });
+                this.eventBus.on('input:restart', () => this.initGame());
+                this.eventBus.on('input:toggleSettings', () => document.getElementById('settingsPanel').classList.toggle('visible'));
+                this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) this.waveSystem.frequency = data.value; });
+                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = data.value / 10; });
+                this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / 10; });
+                this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; });
+                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = (101 - data.value) / 20; });
+                this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
+                this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
+                
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === '1') this.waveSystem.setType('sine');
+                    else if (e.key === '2') this.waveSystem.setType('square');
+                    else if (e.key === '3') this.waveSystem.setType('sawtooth');
+                });
+            }
+            
+            collectUpgrade(upgrade) {
+                upgrade.collected = true;
+                const config = upgrade.config;
+                const {gripMult, weight, dragMult} = config;
+                if (gripMult) { this.monkey.equipment.magnet = upgrade.type; this.gripMultiplier *= gripMult; }
+                if (weight) { this.monkey.equipment.frame = upgrade.type; this.monkey.weight += weight; }
+                if (dragMult) { this.monkey.equipment.aero = upgrade.type; this.dragMultiplier *= dragMult; }
+                
+                this.particleSystem.spawnParticles(
+                    this.monkey.x + this.monkey.width / 2,
+                    this.monkey.y + this.monkey.height / 2,
+                    20,
+                    config.color
+                );
+            }
+            
+            roundRect(ctx, x, y, w, h, r, fill = true) {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+                fill ? ctx.fill() : ctx.stroke();
+            }
+            
+            attemptGrab() {
+                const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
+                this.monkey.velocityY += g.momentum;
+                this.lastGrabQuality = g.quality;
+                this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
+                this.grabFlashColor = g.flashColor;
+                this.monkey.isGrabbing = true;
+                this.eventBus.emit('grab', { quality: g.quality, momentum: g.momentum });
+                this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.floor(g.quality * GameConfig.PARTICLES.MAX_COUNT), g.flashColor);
+            }
+            
+            checkCollisions() {
+                this.upgrades.forEach(upgrade => {
+                    if (upgrade.checkCollision(this.monkey)) {
+                        this.collectUpgrade(upgrade);
+                    }
+                });
+            }
+            
+            update(time) {
+                if (!this.running) return;
+                const dt = this.lastTime === 0 ? 0 : (time - this.lastTime) / 1000;
+                this.lastTime = time;
+                if (dt > 0.1) return;
+                
+                this.waveSystem.time += dt;
+                this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
+                this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
+                if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
+                this.physics.updatePosition(this.monkey, dt, this.canvas.width, this.wave.x);
+                this.particleSystem.spawnSpeedLines(this.monkey);
+                this.particleSystem.update(dt);
+                this.camera.follow(this.monkey.y - this.canvas.height * GameConfig.CAMERA.VERTICAL_OFFSET, dt);
+                
+                // Update visual systems
+                this.webglBg.update(this.monkey.altitude, time / 1000);
+                this.cloudSystem.update(this.monkey.altitude, this.canvas.height);
+                this.landmarkSystem.update(this.monkey.altitude, this.canvas.height, this.monkey.velocityY);
+                
+                // Show grass when near ground (below 200m)
+                if (this.grassGround) {
+                    if (this.monkey.altitude < 200) {
+                        this.grassGround.classList.add('visible');
+                    } else {
+                        this.grassGround.classList.remove('visible');
+                    }
+                }
+                
+                if (this.grabFlashTimer > 0) this.grabFlashTimer -= dt;
+                
+                this.render();
+                requestAnimationFrame(this.update.bind(this));
+            }
+            
+            renderVine(ctx, width, height) {
+                const wv = this.waveSystem.calculatePosition(this.waveSystem.time);
+                const nw = wv / this.waveSystem.amplitude;
+                const sp = height / this.wave.segments + (wv / this.wave.segments);
+                const wc = this.waveSystem.getColor();
+                const rgb = this.waveSystem.getRGB();
+                
+                for (let i = 0; i < this.wave.segments; i++) {
+                    const y = i * sp;
+                    if (y > height) break;
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${nw > 0 ? 0.7 + nw * 0.3 : 0.7})`;
+                    ctx.lineWidth = this.vineWidth + (nw > 0 ? nw * (this.vineWidth * 0.67) : 0);
+                    ctx.beginPath();
+                    ctx.moveTo(this.wave.x - GameConfig.WAVE.SEGMENT_WIDTH, y);
+                    ctx.lineTo(this.wave.x + GameConfig.WAVE.SEGMENT_WIDTH, y);
+                    ctx.stroke();
+                }
+                
+                ctx.save();
+                ctx.shadowBlur = 10 + Math.abs(nw) * 10;
+                ctx.shadowColor = wc;
+                ctx.strokeStyle = wc;
+                ctx.lineWidth = this.vineWidth * 2;
+                ctx.beginPath();
+                ctx.moveTo(this.wave.x, 0);
+                ctx.lineTo(this.wave.x, height);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = this.vineWidth * 0.67;
+                ctx.beginPath();
+                ctx.moveTo(this.wave.x - 1, 0);
+                ctx.lineTo(this.wave.x - 1, height);
+                ctx.stroke();
+                if (this.monkey.isGrabbing) {
+                    ctx.fillStyle = COLOR_PALETTE.GRAB_GOLD;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = COLOR_PALETTE.GRAB_GOLD;
+                    ctx.beginPath();
+                    ctx.arc(this.wave.x, this.monkey.y - this.camera.getY() + this.monkey.height / 2, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+            
+            renderSpeedLines(ctx) {
+                this.particleSystem.getActiveSpeedLines().forEach(line => {
+                    const screenY = line.y - this.camera.getY();
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${line.alpha * 0.8})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(line.x, screenY);
+                    ctx.lineTo(line.x, screenY + line.length);
+                    ctx.stroke();
+                });
+            }
+            
+            renderParticles(ctx) {
+                this.particleSystem.getActiveParticles().forEach(p => {
+                    const screenY = p.y - this.camera.getY();
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath();
+                    ctx.arc(p.x, screenY, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                });
+            }
+            
+            renderUpgrades(ctx) {
+                this.upgrades.forEach(upgrade => {
+                    upgrade.render(ctx, this.camera.getY(), this.canvas.width, this.canvas.height);
+                });
+            }
+            
+            renderMonkey(ctx) {
+                const monkeyScreenY = this.monkey.y - this.camera.getY();
+                
+                // Choose pose based on grabbing state
+                const monkeyImage = this.monkey.isGrabbing ? this.monkeyGrabbingImage : this.monkeyFallingImage;
+                
+                // Draw the cute monkey SVG behind the badge with dynamic pose
+                if (monkeyImage && monkeyImage.complete) {
+                    ctx.save();
+                    ctx.shadowBlur = GameConfig.RENDER.SHADOW_BLUR.MONKEY;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                    ctx.shadowOffsetY = 5;
+                    
+                    // Adjust size and position based on pose (falling has wider arms, grabbing is taller)
+                    const svgWidth = this.monkey.isGrabbing ? 160 : 180;
+                    const svgHeight = 240;
+                    const svgX = this.monkey.x + (this.monkey.width - svgWidth) / 2;
+                    const svgY = monkeyScreenY + (this.monkey.height - svgHeight) / 2 - 20;
+                    
+                    ctx.drawImage(monkeyImage, svgX, svgY, svgWidth, svgHeight);
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetY = 0;
+                    ctx.restore();
+                }
+                
+                const bx = this.monkey.x + GameConfig.MONKEY.BADGE_X_OFFSET, by = monkeyScreenY + GameConfig.MONKEY.BADGE_Y_OFFSET;
+                ctx.shadowBlur = GameConfig.RENDER.SHADOW_BLUR.BADGE;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                
+                // Ivory badge background with smooth curved corners
+                const badgeGrad = ctx.createLinearGradient(bx, by, bx, by + GameConfig.MONKEY.BADGE_HEIGHT);
+                badgeGrad.addColorStop(0, '#FFFFF0'); // Ivory
+                badgeGrad.addColorStop(1, '#F5F5DC'); // Beige
+                ctx.fillStyle = badgeGrad;
+                this.roundRect(ctx, bx, by, GameConfig.MONKEY.BADGE_WIDTH, GameConfig.MONKEY.BADGE_HEIGHT, 12);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.lineWidth = 2;
+                this.roundRect(ctx, bx, by, GameConfig.MONKEY.BADGE_WIDTH, GameConfig.MONKEY.BADGE_HEIGHT, 12, false);
+                ctx.shadowBlur = 0;
+                
+                // Phase Matching Indicator (quality of last grab)
+                const phaseBarWidth = 76;
+                const phaseBarHeight = 8;
+                const phaseBarX = bx + 7;
+                const phaseBarY = by + 8;
+                
+                // Background bar
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(phaseBarX, phaseBarY, phaseBarWidth, phaseBarHeight);
+                
+                // Fill bar based on grab quality
+                if (this.lastGrabQuality > 0) {
+                    const fillWidth = phaseBarWidth * this.lastGrabQuality;
+                    const phaseColor = this.lastGrabQuality > 0.8 ? '#00FF00' :
+                                      this.lastGrabQuality > 0.5 ? '#FFD700' : '#FFA500';
+                    ctx.fillStyle = phaseColor;
+                    ctx.fillRect(phaseBarX, phaseBarY, fillWidth, phaseBarHeight);
+                }
+                
+                // Altitude in KM
+                const altitudeKm = (this.monkey.altitude / 1000).toFixed(2);
+                ctx.fillStyle = '#000'; // Black text
+                ctx.font = 'bold 15px monospace';
+                ctx.fillText(`${altitudeKm}km`, bx + 7, by + 28);
+                
+                // Speed - show 0 kph when on ground
+                ctx.font = 'bold 13px monospace';
+                ctx.fillStyle = '#333'; // Dark gray text
+                const speedKph = this.monkey.altitude < 1 ? 0 : (-this.monkey.velocityY * 0.036).toFixed(0);
+                ctx.fillText(`${speedKph}kph`, bx + 7, by + 46);
+                
+                // Wave name
+                const waveType = this.waveSystem.getType();
+                ctx.fillStyle = this.waveSystem.getColor();
+                ctx.font = 'bold 11px monospace';
+                ctx.fillText(waveType.toUpperCase(), bx + 7, by + 62);
+                
+                // Wave graphic
+                const waveX = bx + 7;
+                const waveY = by + 68;
+                const waveWidth = 74;
+                const waveHeight = 10;
+                
+                ctx.strokeStyle = this.waveSystem.getColor();
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                WAVE_RENDERERS[waveType](ctx, waveX, waveY, waveWidth, waveHeight);
+                ctx.stroke();
+                
+                // Equipment icons at bottom
+                let iconX = bx + 7;
+                const iconY = by + 81;
+                if (this.monkey.equipment.magnet) {
+                    ctx.fillStyle = COLOR_PALETTE.UPGRADE_ALNICO;
+                    ctx.fillRect(iconX, iconY, 9, 9);
+                    iconX += 11;
+                }
+                if (this.monkey.equipment.frame) {
+                    ctx.fillStyle = COLOR_PALETTE.UPGRADE_CARBON;
+                    ctx.fillRect(iconX, iconY, 9, 9);
+                    iconX += 11;
+                }
+                if (this.monkey.equipment.aero) {
+                    ctx.fillStyle = COLOR_PALETTE.UPGRADE_AERO;
+                    ctx.fillRect(iconX, iconY, 9, 9);
+                }
+            }
+            
+            renderEffects(ctx, width, height) {
+                if (this.grabFlashTimer > 0) {
+                    ctx.strokeStyle = this.grabFlashColor;
+                    ctx.lineWidth = GameConfig.RENDER.BORDER_WIDTH.GRAB_FLASH;
+                    ctx.globalAlpha = this.grabFlashTimer / GameConfig.GRAB.FLASH_DURATION;
+                    ctx.strokeRect(5, 5, width - 10, height - 10);
+                    ctx.globalAlpha = 1.0;
+                }
+                const kmAlt = Math.floor(this.monkey.altitude / 1000);
+                const kmFrac = (this.monkey.altitude % 1000) / 1000;
+                if (kmAlt > 0 && kmFrac < 0.5) {
+                    ctx.fillStyle = `rgba(255, 215, 0, ${1 - kmFrac * 2})`;
+                    ctx.font = '48px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${kmAlt}km!`, width / 2, height / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+            
+            renderControls(ctx, height) {
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                ctx.fillRect(GameConfig.RENDER.CONTROLS_OFFSET, height - 95, GameConfig.RENDER.CONTROLS_WIDTH, GameConfig.RENDER.CONTROLS_HEIGHT + 15);
+                ctx.fillStyle = 'white';
+                ctx.font = '11px monospace';
+                ctx.fillText('SPACE: Grab cable', 20, height - 75);
+                ctx.fillText('← →: Move left/right', 20, height - 60);
+                ctx.fillText('1-3: Wave type', 20, height - 45);
+                ctx.fillText('R: Restart', 20, height - 30);
+                ctx.fillText('S: Settings', 20, height - 15);
+            }
+            
+            render() {
+                const ctx = this.ctx, width = this.canvas.width, height = this.canvas.height;
+                
+                this.webglBg.render();
+                
+                ctx.clearRect(0, 0, width, height);
+                
+                this.renderVine(ctx, width, height);
+                
+                this.renderUpgrades(ctx);
+                this.renderSpeedLines(ctx);
+                this.renderParticles(ctx);
+                this.renderMonkey(ctx);
+                this.renderEffects(ctx, width, height);
+                this.renderControls(ctx, height);
+            }
+        }
+        
+        window.addEventListener('load', () => new SpaceMonkeyGame());
+    </script>
+</body>
+</html>
