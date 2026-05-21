@@ -71,9 +71,9 @@ for filename in set(matches):
 html = re.sub(r"const ASSET_BASE_PATH = ['\"][^'\"]*['\"];\s*", '', html)
 
 # Write the embedded version
-with open('Space_Monkey_Elevator_Embedded.html', 'w') as f:
+with open('index.html', 'w') as f:
     f.write(html)
 
-print(f'\nCreated Space_Monkey_Elevator_Embedded.html')
+print(f'\nCreated index.html')
 print(f'Original HTML: {os.path.getsize("Space_Monkey_Elevator.html")} bytes')
-print(f'Embedded HTML: {os.path.getsize("Space_Monkey_Elevator_Embedded.html")} bytes')
+print(f'Embedded HTML: {os.path.getsize("index.html")} bytes')

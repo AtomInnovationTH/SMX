@@ -1,67 +1,108 @@
-# Space Monkey 🚀🐵
+# Space Monkey Elevator 🚀🐵
 
-[![Play Now](https://img.shields.io/badge/🎮_Play-Now-brightgreen?style=for-the-badge)](https://atominnovationth.github.io/SMX/)
-[![HTML5 Game](https://img.shields.io/badge/HTML5-Game-E34F26?style=flat&logo=html5&logoColor=white)](https://github.com/AtomInnovationTH/SMX)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+**Space Monkey Elevator — a vertical climbing game about reaching the Kármán line.**
 
-**Physics-based vertical climbing game** where you ride vibrating [Graphene tether](https://github.com/AtomInnovationTH/GMX) to space!
+> ⚠️ **Project status: archived / not actively maintained.** Issues and PRs may not receive responses. Forks are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🎮 How to Play
+<!-- TODO: replace with a 10–15s gameplay GIF when one is available -->
+![Space Monkey Elevator — falling back to Earth](screenshots/falling.png)
 
-**[► PLAY ONLINE HERE](https://atominnovationth.github.io/SMX/)** ← Click to start
+**Play it:** [atominnovationth.github.io/SMX](https://atominnovationth.github.io/SMX/)
 
-Or download and open `index.html` in your browser - no installation needed!
-
-### Controls
-- **SPACE** - Grab/Release the tether
-- **← →** - Move left/right  
-- **R** - Restart
-
-### Goal
-Climb as high as you can by timing your grabs to the tether's vibrations. Perfect timing = maximum momentum!
+Physics-based vertical climbing game where you ride a vibrating graphene tether from sea level to the Kármán Line (100 km). Time your `SPACE` presses to the wave peaks for maximum momentum.
 
 ---
 
-## 🌟 Features
+## Quick start
 
-- **Real physics simulation** - Temperature, air pressure, gravity
-- **Multiple wave patterns** - Sine, square, sawtooth mechanics
-- **Upgrade system** - Better magnets, thermal suits, computers
-- **Educational** - Learn about atmosphere layers as you climb
-- **Pure HTML5** - Runs at 120 FPS in any modern browser
+Three ways to play:
+
+1. **Clone and open** — zero dependencies, any modern browser:
+   ```bash
+   git clone https://github.com/AtomInnovationTH/SMX.git
+   cd SMX
+   open index.html
+   ```
+2. **Local dev server** — run [`start.sh`](start.sh), which launches `python3 -m http.server` on port `8000` and opens [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) (the editable source) in your browser:
+   ```bash
+   ./start.sh
+   ```
+3. **GitHub Pages** — open the live demo link at the top of this README (once Pages is enabled on your fork).
 
 ---
 
-## 🛠️ For Developers
+## Controls
 
-Want to build, modify, or understand the code? Check out:
+| Key | Action |
+|---|---|
+| `Space` | Grab / release the tether (hold during a missed window to buffer the next grab) |
+| `←` / `→` | Move left / right while grabbing |
+| `R` | Restart run |
+| `S` | Toggle settings panel |
+| `C` | Toggle Okabe-Ito colorblind palette |
+| `Esc` / `P` | Pause / resume |
+| `1` / `2` / `3` | Switch wave type — sine / square / sawtooth |
+| ⚙ button (top-right) | Open settings panel (same as `S`) |
 
-📖 **[DEVELOPERS.md](DEVELOPERS.md)** - Complete technical documentation  
-🔗 **[GMX Project](https://github.com/AtomInnovationTH/GMX)** - Related graphene tether production system
+---
 
-### Quick Start
+## Features
+
+- **Milestone shake + particles** triggered when the player crosses a milestone altitude
+- **Named landmarks** along the climb — Burj Khalifa → Mt. Everest → Kármán Line → ISS Orbit
+- **Ghost-line PB tracker** — best altitude persisted in `localStorage` and drawn as a horizontal target line
+- **Coyote time + input buffering** (`COYOTE_MS` / `BUFFER_MS` in [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html)) so near-miss grabs still feel fair
+- **One-button restart** (`R`) with a clear game-over state
+- **`prefers-reduced-motion`** honored — camera shake and particle bursts are suppressed automatically
+- **Okabe-Ito colorblind palette** toggle (`C`) — grab quality is no longer colour-only
+
+---
+
+## Building from source
+
+The repo ships two HTML files at the root:
+
+- [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) — **editable source of truth**. References assets in [`Space Elevator_files/`](Space%20Elevator_files).
+- [`index.html`](index.html) — **committed build artifact**. All assets inlined as base64 data URIs so it works offline and on GitHub Pages with zero configuration.
+
+To rebuild after editing the source:
+
 ```bash
-# Just open the HTML file
-open index.html
+python3 embed_assets.py
+```
 
-# Or serve locally
-python3 -m http.server 8000
+This regenerates [`index.html`](index.html) by inlining every asset referenced from [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html). Commit **both** files together.
+
+---
+
+## Project structure
+
+```
+.
+├── Space_Monkey_Elevator.html   # editable source (this is what you edit)
+├── index.html                   # build artifact, assets inlined (served by Pages)
+├── embed_assets.py              # build script: source → index.html
+├── start.sh                     # dev launcher (python3 http.server on :8000)
+├── Space Elevator_files/        # source assets (.webp, .svg) used by the editable HTML
+├── screenshots/                 # README / social imagery
+├── REVIEW.md                    # pre-publish engineering review
+├── LICENSE                      # MIT
+└── README.md                    # you are here
 ```
 
 ---
 
-## 📜 License
+## Credits
 
-MIT License - feel free to learn from, modify, or build upon this project!
+- Original concept: Space Monkey climbing game.
+- Technologies: vanilla JavaScript, Canvas 2D, WebGL atmosphere shader.
+- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/).
 
----
-
-## 🙏 Credits
-
-**Original Concept:** Space Monkey climbing game  
-**Technologies:** Vanilla JavaScript, Canvas 2D, WebGL  
-**Inspiration:** Space Elevator by Neal Agarwal
+<!-- TODO: create ATTRIBUTIONS.md with per-asset sourcing for the photographic .webp files in Space Elevator_files/ before any wide redistribution — see REVIEW.md §6 -->
+Per-asset attributions for the photographic imagery in [`Space Elevator_files/`](Space%20Elevator_files) are pending in a future `ATTRIBUTIONS.md`. See [REVIEW.md](REVIEW.md) §6 for the audit.
 
 ---
 
-**Ready to climb?** [🚀 Play Now](https://atominnovationth.github.io/SMX/)
+## License
+
+[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. The MIT grant covers the **code only**; embedded image assets are subject to their original licenses (see the attributions note above).

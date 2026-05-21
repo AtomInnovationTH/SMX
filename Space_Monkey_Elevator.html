@@ -72,6 +72,110 @@
         #frequency, #amplitude, #width, #tension { accent-color: #22C55E; }
         
         select { width: 210px; padding: 5px; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 3px; font-size: 11px; }
+        
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 40%, #2a1a3e 70%, #0a0a2e 100%);
+            z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        #loading-overlay .loading-title {
+            font-family: monospace; font-size: 28px; color: #bef0ff;
+            text-shadow: 0 0 20px rgba(100, 200, 255, 0.5); margin-bottom: 30px; letter-spacing: 2px;
+        }
+        #loading-overlay .loading-spinner {
+            font-size: 48px; animation: pulse-spin 1.5s ease-in-out infinite; margin-bottom: 20px;
+        }
+        @keyframes pulse-spin {
+            0% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+            50% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+        }
+        #loading-progress {
+            font-family: monospace; font-size: 14px; color: #6bc8ff;
+        }
+        
+        /* Pause Overlay */
+        #pause-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #pause-overlay .pause-text {
+            font-family: monospace; font-size: 48px; color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.4); letter-spacing: 6px; margin-bottom: 16px;
+        }
+        #pause-overlay .pause-hint {
+            font-family: monospace; font-size: 14px; color: #aaa;
+        }
+        
+        /* Restart Toast */
+        #restart-toast {
+            position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85); color: #ffa502; padding: 10px 24px;
+            border-radius: 8px; font: bold 14px monospace; z-index: 50;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            border: 1px solid rgba(255, 165, 2, 0.3);
+        }
+        #restart-toast.visible { opacity: 1; }
+        
+        /* Mobile Notice */
+        #mobile-notice {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 40%, #2a1a3e 70%, #0a0a2e 100%);
+            z-index: 10000; display: none; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 20px;
+        }
+        #mobile-notice .mobile-emoji { font-size: 64px; margin-bottom: 20px; }
+        #mobile-notice .mobile-title {
+            font-family: monospace; font-size: 20px; color: #bef0ff; margin-bottom: 12px;
+        }
+        #mobile-notice .mobile-message {
+            font-family: monospace; font-size: 14px; color: #8ab4cc; margin-bottom: 30px; line-height: 1.6;
+        }
+        #mobile-notice .try-anyway-btn {
+            font-family: monospace; font-size: 13px; color: #6bc8ff;
+            background: rgba(107, 200, 255, 0.1); border: 1px solid rgba(107, 200, 255, 0.3);
+            padding: 8px 20px; border-radius: 6px; cursor: pointer;
+        }
+        #mobile-notice .try-anyway-btn:hover { background: rgba(107, 200, 255, 0.2); }
+        
+        /* UX: Game Over Overlay (2e) */
+        #game-over-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.78); z-index: 100;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            font-family: monospace; color: white; text-align: center;
+        }
+        .go-previous { font-size: 18px; color: #666; margin-bottom: 8px; text-decoration: line-through; }
+        .go-current { font-size: 42px; color: #bef0ff; text-shadow: 0 0 20px rgba(100,200,255,0.5); margin-bottom: 8px; }
+        .go-best { font-size: 24px; color: #FFD700; margin-bottom: 16px; }
+        .go-new-best { font-size: 18px; color: #FF6B6B; margin-bottom: 12px; }
+        .go-prompt { font-size: 15px; color: #aaa; margin-bottom: 20px; animation: pulse-spin 2s ease-in-out infinite; }
+        .go-settings { font-size: 12px; color: #6bc8ff; cursor: pointer; text-decoration: underline; }
+        
+        /* UX: Settings gear button (2f) */
+        #ux-settings-btn {
+            position: fixed; top: 14px; right: 14px; z-index: 99;
+            background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.18);
+            color: white; font-size: 18px; width: 34px; height: 34px;
+            border-radius: 50%; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; padding: 0;
+            font-family: monospace; line-height: 1;
+        }
+        #ux-settings-btn:hover { background: rgba(0,0,0,0.7); }
+        
+        /* UX: Altimeter landmark floating label (2d) */
+        #ux-altimeter-label {
+            position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+            color: #bef0ff; font: bold 13px monospace; padding: 5px 14px;
+            border-radius: 6px; z-index: 50; pointer-events: none;
+            opacity: 0; transition: opacity 0.5s;
+        }
+        #ux-altimeter-label.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -84,6 +188,46 @@
     <div class="grid-overlay"></div>
     <div class="noise-overlay"></div>
     <div class="grass-ground"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-title">Space Monkey Elevator</div>
+        <div class="loading-spinner">🐵</div>
+        <div id="loading-progress">Loading... 0%</div>
+    </div>
+    
+    <!-- Pause Overlay -->
+    <div id="pause-overlay">
+        <div class="pause-text">PAUSED</div>
+        <div class="pause-hint">Press ESC or P to resume</div>
+    </div>
+    
+    <!-- Restart Confirmation Toast -->
+    <div id="restart-toast">Press R again to restart</div>
+    
+    <!-- UX: Game Over Overlay (2e) -->
+    <div id="game-over-overlay">
+        <div class="go-previous" id="go-previous"></div>
+        <div class="go-current" id="go-current"></div>
+        <div class="go-best" id="go-best"></div>
+        <div class="go-new-best" id="go-new-best" style="display:none;">🎉 NEW BEST! 🎉</div>
+        <div class="go-prompt" id="go-prompt">Press SPACE or Tap to restart</div>
+        <div class="go-settings" id="go-settings-link">Settings</div>
+    </div>
+    
+    <!-- UX: Altimeter landmark label (2d) -->
+    <div id="ux-altimeter-label"></div>
+    
+    <!-- UX: Settings gear button (2f) -->
+    <button id="ux-settings-btn" title="Settings (C)">⚙</button>
+    
+    <!-- Mobile/Touch Notice -->
+    <div id="mobile-notice">
+        <div class="mobile-emoji">🐵</div>
+        <div class="mobile-title">Space Monkey Elevator requires a keyboard</div>
+        <div class="mobile-message">Please visit on a desktop or laptop computer</div>
+        <button class="try-anyway-btn" id="try-anyway-btn">Try anyway</button>
+    </div>
     
     <div id="settingsPanel">
         <h3>Settings (Press S to toggle)</h3>
@@ -101,7 +245,7 @@
         </div>
         <div class="slider-container">
             <label>Frequency: <span id="frequencyValue">0.5 Hz</span></label>
-            <input type="range" id="frequency" min="0.5" max="1000" step="0.5" value="0.5">
+            <input type="range" id="frequency" min="0" max="100" step="1" value="0">
         </div>
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">700 mm</span></label>
@@ -133,6 +277,116 @@
 
     <script>
         const ASSET_BASE_PATH = 'Space Elevator_files/';
+        
+        // ===== UX TUNABLE CONSTANTS ===== //
+        // UX: coyote time + input buffering (2b)
+        const COYOTE_MS = 80;              // Grace period (ms) after releasing vine to re-grab
+        const BUFFER_MS = 80;              // Buffer window (ms) for grab input while already grabbing
+        
+        // UX: screen shake + milestone particles (2a)
+        const MILESTONE_SHAKE_DURATION_MS = 250;  // How long the shake lasts (ms)
+        const MILESTONE_SHAKE_AMPLITUDE = 8;      // Max pixel displacement
+        const MILESTONE_PARTICLE_COUNT = 16;      // Number of sparkle particles per milestone
+        const MILESTONE_INTERVAL_M = 1000;        // Meters between distance milestones
+        
+        // UX: ghost line of previous best (2c)
+        const GHOST_STORAGE_KEY = 'spaceMonkey.bestRun.v1';
+        
+        // UX: game-over gate (2e)
+        const GAME_OVER_MIN_ALT = 50;       // Must reach this altitude before game-over can trigger
+        const GAME_OVER_INPUT_GATE_MS = 500; // Minimum ms before restart input accepted
+        
+        // UX: reduced motion + colorblind settings (2f)
+        const SETTINGS_STORAGE_KEY = 'spaceMonkey.settings.v1';
+        const REDUCED_MOTION_PARALLAX_MULT = 0.5;
+        
+        // UX: diegetic altimeter named landmarks (2d)
+        const ALTIMETER_LANDMARKS = [
+            { altitude: 0,      name: 'Sea Level' },
+            { altitude: 100,    name: 'Treetops' },
+            { altitude: 828,    name: 'Burj Khalifa' },
+            { altitude: 4000,   name: 'Cloud Base' },
+            { altitude: 8848,   name: 'Mt. Everest Summit' },
+            { altitude: 12000,  name: 'Cruising Altitude' },
+            { altitude: 20000,  name: 'Stratosphere' },
+            { altitude: 39000,  name: 'Baumgartner Jump' },
+            { altitude: 100000, name: 'Kármán Line (Space!)' },
+            { altitude: 400000, name: 'ISS Orbit' }
+        ];
+        
+        // UX: colorblind-safe palette — Okabe-Ito / Wong (2f)
+        const COLORBLIND_PALETTE = {
+            VINE_SINE: '#0072B2',       // Sky blue
+            VINE_SQUARE: '#D55E00',     // Vermillion
+            VINE_SAWTOOTH: '#E69F00',   // Orange
+            GRAB_PERFECT: '#009E73',    // Bluish green
+            GRAB_GOOD: '#F0E442',       // Yellow
+            GRAB_POOR: '#CC79A7',       // Reddish purple
+            GRAB_GOLD: '#E69F00',       // Orange
+            UPGRADE_ALNICO: '#D55E00',
+            UPGRADE_CARBON: '#0072B2',
+            UPGRADE_NEODYMIUM: '#F0E442',
+            UPGRADE_AERO: '#009E73',
+            UPGRADE_TITANIUM: '#C0C0C0',
+            UPGRADE_STREAMLINE: '#009E73',
+            UPGRADE_HALLBACH: '#CC79A7'
+        };
+        
+        // UX: runtime flags (2f) — set during init
+        let _uxReducedMotion = false;
+        let _uxColorblind = false;
+        
+        // Store originals so we can swap back
+        const _ORIGINAL_PALETTE = {};
+        
+        function _initPaletteBackup() {
+            Object.keys(COLORBLIND_PALETTE).forEach(k => {
+                if (COLOR_PALETTE[k] !== undefined) _ORIGINAL_PALETTE[k] = COLOR_PALETTE[k];
+            });
+        }
+        
+        // UX: apply or revert colorblind palette (2f)
+        function applyColorblindPalette(enabled) {
+            _uxColorblind = enabled;
+            const src = enabled ? COLORBLIND_PALETTE : _ORIGINAL_PALETTE;
+            Object.keys(src).forEach(k => {
+                if (COLOR_PALETTE[k] !== undefined) COLOR_PALETTE[k] = src[k];
+            });
+            // Propagate to GameConfig static refs (mutate in-place to preserve WaveSystem reference)
+            GameConfig.GRAB.PERFECT_COLOR = COLOR_PALETTE.GRAB_PERFECT;
+            GameConfig.GRAB.GOOD_COLOR = COLOR_PALETTE.GRAB_GOOD;
+            GameConfig.GRAB.POOR_COLOR = COLOR_PALETTE.GRAB_POOR;
+            GameConfig.WAVE.COLORS.sine = COLOR_PALETTE.VINE_SINE;
+            GameConfig.WAVE.COLORS.square = COLOR_PALETTE.VINE_SQUARE;
+            GameConfig.WAVE.COLORS.sawtooth = COLOR_PALETTE.VINE_SAWTOOTH;
+            // Persist
+            _persistSettings();
+        }
+        
+        function _persistSettings() {
+            try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ colorblind: _uxColorblind, reducedMotion: _uxReducedMotion })); } catch(e) {}
+        }
+        // ===== END UX CONSTANTS ===== //
+        
+        // Logarithmic slider helpers for frequency
+        function logSliderToFreq(sliderVal) {
+            // Maps 0-100 slider to 0.5-1000 Hz logarithmically
+            const minFreq = 0.5;
+            const maxFreq = 1000;
+            const minLog = Math.log10(minFreq);
+            const maxLog = Math.log10(maxFreq);
+            const logValue = minLog + (sliderVal / 100) * (maxLog - minLog);
+            return Math.pow(10, logValue);
+        }
+
+        function freqToLogSlider(freq) {
+            // Maps 0.5-1000 Hz back to 0-100 slider value
+            const minFreq = 0.5;
+            const maxFreq = 1000;
+            const minLog = Math.log10(minFreq);
+            const maxLog = Math.log10(maxFreq);
+            return ((Math.log10(freq) - minLog) / (maxLog - minLog)) * 100;
+        }
         
         const COLOR_PALETTE = {
             // Vine/Tether colors
@@ -233,6 +487,12 @@
             { name: 'Party Balloons', altitude: 2600, sprite: 'party-balloons-sm.webp', width: 136, position: 'right' },
             { name: 'Paratrooper', altitude: 2670, sprite: 'paratrooper-sm.webp', width: 240, position: 'left' },
             { name: 'Common Crane', altitude: 2740, sprite: 'crane-sm.webp', width: 200, position: 'right' },
+            { name: 'Mountain Goat', altitude: 3500, sprite: 'mountain-goat-sm.webp', width: 160, position: 'left' },
+            { name: 'Ballooning Spider', altitude: 4000, sprite: 'spider-sm.webp', width: 96, position: 'right' },
+            { name: 'Purple Sandwort', altitude: 4200, info: 'Highest flowering plant', sprite: 'sandwort-sm.webp', width: 112, position: 'left' },
+            { name: 'Yak', altitude: 4500, sprite: 'yak-sm.webp', width: 192, position: 'right' },
+            { name: 'Highest Lizard', altitude: 5000, info: 'Highest reptile on Earth', sprite: 'lizard-sm.webp', width: 128, position: 'left' },
+            { name: 'V-2 Rocket', altitude: 5500, info: 'First object in space (1944)', sprite: 'v-2-sm.webp', width: 144, position: 'right' },
             { name: 'Falcon 9 (staging)', altitude: 6500, info: 'Rocket staging', sprite: 'falcon-9-sm.webp', width: 200, position: 'left' },
             { name: 'Mount Everest', altitude: 8848, info: 'Highest mountain', sprite: 'mount-everest-s-800.webp', width: '100vw', position: 'center', fullWidth: true },
             { name: 'Spitfire', altitude: 10200, sprite: 'spitfire-sm.webp', width: 296, position: 'right' },
@@ -261,8 +521,7 @@
             { name: 'Douglas Skyrocket', altitude: 26400, info: 'First aircraft to reach Mach 2', sprite: 'douglas-sm.webp', width: 496, position: 'left' },
             { name: 'SR-71 Blackbird', altitude: 27600, info: '1976 altitude record', sprite: 'sr-71-sm.webp', width: 560, position: 'right' },
             { name: 'Helios', altitude: 28800, sprite: 'helios-sm.webp', width: 320, position: 'left' },
-            
-            // === HUGE GAP === Edge of atmosphere approaches
+            { name: 'F-104 Starfighter', altitude: 30000, info: 'First aircraft above 100,000 ft', sprite: 'f-104-sm.webp', width: 368, position: 'left' },
             
             // === HYPERSONIC ZONE (32000-40000m) === Extreme altitude
             { name: 'NASA X-43', altitude: 32000, info: 'Experimental hypersonic aircraft', sprite: 'nasa-x-43-sm.webp', width: 368, position: 'right' },
@@ -270,8 +529,8 @@
             { name: 'Weather Balloon', altitude: 37000, sprite: 'weather-balloon-sm.webp', width: 240, position: 'right' },
             { name: 'Paper Airplane', altitude: 38500, info: 'Highest paper airplane flight', sprite: 'paper-airplane-sm.webp', width: 112, position: 'left' },
             { name: 'Felix Baumgartner', altitude: 40000, info: 'First person to break sound barrier in freefall', sprite: 'felix-sm.webp', width: 139, position: 'right' },
-            
-            // === ENORMOUS GAP === Journey to space
+            { name: 'Highest Mouse', altitude: 48000, info: 'V-2 biological experiment', sprite: 'highest-mouse-sm.webp', width: 96, position: 'left' },
+            { name: 'Sud-Ouest Trident', altitude: 55000, sprite: 'sud-ouest-sm.webp', width: 320, position: 'right' },
             
             // === SPACE TRANSITIONS (62000-100000m) === Epic finale
             { name: 'Sounding Rocket', altitude: 62000, sprite: 'sounding-rocket-sm.webp', width: 88, position: 'left' },
@@ -589,6 +848,8 @@
                     console.error('WebGL not supported');
                     return;
                 }
+                this.cachedHeight = window.innerHeight;
+                window.addEventListener('resize', () => { this.cachedHeight = window.innerHeight; });
                 this.setupShaders();
             }
 
@@ -629,12 +890,30 @@
                 });
                 
                 this.createPlaceholderTextures();
+                this.bindTextures();
             }
             
             createPlaceholderTextures() {
-                Object.entries(TEXTURE_CONFIGS).forEach(([key, config]) => {
+                const entries = Object.entries(TEXTURE_CONFIGS);
+                if (window.loadingManager) window.loadingManager.expect(entries.length);
+                entries.forEach(([key, config]) => {
                     const canvas = createTextureFromConfig(config);
                     if (canvas) this.createTextureFromCanvas(key + 'Texture', canvas);
+                    if (window.loadingManager) window.loadingManager.loaded();
+                });
+            }
+            
+            bindTextures() {
+                const gl = this.gl;
+                const textureNames = [
+                    'rainTexture', 'horizonTexture', 'horizon2Texture', 'horizon3Texture',
+                    'horizon4Texture', 'airglowTexture', 'auroraTexture', 'aurora2Texture',
+                    'starsTexture', 'meteorTexture'
+                ];
+                textureNames.forEach((name, i) => {
+                    gl.activeTexture(gl.TEXTURE0 + i);
+                    gl.bindTexture(gl.TEXTURE_2D, this[name]);
+                    gl.uniform1i(this.uniforms[name], i);
                 });
             }
             
@@ -654,7 +933,7 @@
             }
             
             update(altitude, time) {
-                this.rainTextureLoaded = true;
+                if (!this.rainTextureLoaded) this.rainTextureLoaded = true;
                 this.altitude = altitude;
                 this.time = time;
             }
@@ -668,7 +947,7 @@
                 const scrollPos = (this.altitude || 0) / 100000.0;
                 gl.uniform1f(this.uniforms.scrollPos, scrollPos);
                 gl.uniform1f(this.uniforms.time, this.time || 0);
-                gl.uniform1f(this.uniforms.windowHeight, window.innerHeight / 100000.0);
+                gl.uniform1f(this.uniforms.windowHeight, this.cachedHeight / 100000.0);
                 
                 // Calculate aspect ratio for effects
                 const pageAspectRatio = this.canvas.height / this.canvas.width;
@@ -688,19 +967,6 @@
                 gl.uniform1i(this.uniforms.showAuroras, showAuroras ? 1 : 0);
                 gl.uniform1i(this.uniforms.showMeteors, showMeteors ? 1 : 0);
                 gl.uniform1f(this.uniforms.rainScale, 1.0);
-                
-                // Bind all textures in order
-                const textureNames = [
-                    'rainTexture', 'horizonTexture', 'horizon2Texture', 'horizon3Texture',
-                    'horizon4Texture', 'airglowTexture', 'auroraTexture', 'aurora2Texture',
-                    'starsTexture', 'meteorTexture'
-                ];
-                
-                textureNames.forEach((name, i) => {
-                    gl.activeTexture(gl.TEXTURE0 + i);
-                    gl.bindTexture(gl.TEXTURE_2D, this[name]);
-                    gl.uniform1i(this.uniforms[name], i);
-                });
                 
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             }
@@ -723,6 +989,7 @@
                     { type: 'cirrostratus', altitude: 9100, img: ASSET_BASE_PATH + 'cirrostratus-950.webp', width: '140vw', maxWidth: '2300px', minWidth: '2300px', opacity: '0.9' },
                     { type: 'cirrostratus2', altitude: 9200, img: ASSET_BASE_PATH + 'cirrostratus2-950.webp', width: '140vw', maxWidth: '2300px', minWidth: '2300px', opacity: '0.75' }
                 ];
+                if (window.loadingManager) window.loadingManager.expect(this.clouds.length);
                 this.createClouds();
             }
 
@@ -737,6 +1004,8 @@
             createClouds() {
                 this.clouds.forEach(cloud => {
                     const img = document.createElement('img');
+                    img.onload = () => { if (window.loadingManager) window.loadingManager.loaded(); };
+                    img.onerror = () => { if (window.loadingManager) window.loadingManager.loaded(); };
                     img.src = cloud.img;
                     img.className = 'cloud-layer';
                     
@@ -765,18 +1034,21 @@
                     const parallaxFactor = VISUAL_CONSTANTS.CLOUD_PARALLAX_FACTOR;
                     const parallaxDiff = (cloud.altitude - cameraAltitude) * parallaxFactor;
                     const screenY = screenHeight / 2 - parallaxDiff * 10;
-                    cloud.element.style.top = `${screenY}px`;
                     
                     const actualAltDiff = Math.abs(cameraAltitude - cloud.altitude);
                     const fadeStart = VISUAL_CONSTANTS.CLOUD_FADE_START_DISTANCE;
                     const fadeEnd = VISUAL_CONSTANTS.CLOUD_FADE_END_DISTANCE;
                     const visible = actualAltDiff < fadeEnd;
-                    cloud.element.style.display = visible ? 'block' : 'none';
-                    if (visible) {
-                        const opacity = actualAltDiff < fadeStart ? 1 :
-                                       1 - ((actualAltDiff - fadeStart) / 5000);
-                        cloud.element.style.opacity = opacity * (parseFloat(cloud.opacity) || 1);
+                    const wasVisible = cloud._wasVisible || false;
+                    if (visible !== wasVisible) {
+                        cloud.element.style.display = visible ? 'block' : 'none';
+                        cloud._wasVisible = visible;
                     }
+                    if (!visible) return;
+                    cloud.element.style.top = `${screenY}px`;
+                    const opacity = actualAltDiff < fadeStart ? 1 :
+                                   1 - ((actualAltDiff - fadeStart) / 5000);
+                    cloud.element.style.opacity = opacity * (parseFloat(cloud.opacity) || 1);
                 });
             }
         }
@@ -785,6 +1057,7 @@
             constructor(container) {
                 this.container = container;
                 this.landmarks = LANDMARKS_DATA;
+                if (window.loadingManager) window.loadingManager.expect(this.landmarks.filter(l => l.sprite).length);
                 this.createLandmarks();
             }
 
@@ -818,6 +1091,11 @@
                     `;
                     
                     div.innerHTML = content;
+                    const imgEl = div.querySelector('img.landmark-icon');
+                    if (imgEl) {
+                        imgEl.onload = () => { if (window.loadingManager) window.loadingManager.loaded(); };
+                        imgEl.onerror = () => { if (window.loadingManager) window.loadingManager.loaded(); };
+                    }
                     div.dataset.altitude = landmark.altitude;
                     div.dataset.width = landmark.width;
                     this.container.appendChild(div);
@@ -826,25 +1104,25 @@
             }
 
             update(cameraAltitude, screenHeight, monkeySpeed = 0) {
+                // Hoist parallax constants out of per-landmark loop (computed once per frame)
+                const maxAltitude = VISUAL_CONSTANTS.LANDMARK_MAX_ALTITUDE;
+                const speed = Math.abs(monkeySpeed);
+                const speedThreshold = VISUAL_CONSTANTS.LANDMARK_SPEED_THRESHOLD;
+                const speedFactor = Math.min(speed / speedThreshold, 1.8);
+                const baseMinParallax = VISUAL_CONSTANTS.LANDMARK_PARALLAX_MIN;
+                const baseMaxParallax = VISUAL_CONSTANTS.LANDMARK_PARALLAX_MAX;
+                const minParallax = baseMinParallax * (1 - speedFactor * 0.35);
+                const maxParallax = baseMaxParallax;
+
                 this.landmarks.forEach(landmark => {
-                    // Enhanced Parallax: creates strong depth perception
-                    // Lower altitude = faster scrolling (closer to camera)
-                    // Higher altitude = much slower scrolling (further from camera)
-                    // Increased parallax for better visual depth
-                    const maxAltitude = VISUAL_CONSTANTS.LANDMARK_MAX_ALTITUDE;
-                    
-                    // Speed-based parallax: enhanced at high speeds
-                    const speed = Math.abs(monkeySpeed);
-                    const speedThreshold = VISUAL_CONSTANTS.LANDMARK_SPEED_THRESHOLD;
-                    const speedFactor = Math.min(speed / speedThreshold, 1.8);
-                    
-                    // INCREASED parallax range for stronger depth effect
-                    const baseMinParallax = VISUAL_CONSTANTS.LANDMARK_PARALLAX_MIN;
-                    const baseMaxParallax = VISUAL_CONSTANTS.LANDMARK_PARALLAX_MAX;
-                    
-                    // At high speeds, enhance parallax significantly
-                    const minParallax = baseMinParallax * (1 - speedFactor * 0.35); // Min goes to ~0.16 at max speed
-                    const maxParallax = baseMaxParallax;
+                    // Quick altitude cull - skip landmarks more than 15000m away
+                    const altDiff = Math.abs(landmark.altitude - cameraAltitude);
+                    if (altDiff > 15000) {
+                        if (landmark.element.style.display !== 'none') {
+                            landmark.element.style.display = 'none';
+                        }
+                        return;
+                    }
                     
                     // Calculate parallax factor based on landmark altitude
                     // Lower altitude = higher parallax factor (faster scrolling)
@@ -1043,20 +1321,27 @@
             release(obj) {
                 const index = this.active.indexOf(obj);
                 if (index !== -1) {
-                    this.active.splice(index, 1);
-                    this.resetFn(obj);
-                    this.pool.push(obj);
+                    // Swap with last element for O(1) removal
+                    const last = this.active[this.active.length - 1];
+                    this.active[index] = last;
+                    this.active.length--;
                 }
+                this.resetFn(obj);
+                this.pool.push(obj);
             }
             
             getActive() { return this.active; }
             
             update(updateFn, dt) {
+                // Iterate backwards to safely swap-with-last during removal
                 for (let i = this.active.length - 1; i >= 0; i--) {
                     const obj = this.active[i];
                     const shouldRemove = updateFn(obj, dt);
                     if (shouldRemove) {
-                        this.active.splice(i, 1);
+                        // Swap with last element for O(1) removal
+                        const last = this.active[this.active.length - 1];
+                        this.active[i] = last;
+                        this.active.length--;
                         this.resetFn(obj);
                         this.pool.push(obj);
                     }
@@ -1131,8 +1416,6 @@
                 this.config = gameConfig;
                 this.eventBus = eventBus;
             }
-            
-            calculateWavePosition(waveSystem) { return waveSystem.calculatePosition(waveSystem.time); }
             
             calculateWaveVelocity(waveSystem) { return waveSystem.calculateVelocity(waveSystem.time); }
             
@@ -1211,7 +1494,9 @@
                 this.targetY = targetY;
                 if (useSmoothing) {
                     const diff = this.targetY - this.y;
-                    this.y += diff * this.smoothing;
+                    const absDiff = Math.abs(diff);
+                    const effectiveSmoothing = absDiff > 500 ? 0.5 : this.smoothing;
+                    this.y += diff * effectiveSmoothing;
                 } else {
                     this.y = this.targetY;
                 }
@@ -1241,6 +1526,8 @@
                     if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: true });
                     if (e.key === 'r' || e.key === 'R') this.eventBus.emit('input:restart', {});
                     if (e.key === 's' || e.key === 'S') this.eventBus.emit('input:toggleSettings', {});
+                    // UX: colorblind palette toggle (2f)
+                    if (e.key === 'c' || e.key === 'C') this.eventBus.emit('input:toggleColorblind', {});
                 });
                 
                 window.addEventListener('keyup', (e) => {
@@ -1266,6 +1553,7 @@
                     materialElement.addEventListener('change', (e) => {
                         const selectedText = e.target.options[e.target.selectedIndex].text;
                         document.getElementById('materialValue').textContent = selectedText;
+                        this.eventBus.emit('settings:material', { value: parseInt(e.target.value) });
                     });
                 }
                 
@@ -1273,12 +1561,21 @@
                 Object.entries(UI_CONFIG).forEach(([id, config]) => {
                     const element = document.getElementById(id);
                     if (element) {
-                        element.addEventListener('input', (e) => {
-                            const value = e.target.value;
-                            const formatted = config.formatter ? config.formatter(value) : value;
-                            document.getElementById(id + 'Value').textContent = formatted + config.unit;
-                            this.eventBus.emit('settings:' + id, { value: parseFloat(value) });
-                        });
+                        if (id === 'frequency') {
+                            // Frequency uses logarithmic scale
+                            element.addEventListener('input', (e) => {
+                                const freq = logSliderToFreq(parseFloat(e.target.value));
+                                document.getElementById('frequencyValue').textContent = freq.toFixed(1) + ' Hz';
+                                this.eventBus.emit('settings:frequency', { value: freq });
+                            });
+                        } else {
+                            element.addEventListener('input', (e) => {
+                                const value = e.target.value;
+                                const formatted = config.formatter ? config.formatter(value) : value;
+                                document.getElementById(id + 'Value').textContent = formatted + config.unit;
+                                this.eventBus.emit('settings:' + id, { value: parseFloat(value) });
+                            });
+                        }
                     }
                 });
             }
@@ -1314,7 +1611,7 @@
             spawnSpeedLines(monkey) {
                 const speed = Math.abs(monkey.velocityY);
                 if (speed > GameConfig.SPEED_LINES.THRESHOLD) {
-                    const count = Math.floor(speed / GameConfig.SPEED_LINES.THRESHOLD);
+                    const count = Math.min(5, Math.floor(speed / GameConfig.SPEED_LINES.THRESHOLD));
                     for (let i = 0; i < count; i++) {
                         const s = this.speedLinePool.acquire();
                         s.x = monkey.x + Math.random() * monkey.width;
@@ -1387,15 +1684,71 @@
                 this.tetherMultiplier = GameConfig.PHYSICS.MOMENTUM_MULTIPLIER;
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
+                this.materialDamping = 1.0;
+                
+                // Pause state
+                this.paused = false;
+                
+                // Restart confirmation state
+                this.restartPending = false;
+                this.restartTimer = null;
                 
                 this.setupEventListeners();
                 this.initGame();
                 window.addEventListener('resize', () => this.resizeCanvas());
                 this.lastTime = 0;
-                requestAnimationFrame(this.update.bind(this));
+                this._boundUpdate = this.update.bind(this);
+                this._badgeGradient = null;
+                this._badgeGradientY = null;
+                
+                // UX: game state for new features
+                this.gameOver = false;
+                this.gameOverTime = 0;
+                this.maxAltitude = 0;
+                this.previousScore = 0;
+                this.bestScore = 0;
+                this.milestonesPassed = new Set();
+                this.landmarksPassed = new Set();
+                this.ghostBestAltitude = 0;
+                this.coyoteTimeLeft = 0;       // UX: coyote time (2b)
+                this.bufferedGrab = false;      // UX: input buffering (2b)
+                this.currentLandmarkName = '';
+                this.currentLandmarkAlt = 0;
+                this.gameOverOverlay = document.getElementById('game-over-overlay');
+                this.altimeterLabel = document.getElementById('ux-altimeter-label');
+                
+                // UX: load persisted best score + ghost (2c)
+                try {
+                    this.bestScore = parseFloat(localStorage.getItem('spaceMonkey.bestScore') || '0');
+                    this.ghostBestAltitude = parseFloat(localStorage.getItem(GHOST_STORAGE_KEY) || '0');
+                } catch(e) {}
+                
+                // UX: settings gear button handler (2f)
+                const gearBtn = document.getElementById('ux-settings-btn');
+                if (gearBtn) gearBtn.addEventListener('click', () => {
+                    applyColorblindPalette(!_uxColorblind);
+                    if (this.waveSystem) this.waveSystem.cachedColor = null;
+                });
+                
+                // UX: game-over settings link (2f)
+                const goSettingsLink = document.getElementById('go-settings-link');
+                if (goSettingsLink) goSettingsLink.addEventListener('click', () => {
+                    document.getElementById('settingsPanel').classList.toggle('visible');
+                });
+                
+                // Defer game loop until loading completes
+                if (window.loadingManager) {
+                    window.loadingManager.onComplete = () => {
+                        this.lastTime = 0;
+                        requestAnimationFrame(this._boundUpdate);
+                    };
+                } else {
+                    requestAnimationFrame(this._boundUpdate);
+                }
             }
             
             loadMonkeySvg() {
+                if (window.loadingManager) window.loadingManager.expect(2);
                 // Create grabbing pose SVG - right arm reaching HIGH above head to grab vine
                 const grabbingSvg = `
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -30 160 270">
@@ -1571,13 +1924,13 @@
                 const grabbingBlob = new Blob([grabbingSvg], { type: 'image/svg+xml' });
                 const grabbingUrl = URL.createObjectURL(grabbingBlob);
                 this.monkeyGrabbingImage = new Image();
-                this.monkeyGrabbingImage.onload = () => URL.revokeObjectURL(grabbingUrl);
+                this.monkeyGrabbingImage.onload = () => { URL.revokeObjectURL(grabbingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
                 this.monkeyGrabbingImage.src = grabbingUrl;
                 
                 const fallingBlob = new Blob([fallingSvg], { type: 'image/svg+xml' });
                 const fallingUrl = URL.createObjectURL(fallingBlob);
                 this.monkeyFallingImage = new Image();
-                this.monkeyFallingImage.onload = () => URL.revokeObjectURL(fallingUrl);
+                this.monkeyFallingImage.onload = () => { URL.revokeObjectURL(fallingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
                 this.monkeyFallingImage.src = fallingUrl;
             }
             
@@ -1610,39 +1963,177 @@
                 };
                 
                 this.waveSystem.time = 0;
+                this.waveSystem.frequency = GameConfig.WAVE.DEFAULT_FREQUENCY;
+                this.waveSystem.amplitude = GameConfig.WAVE.DEFAULT_AMPLITUDE;
                 this.wave = {
                     x: this.canvas.width / 2,
                     width: GameConfig.WAVE.WIDTH,
                     segments: GameConfig.WAVE.SEGMENTS
                 };
                 
+                // Reset physics multipliers to defaults
+                this.vineWidth = 4.5;
+                this.vineTension = 100;
+                this.materialDamping = 1.0;
+                this.gripMultiplier = 1.0;
+                this.gravityMultiplier = 1.0;
+                this.dragMultiplier = 1.0;
+                
                 this.running = true;
                 this.lastGrabQuality = 0;
                 this.grabFlashTimer = 0;
                 this.grabFlashColor = '';
+                
+                // UX: reset game-over & milestone state
+                this.previousScore = this.maxAltitude > 0 ? this.maxAltitude : this.previousScore;
+                this.gameOver = false;
+                this.gameOverTime = 0;
+                this.maxAltitude = 0;
+                this.milestonesPassed = new Set();
+                this.landmarksPassed = new Set();
+                this.coyoteTimeLeft = 0;
+                this.bufferedGrab = false;
+                this.currentLandmarkName = '';
+                this.currentLandmarkAlt = 0;
+                if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'none';
+                if (this.altimeterLabel) { this.altimeterLabel.textContent = ''; this.altimeterLabel.classList.remove('visible'); }
+                
                 // Reset upgrades
                 this.upgrades.forEach(u => u.collected = false);
+                
+                // Reset HTML slider elements and labels to defaults
+                const sliderDefaults = {
+                    frequency:  { value: 0,      label: '0.5 Hz' },
+                    amplitude:  { value: 700,    label: '700 mm' },
+                    width:      { value: 45,     label: '45 mm' },
+                    tension:    { value: 100,    label: '100 kg' },
+                    grip:       { value: 1,      label: '1%' },
+                    gravity:    { value: 1.00,   label: '1.00 G' },
+                    weight:     { value: 1,      label: '1 kg' }
+                };
+                Object.entries(sliderDefaults).forEach(([id, def]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = def.value;
+                    const lbl = document.getElementById(id + 'Value');
+                    if (lbl) lbl.textContent = def.label;
+                });
+                const materialEl = document.getElementById('material');
+                if (materialEl) {
+                    materialEl.value = '300';
+                    const materialLbl = document.getElementById('materialValue');
+                    if (materialLbl) materialLbl.textContent = '300 GPa CC-CNT';
+                }
             }
             
             setupEventListeners() {
                 this.eventBus.on('input:grab', (data) => {
-                    if (data.pressed && !this.monkey.isGrabbing) this.attemptGrab();
-                    else if (!data.pressed) this.monkey.isGrabbing = false;
+                    if (this.paused) return;
+                    // UX: one-button restart from game-over (2e)
+                    if (this.gameOver) {
+                        if (data.pressed && performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
+                            this.initGame();
+                            this.lastTime = 0;
+                            requestAnimationFrame(this._boundUpdate);
+                        }
+                        return;
+                    }
+                    if (data.pressed) {
+                        if (!this.monkey.isGrabbing) {
+                            this.attemptGrab();
+                        } else {
+                            // UX: input buffering (2b) — pressed while already grabbing
+                            this.bufferedGrab = true;
+                        }
+                    } else {
+                        // Space released
+                        if (this.monkey.isGrabbing) {
+                            this.monkey.isGrabbing = false;
+                            // UX: coyote time (2b) — start grace window
+                            this.coyoteTimeLeft = COYOTE_MS;
+                        }
+                    }
                 });
-                this.eventBus.on('input:restart', () => this.initGame());
+                
+                // UX: tap/click restart from game-over (2e)
+                // Only restart when clicking the overlay itself, not settings/gear buttons
+                const goOverlay = document.getElementById('game-over-overlay');
+                if (goOverlay) goOverlay.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('go-settings')) return; // skip settings link
+                    if (this.gameOver && performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
+                        this.initGame();
+                        this.lastTime = 0;
+                        requestAnimationFrame(this._boundUpdate);
+                    }
+                });
+                
+                this.eventBus.on('input:restart', () => {
+                    if (this.paused) return;
+                    // UX: if game-over, R also restarts (2e)
+                    if (this.gameOver) {
+                        if (performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
+                            this.initGame();
+                            this.lastTime = 0;
+                            requestAnimationFrame(this._boundUpdate);
+                        }
+                        return;
+                    }
+                    const toast = document.getElementById('restart-toast');
+                    if (this.restartPending) {
+                        clearTimeout(this.restartTimer);
+                        this.restartPending = false;
+                        if (toast) toast.classList.remove('visible');
+                        this.initGame();
+                    } else {
+                        this.restartPending = true;
+                        if (toast) toast.classList.add('visible');
+                        this.restartTimer = setTimeout(() => {
+                            this.restartPending = false;
+                            if (toast) toast.classList.remove('visible');
+                        }, 2000);
+                    }
+                });
                 this.eventBus.on('input:toggleSettings', () => document.getElementById('settingsPanel').classList.toggle('visible'));
+                // UX: colorblind palette toggle event (2f)
+                this.eventBus.on('input:toggleColorblind', () => {
+                    applyColorblindPalette(!_uxColorblind);
+                    if (this.waveSystem) this.waveSystem.cachedColor = null;
+                });
                 this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) this.waveSystem.frequency = data.value; });
                 this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = data.value / 10; });
                 this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / 10; });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; });
-                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = (101 - data.value) / 20; });
+                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = data.value / 20; });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
+                
+                this.eventBus.on('settings:material', (data) => {
+                    // Higher GPa = stiffer material = less swing (lower damping multiplier)
+                    // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.3
+                    const gpa = data.value;
+                    this.materialDamping = 1.3 - (gpa / 1000);
+                });
                 
                 window.addEventListener('keydown', (e) => {
                     if (e.key === '1') this.waveSystem.setType('sine');
                     else if (e.key === '2') this.waveSystem.setType('square');
                     else if (e.key === '3') this.waveSystem.setType('sawtooth');
+                    
+                    // Pause toggle — skip if game-over is showing
+                    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+                        if (this.gameOver) return; // UX: don't pause during game-over (2e)
+                        const loadingOverlay = document.getElementById('loading-overlay');
+                        if (loadingOverlay && loadingOverlay.style.display !== 'none' && loadingOverlay.style.opacity !== '0') return;
+                        
+                        this.paused = !this.paused;
+                        const pauseOverlay = document.getElementById('pause-overlay');
+                        if (this.paused) {
+                            if (pauseOverlay) pauseOverlay.style.display = 'flex';
+                        } else {
+                            if (pauseOverlay) pauseOverlay.style.display = 'none';
+                            this.lastTime = 0;
+                            requestAnimationFrame(this._boundUpdate);
+                        }
+                    }
                 });
             }
             
@@ -1679,7 +2170,7 @@
             
             attemptGrab() {
                 const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
-                this.monkey.velocityY += g.momentum;
+                this.monkey.velocityY += g.momentum * this.materialDamping;
                 this.lastGrabQuality = g.quality;
                 this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
                 this.grabFlashColor = g.flashColor;
@@ -1696,19 +2187,167 @@
                 });
             }
             
+            // UX: trigger milestone effect — screen shake + particle burst (2a)
+            triggerMilestone(label) {
+                // UX: reduced-motion respect (2f) — skip shake, halve particles
+                if (!_uxReducedMotion) {
+                    this.camera.shake(MILESTONE_SHAKE_AMPLITUDE);
+                    // Decay shake in ~MILESTONE_SHAKE_DURATION_MS (default 250ms)
+                    this.camera.shakeDecay = MILESTONE_SHAKE_AMPLITUDE / (MILESTONE_SHAKE_DURATION_MS / 1000);
+                }
+                const count = _uxReducedMotion ? Math.ceil(MILESTONE_PARTICLE_COUNT / 2) : MILESTONE_PARTICLE_COUNT;
+                const colors = ['#FFD700', '#FFFFFF', '#00E5FF', '#FF69B4'];
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 80 + Math.random() * 120;
+                    const p = this.particlePool.acquire();
+                    p.x = this.monkey.x + this.monkey.width / 2;
+                    p.y = this.monkey.y + this.monkey.height / 2;
+                    p.vx = Math.cos(angle) * speed;
+                    p.vy = Math.sin(angle) * speed;
+                    p.life = 1.0;
+                    p.decay = 1.5 + Math.random() * 1.5;
+                    p.size = 2 + Math.random() * 4;
+                    p.color = colors[i % colors.length];
+                }
+            }
+            
+            // UX: show game-over overlay with scores (2e)
+            showGameOver() {
+                this.gameOver = true;
+                this.gameOverTime = performance.now();
+                this.running = false;
+                
+                const currentScore = this.maxAltitude;
+                const isNewBest = currentScore > this.bestScore;
+                if (isNewBest) {
+                    this.bestScore = currentScore;
+                    try {
+                        localStorage.setItem('spaceMonkey.bestScore', this.bestScore.toString());
+                        localStorage.setItem(GHOST_STORAGE_KEY, this.bestScore.toString());
+                    } catch(e) {}
+                    this.ghostBestAltitude = this.bestScore;
+                }
+                
+                const prevEl = document.getElementById('go-previous');
+                const curEl = document.getElementById('go-current');
+                const bestEl = document.getElementById('go-best');
+                const newBestEl = document.getElementById('go-new-best');
+                if (prevEl) prevEl.textContent = this.previousScore > 0 ? `Previous: ${(this.previousScore / 1000).toFixed(2)} km` : '';
+                if (curEl) curEl.textContent = `${(currentScore / 1000).toFixed(2)} km`;
+                if (bestEl) bestEl.textContent = `Best: ${(this.bestScore / 1000).toFixed(2)} km`;
+                if (newBestEl) newBestEl.style.display = isNewBest ? 'block' : 'none';
+                if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'flex';
+            }
+            
+            // UX: get current altimeter landmark for a given altitude (2d)
+            getAltimeterLandmark(altitude) {
+                let best = ALTIMETER_LANDMARKS[0];
+                for (let i = ALTIMETER_LANDMARKS.length - 1; i >= 0; i--) {
+                    if (altitude >= ALTIMETER_LANDMARKS[i].altitude) {
+                        best = ALTIMETER_LANDMARKS[i];
+                        break;
+                    }
+                }
+                return best;
+            }
+            
+            // UX: render ghost best-altitude line on canvas (2c)
+            renderGhostLine(ctx, width) {
+                if (this.ghostBestAltitude <= 0) return;
+                const ghostY = -(this.ghostBestAltitude * GameConfig.PHYSICS.ALTITUDE_CONVERSION) - this.camera.getY();
+                if (ghostY < -50 || ghostY > this.canvas.height + 50) return;
+                ctx.save();
+                ctx.setLineDash([6, 6]);
+                ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(0, ghostY);
+                ctx.lineTo(width, ghostY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
+                ctx.font = '10px monospace';
+                ctx.fillText(`BEST ${(this.ghostBestAltitude / 1000).toFixed(2)}km`, 6, ghostY - 4);
+                ctx.restore();
+            }
+            
             update(time) {
                 if (!this.running) return;
+                if (this.paused) return;
                 const dt = this.lastTime === 0 ? 0 : (time - this.lastTime) / 1000;
                 this.lastTime = time;
-                if (dt > 0.1) return;
+                if (dt > 0.1) { requestAnimationFrame(this._boundUpdate); return; }
                 
                 this.waveSystem.time += dt;
+                this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * (1.0 - this.vineTension * 0.008);
                 this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
                 this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
                 if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
                 this.physics.updatePosition(this.monkey, dt, this.canvas.width, this.wave.x);
+                this.checkCollisions();
+                
+                // UX: coyote time countdown (2b) — re-grab during grace window
+                if (this.coyoteTimeLeft > 0) {
+                    this.coyoteTimeLeft -= dt * 1000;
+                    if (this.inputManager.isKeyPressed(' ') && !this.monkey.isGrabbing) {
+                        this.attemptGrab();
+                        this.coyoteTimeLeft = 0;
+                    }
+                }
+                
+                // UX: input buffer execution (2b) — execute queued grab only if space still held
+                if (this.bufferedGrab && !this.monkey.isGrabbing) {
+                    if (this.inputManager.isKeyPressed(' ')) {
+                        this.attemptGrab();
+                    }
+                    this.bufferedGrab = false; // always clear buffer after check
+                }
+                
+                // UX: track max altitude (2a, 2c, 2e)
+                if (this.monkey.altitude > this.maxAltitude) {
+                    this.maxAltitude = this.monkey.altitude;
+                }
+                
+                // UX: distance milestones every MILESTONE_INTERVAL_M (2a)
+                const currentKm = Math.floor(this.monkey.altitude / MILESTONE_INTERVAL_M);
+                if (currentKm > 0 && !this.milestonesPassed.has(currentKm)) {
+                    this.milestonesPassed.add(currentKm);
+                    this.triggerMilestone(`${currentKm}km`);
+                }
+                
+                // UX: altimeter landmark detection + milestone trigger (2d, 2a)
+                const lm = this.getAltimeterLandmark(this.monkey.altitude);
+                if (lm && lm.name !== this.currentLandmarkName) {
+                    const prevName = this.currentLandmarkName;
+                    this.currentLandmarkName = lm.name;
+                    this.currentLandmarkAlt = lm.altitude;
+                    if (lm.altitude > 0 && !this.landmarksPassed.has(lm.altitude)) {
+                        this.landmarksPassed.add(lm.altitude);
+                        this.triggerMilestone(lm.name);
+                    }
+                    if (this.altimeterLabel) {
+                        const altStr = lm.altitude >= 1000 ? (lm.altitude / 1000).toFixed(0) + ' km' : lm.altitude + ' m';
+                        this.altimeterLabel.textContent = '\u{1F4CD} ' + lm.name + ' \u2014 ' + altStr;
+                        this.altimeterLabel.classList.add('visible');
+                    }
+                }
+                
+                // UX: game-over detection (2e) — fell back to ground after climbing
+                if (this.maxAltitude > GAME_OVER_MIN_ALT && this.monkey.altitude <= 0 && !this.gameOver) {
+                    this.showGameOver();
+                    return;
+                }
+                
                 this.particleSystem.spawnSpeedLines(this.monkey);
                 this.particleSystem.update(dt);
+                // Adjust camera smoothing near landmarks for dwell time
+                const nearLandmark = this.landmarkSystem.landmarks.some(lm => {
+                    const altDiff = Math.abs(lm.altitude - this.monkey.altitude);
+                    return altDiff < 100 && !lm.fullWidth; // Within 100m of a landmark
+                });
+                const baseSmoothing = 0.15;
+                this.camera.smoothing = nearLandmark ? 0.08 : baseSmoothing; // Slower near landmarks
                 this.camera.follow(this.monkey.y - this.canvas.height * GameConfig.CAMERA.VERTICAL_OFFSET, dt);
                 
                 // Update visual systems
@@ -1728,21 +2367,41 @@
                 if (this.grabFlashTimer > 0) this.grabFlashTimer -= dt;
                 
                 this.render();
-                requestAnimationFrame(this.update.bind(this));
+                requestAnimationFrame(this._boundUpdate);
             }
             
             renderVine(ctx, width, height) {
-                const wv = this.waveSystem.calculatePosition(this.waveSystem.time);
+                const wv = this._cachedWavePos;
                 const nw = wv / this.waveSystem.amplitude;
-                const sp = height / this.wave.segments + (wv / this.wave.segments);
                 const wc = this.waveSystem.getColor();
                 const rgb = this.waveSystem.getRGB();
+                const maxLineWidth = this.vineWidth * 3;
+                const baseSpacing = height / this.wave.segments;
+                
+                // Number of visible wavelengths along the vine height
+                const wavelengthsVisible = 3;
+                const phasePerSegment = (2 * Math.PI * wavelengthsVisible) / this.wave.segments;
+                const timePhase = this.waveSystem.time * this.waveSystem.frequency * 2 * Math.PI;
                 
                 for (let i = 0; i < this.wave.segments; i++) {
-                    const y = i * sp;
-                    if (y > height) break;
-                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${nw > 0 ? 0.7 + nw * 0.3 : 0.7})`;
-                    ctx.lineWidth = this.vineWidth + (nw > 0 ? nw * (this.vineWidth * 0.67) : 0);
+                    // Each segment has its own phase — creates traveling compression wave
+                    const segPhase = timePhase - i * phasePerSegment;
+                    const segNw = Math.sin(segPhase); // Normalized wave value for this segment (-1 to 1)
+                    
+                    // Vertical offset creates visible compression/rarefaction
+                    const yOffset = segNw * baseSpacing * 0.3;
+                    const y = i * baseSpacing + yOffset;
+                    
+                    if (y > height || y < 0) continue;
+                    
+                    // Brightness: brighter in compressed zones (where segments are close together)
+                    const opacity = 0.5 + (segNw + 1) * 0.25; // ranges 0.5 to 1.0
+                    
+                    // Width: thicker in compressed zones
+                    const segWidth = this.vineWidth + Math.max(0, segNw) * this.vineWidth * 0.67;
+                    
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+                    ctx.lineWidth = Math.min(segWidth, maxLineWidth);
                     ctx.beginPath();
                     ctx.moveTo(this.wave.x - GameConfig.WAVE.SEGMENT_WIDTH, y);
                     ctx.lineTo(this.wave.x + GameConfig.WAVE.SEGMENT_WIDTH, y);
@@ -1750,10 +2409,10 @@
                 }
                 
                 ctx.save();
-                ctx.shadowBlur = 10 + Math.abs(nw) * 10;
+                ctx.shadowBlur = Math.min(10 + Math.abs(nw) * 10, 25);
                 ctx.shadowColor = wc;
                 ctx.strokeStyle = wc;
-                ctx.lineWidth = this.vineWidth * 2;
+                ctx.lineWidth = Math.min(this.vineWidth * 2, maxLineWidth);
                 ctx.beginPath();
                 ctx.moveTo(this.wave.x, 0);
                 ctx.lineTo(this.wave.x, height);
@@ -1772,6 +2431,30 @@
                     ctx.beginPath();
                     ctx.arc(this.wave.x, this.monkey.y - this.camera.getY() + this.monkey.height / 2, 5, 0, Math.PI * 2);
                     ctx.fill();
+                }
+                // Grab timing indicator — pulses brightest at peak upward velocity
+                if (!this.monkey.isGrabbing) {
+                    const monkeyScreenY = this.monkey.y - this.camera.getY() + this.monkey.height * 0.3;
+                    const waveVelocity = this.waveSystem.calculateVelocity(this.waveSystem.time);
+                    const maxVelocity = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI;
+                    
+                    // Normalize: -1 (worst) to +1 (best). Negative velocity = upward = good for climbing
+                    const normalizedVel = maxVelocity > 0 ? -waveVelocity / maxVelocity : 0;
+                    
+                    // Only show indicator when velocity is favorable (upward / negative)
+                    if (normalizedVel > 0.2) {
+                        const intensity = Math.pow(normalizedVel, 2); // Quadratic for sharper peak
+                        const radius = 8 + intensity * 12; // 8-20px radius
+                        const alpha = 0.2 + intensity * 0.6; // 0.2-0.8 alpha
+                        
+                        ctx.fillStyle = `rgba(0, 255, 100, ${alpha})`;
+                        ctx.shadowBlur = 15 + intensity * 20;
+                        ctx.shadowColor = `rgba(0, 255, 100, ${alpha})`;
+                        ctx.beginPath();
+                        ctx.arc(this.wave.x, monkeyScreenY, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
                 }
                 ctx.restore();
             }
@@ -1836,10 +2519,13 @@
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
                 
                 // Ivory badge background with smooth curved corners
-                const badgeGrad = ctx.createLinearGradient(bx, by, bx, by + GameConfig.MONKEY.BADGE_HEIGHT);
-                badgeGrad.addColorStop(0, '#FFFFF0'); // Ivory
-                badgeGrad.addColorStop(1, '#F5F5DC'); // Beige
-                ctx.fillStyle = badgeGrad;
+                if (this._badgeGradientY !== by) {
+                    this._badgeGradient = ctx.createLinearGradient(bx, by, bx, by + GameConfig.MONKEY.BADGE_HEIGHT);
+                    this._badgeGradient.addColorStop(0, '#FFFFF0');
+                    this._badgeGradient.addColorStop(1, '#F5F5DC');
+                    this._badgeGradientY = by;
+                }
+                ctx.fillStyle = this._badgeGradient;
                 this.roundRect(ctx, bx, by, GameConfig.MONKEY.BADGE_WIDTH, GameConfig.MONKEY.BADGE_HEIGHT, 12);
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
                 ctx.lineWidth = 2;
@@ -1923,6 +2609,7 @@
                     ctx.strokeRect(5, 5, width - 10, height - 10);
                     ctx.globalAlpha = 1.0;
                 }
+                // UX: km milestone text + current landmark hero label (2a, 2d)
                 const kmAlt = Math.floor(this.monkey.altitude / 1000);
                 const kmFrac = (this.monkey.altitude % 1000) / 1000;
                 if (kmAlt > 0 && kmFrac < 0.5) {
@@ -1932,18 +2619,35 @@
                     ctx.fillText(`${kmAlt}km!`, width / 2, height / 2);
                     ctx.textAlign = 'left';
                 }
+                // UX: show current landmark name as hero label when near it (2d)
+                if (this.currentLandmarkName && this.currentLandmarkAlt > 0) {
+                    const distFromLandmark = Math.abs(this.monkey.altitude - this.currentLandmarkAlt);
+                    if (distFromLandmark < 200) {
+                        const fadeAlpha = Math.max(0, 1 - distFromLandmark / 200);
+                        ctx.save();
+                        ctx.fillStyle = `rgba(190, 240, 255, ${fadeAlpha * 0.85})`;
+                        ctx.font = 'bold 22px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(this.currentLandmarkName, width / 2, height / 2 + 50);
+                        ctx.textAlign = 'left';
+                        ctx.restore();
+                    }
+                }
             }
             
             renderControls(ctx, height) {
                 ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
-                ctx.fillRect(GameConfig.RENDER.CONTROLS_OFFSET, height - 95, GameConfig.RENDER.CONTROLS_WIDTH, GameConfig.RENDER.CONTROLS_HEIGHT + 15);
+                ctx.fillRect(GameConfig.RENDER.CONTROLS_OFFSET, height - 125, GameConfig.RENDER.CONTROLS_WIDTH, GameConfig.RENDER.CONTROLS_HEIGHT + 45);
                 ctx.fillStyle = 'white';
                 ctx.font = '11px monospace';
-                ctx.fillText('SPACE: Grab cable', 20, height - 75);
-                ctx.fillText('← →: Move left/right', 20, height - 60);
-                ctx.fillText('1-3: Wave type', 20, height - 45);
-                ctx.fillText('R: Restart', 20, height - 30);
-                ctx.fillText('S: Settings', 20, height - 15);
+                ctx.fillText('SPACE: Grab cable', 20, height - 105);
+                ctx.fillText('\u2190 \u2192: Move left/right', 20, height - 90);
+                ctx.fillText('1-3: Wave type', 20, height - 75);
+                ctx.fillText('P / ESC: Pause', 20, height - 60);
+                ctx.fillText('R: Restart', 20, height - 45);
+                ctx.fillText('S: Settings', 20, height - 30);
+                // UX: colorblind toggle hint (2f)
+                ctx.fillText('C: Color mode', 20, height - 15);
             }
             
             render() {
@@ -1952,6 +2656,9 @@
                 this.webglBg.render();
                 
                 ctx.clearRect(0, 0, width, height);
+                
+                // UX: ghost best-altitude line (2c)
+                this.renderGhostLine(ctx, width);
                 
                 this.renderVine(ctx, width, height);
                 
@@ -1964,7 +2671,90 @@
             }
         }
         
-        window.addEventListener('load', () => new SpaceMonkeyGame());
+        // Loading Manager - tracks asset loading progress
+        class LoadingManager {
+            constructor() {
+                this.totalAssets = 0;
+                this.loadedAssets = 0;
+                this.overlay = document.getElementById('loading-overlay');
+                this.progressText = document.getElementById('loading-progress');
+                this.onComplete = null;
+                this._complete = false;
+            }
+            
+            expect(count) {
+                this.totalAssets += count;
+            }
+            
+            loaded() {
+                this.loadedAssets++;
+                this.updateProgress();
+                if (this.loadedAssets >= this.totalAssets && !this._complete) {
+                    this._complete = true;
+                    this.finish();
+                }
+            }
+            
+            updateProgress() {
+                const pct = this.totalAssets > 0 ? Math.floor((this.loadedAssets / this.totalAssets) * 100) : 0;
+                if (this.progressText) {
+                    this.progressText.textContent = `Loading... ${pct}%`;
+                }
+            }
+            
+            finish() {
+                if (this.overlay) {
+                    this.overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        this.overlay.style.display = 'none';
+                        if (this.onComplete) this.onComplete();
+                    }, 500);
+                } else if (this.onComplete) {
+                    this.onComplete();
+                }
+            }
+        }
+        
+        window.addEventListener('load', () => {
+            // UX: detect reduced-motion preference (2f)
+            _uxReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            
+            // UX: load persisted settings (2f)
+            try {
+                const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}');
+                if (saved.colorblind !== undefined) _uxColorblind = saved.colorblind;
+                if (saved.reducedMotion !== undefined) _uxReducedMotion = saved.reducedMotion;
+            } catch(e) {}
+            
+            // UX: backup original palette then apply colorblind if saved (2f)
+            _initPaletteBackup();
+            if (_uxColorblind) applyColorblindPalette(true);
+            
+            // UX: apply reduced-motion parallax damping (2f)
+            if (_uxReducedMotion) {
+                VISUAL_CONSTANTS.CLOUD_PARALLAX_FACTOR *= REDUCED_MOTION_PARALLAX_MULT;
+                VISUAL_CONSTANTS.LANDMARK_PARALLAX_MIN *= REDUCED_MOTION_PARALLAX_MULT;
+                VISUAL_CONSTANTS.LANDMARK_PARALLAX_MAX = Math.min(VISUAL_CONSTANTS.LANDMARK_PARALLAX_MAX, 0.6);
+            }
+            
+            // Mobile/touch device detection
+            const isTouchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+            const isSmallScreen = window.innerWidth < 1024;
+            const mobileNotice = document.getElementById('mobile-notice');
+            
+            if (isTouchDevice && isSmallScreen && mobileNotice) {
+                mobileNotice.style.display = 'flex';
+                document.getElementById('try-anyway-btn').addEventListener('click', () => {
+                    mobileNotice.style.display = 'none';
+                    window.loadingManager = new LoadingManager();
+                    new SpaceMonkeyGame();
+                });
+                return; // Don't start game automatically
+            }
+            
+            window.loadingManager = new LoadingManager();
+            new SpaceMonkeyGame();
+        });
     </script>
 </body>
 </html>
