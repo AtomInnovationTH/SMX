@@ -1,13 +1,11 @@
 # Space Monkey Elevator 🚀🐵
 
-**Space Monkey Elevator — a vertical climbing game about reaching the Kármán line.**
+**Play it:** [atominnovationth.github.io/SMX](https://atominnovationth.github.io/SMX/)
 
-> ⚠️ **Project status: archived / not actively maintained.** Issues and PRs may not receive responses. Forks are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+**Space Monkey Elevator — a vertical climbing game about reaching the Kármán line.**
 
 <!-- TODO: replace with a 10–15s gameplay GIF when one is available -->
 ![Space Monkey Elevator — falling back to Earth](screenshots/falling.png)
-
-**Play it:** [atominnovationth.github.io/SMX](https://atominnovationth.github.io/SMX/)
 
 Physics-based vertical climbing game where you ride a vibrating graphene tether from sea level to the Kármán Line (100 km). Time your `SPACE` presses to the wave peaks for maximum momentum.
 
@@ -106,3 +104,7 @@ Per-asset attributions for the photographic imagery in [`Space Elevator_files/`]
 ## License
 
 [MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. The MIT grant covers the **code only**; embedded image assets are subject to their original licenses (see the attributions note above).
+
+---
+
+> ⚠️ **Project status: archived / not actively maintained.** Issues and PRs may not receive responses. Forks are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
