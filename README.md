@@ -21,10 +21,12 @@ Three ways to play:
    cd SMX
    open index.html
    ```
-2. **Local dev server** — run [`start.sh`](start.sh), which launches `python3 -m http.server` on port `8000` and opens [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) (the editable source) in your browser:
+   `index.html` loads the landmark sprites from the `Space Elevator_files/` folder (present in the clone). If your browser blocks those local files under `file://`, use the local dev server below.
+2. **Local dev server** — run [`start.sh`](start.sh), which launches `python3 -m http.server` on port `8000` and opens [`index.html`](index.html) (the same build artifact GitHub Pages serves) in your browser:
    ```bash
    ./start.sh
    ```
+   To preview edits to the source before rebuilding, open `http://localhost:8000/Space_Monkey_Elevator.html` at the same server.
 3. **GitHub Pages** — open the live demo link at the top of this README (once Pages is enabled on your fork).
 
 ---
@@ -61,7 +63,7 @@ Three ways to play:
 The repo ships two HTML files at the root:
 
 - [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) — **editable source of truth**. References assets in [`Space Elevator_files/`](Space%20Elevator_files).
-- [`index.html`](index.html) — **committed build artifact**. All assets inlined as base64 data URIs so it works offline and on GitHub Pages with zero configuration.
+- [`index.html`](index.html) — **committed build artifact**, auto-generated (do not hand-edit). The statically-referenced assets (clouds, the monkey SVG, noise textures) are inlined as base64 data URIs. The ~70 landmark sprites are referenced through a runtime-built path, so they are **not** inlined and still load from [`Space Elevator_files/`](Space%20Elevator_files). `index.html` must therefore be served **alongside** that folder (as it is on GitHub Pages); it is not a standalone offline single file.
 
 To rebuild after editing the source:
 
@@ -69,7 +71,7 @@ To rebuild after editing the source:
 python3 embed_assets.py
 ```
 
-This regenerates [`index.html`](index.html) by inlining every asset referenced from [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html). Commit **both** files together.
+This regenerates [`index.html`](index.html) by inlining the statically-referenced assets from [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html). The landmark sprites are skipped (their path is built at runtime) and continue to load from [`Space Elevator_files/`](Space%20Elevator_files). Commit **both** files together.
 
 ---
 
@@ -78,7 +80,7 @@ This regenerates [`index.html`](index.html) by inlining every asset referenced f
 ```
 .
 ├── Space_Monkey_Elevator.html   # editable source (this is what you edit)
-├── index.html                   # build artifact, assets inlined (served by Pages)
+├── index.html                   # build artifact, most assets inlined (served by Pages alongside the assets folder)
 ├── embed_assets.py              # build script: source → index.html
 ├── start.sh                     # dev launcher (python3 http.server on :8000)
 ├── Space Elevator_files/        # source assets (.webp, .svg) used by the editable HTML
@@ -94,7 +96,7 @@ This regenerates [`index.html`](index.html) by inlining every asset referenced f
 
 - Original concept: Space Monkey climbing game.
 - Technologies: vanilla JavaScript, Canvas 2D, WebGL atmosphere shader.
-- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/).
+- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). This project is an independent **clean-room re-implementation** inspired by that page; it does not reuse its code, and its imagery assets are separately licensed.
 
 <!-- TODO: create ATTRIBUTIONS.md with per-asset sourcing for the photographic .webp files in Space Elevator_files/ before any wide redistribution — see REVIEW.md §6 -->
 Per-asset attributions for the photographic imagery in [`Space Elevator_files/`](Space%20Elevator_files) are pending in a future `ATTRIBUTIONS.md`. See [REVIEW.md](REVIEW.md) §6 for the audit.
