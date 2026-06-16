@@ -1,3 +1,11 @@
+> ⚠️ **HISTORICAL — ARCHIVED.** This pre-publish review is kept for provenance.
+> It is **stale**: the "critical bugs" it describes were already fixed in the
+> shipping code, and the simulation has since been reworked (continuous EPM
+> coupling). Its still-useful parts are the §6 asset-licensing structure and the
+> §3 perf list (those perf items are now implemented). For current status see the
+> repo root [`README.md`](../../README.md) and [`DEVELOPERS.md`](../../DEVELOPERS.md).
+> Links below are relative to the original repo root.
+
 # Space Monkey Elevator — Pre-Publish Project Review
 
 > Prepared for the maintainers of [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html:1) ahead of public GitHub release at `https://github.com/AtomInnovationTH/SMX`.

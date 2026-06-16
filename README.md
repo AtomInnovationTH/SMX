@@ -95,7 +95,7 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 ├── start.sh                     # dev launcher (python3 http.server on :8000)
 ├── Space Elevator_files/        # source assets (.webp, .svg) used by the editable HTML
 ├── screenshots/                 # README / social imagery
-├── REVIEW.md                    # pre-publish engineering review
+├── docs/history/                # archived pre-v1.0 planning docs (stale, kept for provenance)
 ├── LICENSE                      # MIT
 └── README.md                    # you are here
 ```
@@ -108,8 +108,8 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 - Technologies: vanilla JavaScript, Canvas 2D, WebGL atmosphere shader.
 - Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). This project is an independent **clean-room re-implementation** inspired by that page; it does not reuse its code, and its imagery assets are separately licensed.
 
-<!-- TODO: create ATTRIBUTIONS.md with per-asset sourcing for the photographic .webp files in Space Elevator_files/ before any wide redistribution — see REVIEW.md §6 -->
-Per-asset attributions for the photographic imagery in [`Space Elevator_files/`](Space%20Elevator_files) are pending in a future `ATTRIBUTIONS.md`. See [REVIEW.md](REVIEW.md) §6 for the audit.
+<!-- TODO: create ATTRIBUTIONS.md with per-asset sourcing for the photographic .webp files in Space Elevator_files/ before any wide redistribution — see docs/history/REVIEW.md §6 -->
+Per-asset attributions for the photographic imagery in [`Space Elevator_files/`](Space%20Elevator_files) are pending in a future `ATTRIBUTIONS.md`. See [`docs/history/REVIEW.md`](docs/history/REVIEW.md) §6 for the audit.
 
 ---
 

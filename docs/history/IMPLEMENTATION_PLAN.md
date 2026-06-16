@@ -1,3 +1,10 @@
+> ⚠️ **HISTORICAL — ARCHIVED.** This is a pre-v1.0 planning document, kept for
+> provenance. It is **stale**: most "critical bugs" it lists were already fixed,
+> and the project has since moved to the contactless-EPM pulse/couple simulation.
+> For current status and the work that superseded this, see the repo root
+> [`README.md`](../../README.md) and [`DEVELOPERS.md`](../../DEVELOPERS.md).
+> Links below are relative to the original repo root.
+
 # Space Monkey Elevator — Implementation Plan
 
 > Canonical source: [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html)

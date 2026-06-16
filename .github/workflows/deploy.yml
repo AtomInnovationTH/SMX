@@ -1,0 +1,59 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Rebuild index.html from source
+        run: python3 embed_assets.py
+
+      - name: Verify committed index.html is in sync with the source
+        run: |
+          if ! git diff --quiet -- index.html; then
+            echo "::error::index.html is out of sync with Space_Monkey_Elevator.html. Run 'python3 embed_assets.py' and commit the result."
+            git --no-pager diff --stat -- index.html
+            exit 1
+          fi
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # The site is the repo root: index.html is served alongside
+          # the "Space Elevator_files/" folder (landmark sprites load at runtime).
+          path: '.'
+
+  deploy:
+    # Only deploy on pushes to main, not on PRs.
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
