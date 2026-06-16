@@ -29,6 +29,10 @@
         
         /* Canvas Layers */
         #bgCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        /* Fallback static sky used when WebGL is unavailable or its context is lost
+           (the WebGL background is purely decorative; gameplay is unaffected). */
+        body.webgl-fallback { background: linear-gradient(to top, #1a2a6c 0%, #2c5364 35%, #0f2027 70%, #000010 100%); }
+        body.webgl-fallback #bgCanvas { display: none; }
         #clouds-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 11; }
         .cloud-layer { position: absolute; opacity: 1; pointer-events: none; }
         #landmarks-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
@@ -464,6 +468,61 @@
             const maxLog = Math.log10(maxFreq);
             return ((Math.log10(freq) - minLog) / (maxLog - minLog)) * 100;
         }
+
+        // ===== PURE SIM HELPERS (frame-rate + tether physics) ===== //
+        // These are top-level pure functions (no DOM / instance state) so they can be
+        // exercised directly by the test harness (see tests/extract.mjs).
+
+        // Frame-rate-independent multiplicative decay. A per-frame decay tuned at 60 Hz
+        // (e.g. AIR_DRAG = 0.985 applied once per frame) is converted to a per-second
+        // decay so behaviour is identical regardless of refresh rate. At dt = 1/60 this
+        // is an exact no-op: frameDecay(base, 1/60) === base.
+        function frameDecay(base, dt) {
+            return Math.pow(base, dt * 60);
+        }
+
+        // SIM (Stage 2 / B.8): wave speed v = sqrt(T/mu) from tether width + tension.
+        // vineWidth 4.5 corresponds to a 45 mm diameter (slider mm / 10), so diameter_m = vineWidth/100.
+        function tetherWaveSpeed(vineWidth, vineTension) {
+            const diameter = vineWidth / 100;                            // metres
+            const area = Math.PI * (diameter / 2) * (diameter / 2);      // m^2
+            const mu = GameConfig.TETHER.CARBON_DENSITY * area;          // kg/m
+            const tensionN = vineTension * GameConfig.TETHER.KGF_TO_N;
+            return Math.sqrt(tensionN / Math.max(1e-9, mu));
+        }
+
+        // SIM (Stage 2 / B.5): wave energy attenuates with altitude; stiffer material
+        // (higher GPa) attenuates less (longer e-fold length), so material sets reach.
+        function waveEnergyFactor(altitude, materialGpa) {
+            const attenLength = GameConfig.EPM.ATTEN_BASE_M * (materialGpa / 100);
+            return Math.exp(-Math.max(0, altitude) / attenLength);
+        }
+
+        // Visual: rendered wave displacement shrinks slightly as tension rises (the
+        // tether sags less). Returns the multiplier applied to the wave position.
+        function tensionSagFactor(vineTension) {
+            return 1.0 - vineTension * GameConfig.TETHER.TENSION_SAG_FACTOR;
+        }
+
+        // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
+        // negatives so a corrupted localStorage entry can't poison scoring/altitude state.
+        function safePersistedNumber(raw) {
+            const v = parseFloat(raw);
+            return Number.isFinite(v) ? Math.max(0, v) : 0;
+        }
+
+        // SIM (Stage 2 / B.11): mission scoring helpers — single source of truth shared by the
+        // game-over panel and the in-play mission HUD so the two displays cannot drift.
+        // Headline score (S15) = delivered cargo kg × delivery altitude km (kg·km).
+        function missionScore(deliveredKg) {
+            return deliveredKg * (GameConfig.MISSION.DELIVER_ALTITUDE_M / 1000);
+        }
+        // Cumulative bootstrap progress as a 0-100% of the target kg.
+        function bootstrapPct(bootstrapKg) {
+            return Math.min(100, (bootstrapKg / GameConfig.MISSION.BOOTSTRAP_TARGET_KG) * 100);
+        }
+        // ===== END PURE SIM HELPERS ===== //
+
         
         const COLOR_PALETTE = {
             // Vine/Tether colors
@@ -920,28 +979,78 @@
         class WebGLBackground {
             constructor(canvas) {
                 this.canvas = canvas;
-                this.gl = canvas.getContext('webgl');
+                this.failed = false;
+                this.lost = false;
+                // Context acquisition with fallback (some browsers / GPUs only expose the
+                // older 'experimental-webgl' alias).
+                this.gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
                 if (!this.gl) {
-                    console.error('WebGL not supported');
+                    console.error('WebGL not supported — falling back to a static sky.');
+                    this._applyFallback();
                     return;
                 }
                 this.cachedHeight = window.innerHeight;
                 window.addEventListener('resize', () => { this.cachedHeight = window.innerHeight; });
-                this.setupShaders();
+
+                // Context-loss handling: pause rendering on loss, rebuild on restore.
+                canvas.addEventListener('webglcontextlost', (e) => {
+                    e.preventDefault(); // required so the context can be restored
+                    this.lost = true;
+                    console.warn('WebGL context lost — pausing background until restored.');
+                }, false);
+                canvas.addEventListener('webglcontextrestored', () => {
+                    console.info('WebGL context restored — rebuilding background.');
+                    try {
+                        // setupShaders() returns false (rather than throwing) on a
+                        // compile/link failure, so check the result explicitly and fall
+                        // back instead of resuming against a broken program.
+                        if (this.setupShaders()) {
+                            this.lost = false;
+                        } else {
+                            this._applyFallback();
+                        }
+                    } catch (err) {
+                        console.error('WebGL context restore failed:', err);
+                        this._applyFallback();
+                    }
+                }, false);
+
+                if (!this.setupShaders()) {
+                    this._applyFallback();
+                }
+            }
+
+            // Decorative-only background: on failure, show a CSS gradient sky and stop.
+            _applyFallback() {
+                this.failed = true;
+                try { document.body.classList.add('webgl-fallback'); } catch (e) {}
             }
 
             setupShaders() {
                 const gl = this.gl;
+                if (!gl) return false;
                 const vertexShader = gl.createShader(gl.VERTEX_SHADER);
                 gl.shaderSource(vertexShader, vertexShaderSource);
                 gl.compileShader(vertexShader);
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    console.error('Vertex shader compile failed:', gl.getShaderInfoLog(vertexShader));
+                    return false;
+                }
                 const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
                 gl.shaderSource(fragmentShader, fragmentShaderSource);
                 gl.compileShader(fragmentShader);
+                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                    console.error('Fragment shader compile failed:', gl.getShaderInfoLog(fragmentShader));
+                    return false;
+                }
                 this.program = gl.createProgram();
                 gl.attachShader(this.program, vertexShader);
                 gl.attachShader(this.program, fragmentShader);
                 gl.linkProgram(this.program);
+                if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+                    console.error('Shader program link failed:', gl.getProgramInfoLog(this.program));
+                    return false;
+                }
                 gl.useProgram(this.program);
                 const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
                 const buffer = gl.createBuffer();
@@ -968,6 +1077,7 @@
                 
                 this.createPlaceholderTextures();
                 this.bindTextures();
+                return true;
             }
             
             createPlaceholderTextures() {
@@ -1010,12 +1120,14 @@
             }
             
             update(altitude, time) {
+                if (this.failed || this.lost) return;
                 if (!this.rainTextureLoaded) this.rainTextureLoaded = true;
                 this.altitude = altitude;
                 this.time = time;
             }
 
             render() {
+                if (this.failed || this.lost) return;
                 const gl = this.gl;
                 gl.viewport(0, 0, this.canvas.width, this.canvas.height);
                 gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
@@ -1348,7 +1460,8 @@
                 RATCHET_GAIN: 0.18,   // S12: steady net up-assist for asymmetric (sawtooth) waves, timing-independent
                 PERFECT_QUALITY: 0.85,// |waveVel|/(amp*omega) above this reads as a perfect coupling (peak-velocity timing, B.6)
                 GOOD_QUALITY: 0.45,   // above this reads as a good coupling
-                PARTICLE_INTERVAL: 0.08 // seconds between coupling particle bursts while pulsing (throttle)
+                PARTICLE_INTERVAL: 0.08, // seconds between coupling particle bursts while pulsing (throttle)
+                AUDIO_PULSE_INTERVAL: 0.16 // seconds between rhythmic pulse tones while coupling
             };
 
             // SIM (Stage 2 / B.5): EPM charge / regen energy loop tunables (continuous mode only).
@@ -1379,7 +1492,17 @@
                 CARBON_DENSITY: 1800,   // kg/m^3, representative for graphene / CNT
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
-                SPEED_FACTOR_MAX: 2.0
+                SPEED_FACTOR_MAX: 2.0,
+                TENSION_SAG_FACTOR: 0.008, // visual: each tension unit shrinks rendered wave displacement
+                DAMPING_BASE: 1.3,      // materialDamping = DAMPING_BASE - gpa * DAMPING_PER_GPA
+                DAMPING_PER_GPA: 0.001  // stiffer material (higher GPa) = lower damping multiplier
+            };
+
+            // SIM: slider raw-value -> model-value scalings (see setupEventListeners).
+            static SETTINGS_SCALE = {
+                AMPLITUDE: 10,  // amplitude slider raw / 10
+                WIDTH: 10,      // width slider raw / 10 (mm)
+                GRIP: 20        // grip slider raw / 20 -> gripMultiplier
             };
 
             // SIM (Stage 2 / B.11): cargo delivery mission (S10/S15/S16).
@@ -1615,7 +1738,10 @@
             applyGravityAndDrag(monkey, dt, isGrabbing, gravityMult, dragMult) {
                 if (!isGrabbing) {
                     monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
-                    monkey.velocityY *= GameConfig.PHYSICS.AIR_DRAG * dragMult;
+                    // Frame-rate-independent drag: the AIR_DRAG and dragMult decays were tuned
+                    // as per-frame factors at 60 Hz. Normalize to per-second so high-refresh
+                    // displays don't over-apply drag (F-rate bug). Exact no-op at dt = 1/60.
+                    monkey.velocityY *= frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt) * frameDecay(dragMult, dt);
                 }
             }
             
@@ -1640,7 +1766,7 @@
                 } else if (isRight) {
                     monkey.velocityX = GameConfig.PHYSICS.HORIZONTAL_SPEED;
                 } else {
-                    monkey.velocityX *= GameConfig.PHYSICS.DRIFT_DECAY;
+                    monkey.velocityX *= frameDecay(GameConfig.PHYSICS.DRIFT_DECAY, dt);
                 }
             }
         }
@@ -1662,7 +1788,11 @@
                     const diff = this.targetY - this.y;
                     const absDiff = Math.abs(diff);
                     const effectiveSmoothing = absDiff > 500 ? 0.5 : this.smoothing;
-                    this.y += diff * effectiveSmoothing;
+                    // Frame-rate-independent exponential smoothing toward the target. The
+                    // smoothing factor was tuned per-frame at 60 Hz; convert to a per-second
+                    // rate so the camera tracks identically at any refresh rate. The factor
+                    // equals effectiveSmoothing exactly at dt = 1/60.
+                    this.y += diff * (1 - Math.pow(1 - effectiveSmoothing, dt * 60));
                 } else {
                     this.y = this.targetY;
                 }
@@ -1917,8 +2047,8 @@
                 this.gameOver = false;
                 this.gameOverTime = 0;
                 this.maxAltitude = 0;
-                this.previousScore = 0;
-                this.bestScore = 0;
+                this.previousAltitude = 0;
+                this.bestAltitude = 0;
                 this.milestonesPassed = new Set();
                 this.landmarksPassed = new Set();
                 this.ghostBestAltitude = 0;
@@ -1929,18 +2059,18 @@
                 this.gameOverOverlay = document.getElementById('game-over-overlay');
                 this.altimeterLabel = document.getElementById('ux-altimeter-label');
                 
-                // UX: load persisted best score + ghost (2c)
+                // UX: load persisted best altitude + ghost (2c). Clamp on read (F9).
                 try {
-                    this.bestScore = parseFloat(localStorage.getItem('spaceMonkey.bestScore') || '0');
-                    this.ghostBestAltitude = parseFloat(localStorage.getItem(GHOST_STORAGE_KEY) || '0');
+                    this.bestAltitude = safePersistedNumber(localStorage.getItem('spaceMonkey.bestScore'));
+                    this.ghostBestAltitude = safePersistedNumber(localStorage.getItem(GHOST_STORAGE_KEY));
                 } catch(e) {}
 
                 // SIM (Stage 2 / B.11): load persisted cargo best + cumulative bootstrap kg
                 this.cargoBest = 0;
                 this.bootstrapKg = 0;
                 try {
-                    this.cargoBest = parseFloat(localStorage.getItem(CARGO_BEST_KEY) || '0') || 0;
-                    this.bootstrapKg = parseFloat(localStorage.getItem(BOOTSTRAP_KG_KEY) || '0') || 0;
+                    this.cargoBest = safePersistedNumber(localStorage.getItem(CARGO_BEST_KEY));
+                    this.bootstrapKg = safePersistedNumber(localStorage.getItem(BOOTSTRAP_KG_KEY));
                 } catch(e) {}
 
                 // Polish (Stage 4 / 3.1): audio synth (starts muted; unlocked on first input)
@@ -2226,7 +2356,7 @@
                 this.grabFlashColor = '';
                 
                 // UX: reset game-over & milestone state
-                this.previousScore = this.maxAltitude > 0 ? this.maxAltitude : this.previousScore;
+                this.previousAltitude = this.maxAltitude > 0 ? this.maxAltitude : this.previousAltitude;
                 this.gameOver = false;
                 this.gameOverTime = 0;
                 this.maxAltitude = 0;
@@ -2340,10 +2470,10 @@
                     if (this.waveSystem) this.waveSystem.cachedColor = null;
                 });
                 this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) this.waveSystem.frequency = data.value; });
-                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = data.value / 10; });
-                this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / 10; this.updateDerivedReadouts(); });
+                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = data.value / GameConfig.SETTINGS_SCALE.AMPLITUDE; });
+                this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / GameConfig.SETTINGS_SCALE.WIDTH; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
-                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = data.value / 20; });
+                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = data.value / GameConfig.SETTINGS_SCALE.GRIP; });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
                 
@@ -2352,7 +2482,7 @@
                     // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.3
                     const gpa = data.value;
                     this.materialGpa = gpa;                 // feeds waveEnergyFactor attenuation (Q-P3)
-                    this.materialDamping = 1.3 - (gpa / 1000);
+                    this.materialDamping = GameConfig.TETHER.DAMPING_BASE - (gpa * GameConfig.TETHER.DAMPING_PER_GPA);
                     this.updateDerivedReadouts();
                 });
                 
@@ -2438,18 +2568,12 @@
             // waves attenuate with height; a stiffer (higher-GPa) material attenuates less, so
             // material choice sets how high regen stays net-positive (the difficulty curve).
             waveEnergyFactor(altitude) {
-                const attenLength = GameConfig.EPM.ATTEN_BASE_M * (this.materialGpa / 100);
-                return Math.exp(-Math.max(0, altitude) / attenLength);
+                return waveEnergyFactor(altitude, this.materialGpa);
             }
 
             // SIM (Stage 2 / B.8): wave speed v = sqrt(T/mu) from the tether sliders.
-            // vineWidth 4.5 corresponds to a 45 mm diameter (slider mm / 10), so diameter_m = vineWidth/100.
             tetherWaveSpeed() {
-                const diameter = this.vineWidth / 100;                       // metres
-                const area = Math.PI * (diameter / 2) * (diameter / 2);       // m^2
-                const mu = GameConfig.TETHER.CARBON_DENSITY * area;          // kg/m
-                const tensionN = this.vineTension * GameConfig.TETHER.KGF_TO_N;
-                return Math.sqrt(tensionN / Math.max(1e-9, mu));
+                return tetherWaveSpeed(this.vineWidth, this.vineTension);
             }
 
             // Normalised coupling modifier: faster waves (higher T / thinner tether) carry more
@@ -2468,7 +2592,7 @@
 
             attemptGrab() {
                 this._firstCoupleDone = true;   // hides the first-load pulse hint (3.5)
-                if (_continuousCoupling) {
+                if (this._isContinuous()) {
                     // Continuous mode: pressing only ENGAGES the EPM coupling; the upward
                     // impulse is integrated every frame in update() while SPACE is held.
                     this.monkey.isGrabbing = true;
@@ -2537,34 +2661,34 @@
                 this.gameOverTime = performance.now();
                 this.running = false;
                 
-                const currentScore = this.maxAltitude;
-                const isNewBest = currentScore > this.bestScore;
+                const currentAltitude = this.maxAltitude;
+                const isNewBest = currentAltitude > this.bestAltitude;
                 if (isNewBest) {
-                    this.bestScore = currentScore;
+                    this.bestAltitude = currentAltitude;
                     try {
-                        localStorage.setItem('spaceMonkey.bestScore', this.bestScore.toString());
-                        localStorage.setItem(GHOST_STORAGE_KEY, this.bestScore.toString());
+                        localStorage.setItem('spaceMonkey.bestScore', this.bestAltitude.toString());
+                        localStorage.setItem(GHOST_STORAGE_KEY, this.bestAltitude.toString());
                     } catch(e) {}
-                    this.ghostBestAltitude = this.bestScore;
+                    this.ghostBestAltitude = this.bestAltitude;
                 }
                 
                 const prevEl = document.getElementById('go-previous');
                 const curEl = document.getElementById('go-current');
                 const bestEl = document.getElementById('go-best');
                 const newBestEl = document.getElementById('go-new-best');
-                if (prevEl) prevEl.textContent = this.previousScore > 0 ? `Previous: ${(this.previousScore / 1000).toFixed(2)} km` : '';
-                if (curEl) curEl.textContent = `${(currentScore / 1000).toFixed(2)} km`;
-                if (bestEl) bestEl.textContent = `Best: ${(this.bestScore / 1000).toFixed(2)} km`;
+                // Altitude is the always-present "how high did you climb" metric.
+                if (prevEl) prevEl.textContent = this.previousAltitude > 0 ? `Previous altitude: ${(this.previousAltitude / 1000).toFixed(2)} km` : '';
+                if (curEl) curEl.textContent = `Altitude: ${(currentAltitude / 1000).toFixed(2)} km`;
+                if (bestEl) bestEl.textContent = `Best altitude: ${(this.bestAltitude / 1000).toFixed(2)} km`;
                 if (newBestEl) newBestEl.style.display = isNewBest ? 'block' : 'none';
 
                 // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap meter.
                 const cargoEl = document.getElementById('go-cargo');
                 const bootEl = document.getElementById('go-bootstrap');
-                if (_continuousCoupling) {
-                    // Headline score (S15): cargo kg × delivered altitude km. Only nonzero on a
+                if (this._isContinuous()) {
+                    // Mission score (S15): cargo kg × delivered altitude km. Only nonzero on a
                     // successful Kármán delivery; persist the personal best.
-                    const score = this.cargoDelivered
-                        ? this.deliveredKg * (GameConfig.MISSION.DELIVER_ALTITUDE_M / 1000) : 0;
+                    const score = this.cargoDelivered ? missionScore(this.deliveredKg) : 0;
                     if (score > this.cargoBest) {
                         this.cargoBest = score;
                         try { localStorage.setItem(CARGO_BEST_KEY, this.cargoBest.toString()); } catch(e) {}
@@ -2572,11 +2696,11 @@
                     if (cargoEl) {
                         cargoEl.style.display = 'block';
                         cargoEl.textContent = this.cargoDelivered
-                            ? `Cargo delivered: ${this.deliveredKg.toFixed(1)} kg  →  ${Math.round(score)} kg·km  (best ${Math.round(this.cargoBest)})`
-                            : 'No cargo delivered — reach the Kármán Line (100 km)';
+                            ? `Mission score: ${this.deliveredKg.toFixed(1)} kg  →  ${Math.round(score)} kg·km  (best ${Math.round(this.cargoBest)})`
+                            : 'Mission score: 0 — deliver cargo to the Kármán Line (100 km)';
                     }
                     if (bootEl) {
-                        const pct = Math.min(100, (this.bootstrapKg / GameConfig.MISSION.BOOTSTRAP_TARGET_KG) * 100);
+                        const pct = bootstrapPct(this.bootstrapKg);
                         bootEl.style.display = 'block';
                         bootEl.textContent = `Tether bootstrap: ${this.bootstrapKg.toFixed(0)} / ${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg  (${pct.toFixed(1)}%)`;
                     }
@@ -2624,62 +2748,86 @@
                 ctx.restore();
             }
             
+            // SIM: single source of truth for which coupling model is active. The flag is a
+            // module-level toggle (K key, persisted); reading it through one helper keeps the
+            // branching localized rather than sprinkled across update/render/game-over.
+            _isContinuous() { return _continuousCoupling; }
+
+            // SIM (Stage 2 / B.10): continuous "pulse/couple" integrator (the default EPM model).
+            // Gravity ALWAYS applies; the coupling impulse fights it only while pulsing, so the
+            // climb is an active energy battle. Drives the EPM charge/brownout loop.
+            updateContinuous(dt) {
+                this.physics.applyGravityAndDrag(this.monkey, dt, false, this.gravityMultiplier, this.dragMultiplier);
+                const chargeBefore = this.epmCharge;
+                if (this.monkey.isGrabbing && !this.epmBrownout) {
+                    const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
+                    this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor();
+                    this.monkey.x = this.wave.x - this.monkey.width / 2;
+
+                    // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave
+                    // coupling regenerates it, attenuated by altitude (Q-P3) + gated by material.
+                    const tier = this.monkey.equipment.magnet || 'base';
+                    const drain = GameConfig.EPM.DRAIN[tier] || GameConfig.EPM.DRAIN.base;
+                    const regenGain = GameConfig.EPM.REGEN[tier] || GameConfig.EPM.REGEN.base;
+                    const energyFactor = this.waveEnergyFactor(this.monkey.altitude);
+                    this.epmCharge += (c.quality * energyFactor * regenGain - drain) * dt;
+                    if (this.epmCharge <= 0) { this.epmCharge = 0; this.epmBrownout = true; this.audio.brownout(); }
+
+                    this.lastGrabQuality = c.quality;
+                    this.grabFlashColor = c.flashColor;
+                    this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
+                    // Throttled coupling particles for feedback (avoids a per-frame burst)
+                    this._couplingParticleTimer = (this._couplingParticleTimer || 0) - dt;
+                    if (this._couplingParticleTimer <= 0) {
+                        this._couplingParticleTimer = GameConfig.COUPLING.PARTICLE_INTERVAL;
+                        this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.max(1, Math.floor(c.quality * 6)), c.flashColor);
+                    }
+                    // Polish (Stage 4 / 3.1): rhythmic pulse tone, pitch tracks coupling quality.
+                    this._audioPulseTimer = (this._audioPulseTimer || 0) - dt;
+                    if (this._audioPulseTimer <= 0) {
+                        this._audioPulseTimer = GameConfig.COUPLING.AUDIO_PULSE_INTERVAL;
+                        this.audio.pulse(c.quality);
+                    }
+                } else if (this.monkey.isGrabbing && this.epmBrownout) {
+                    // Browned out: EPM can't fire — no momentum imparted, just stay on the tether.
+                    this.monkey.x = this.wave.x - this.monkey.width / 2;
+                    this.lastGrabQuality = 0;
+                }
+                // Ambient eddy-current trickle (always near the tether) — recover by coasting.
+                this.epmCharge = Math.min(GameConfig.EPM.CAPACITY, this.epmCharge + GameConfig.EPM.TRICKLE * dt);
+                if (this.epmBrownout && this.epmCharge >= GameConfig.EPM.BROWNOUT_RECOVER) this.epmBrownout = false;
+                this.epmNetPerSec = dt > 0 ? (this.epmCharge - chargeBefore) / dt : 0;
+            }
+
+            // SIM: legacy discrete "grab/hold" integrator (hidden backup, toggled with K).
+            // Gravity is suspended while grabbing; the upward impulse is applied once per grab
+            // in attemptGrab() rather than integrated per-frame.
+            updateLegacy(dt) {
+                this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
+                if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
+            }
+
             update(time) {
                 if (!this.running) return;
                 if (this.paused) return;
-                const dt = this.lastTime === 0 ? 0 : (time - this.lastTime) / 1000;
+                let dt = this.lastTime === 0 ? 0 : (time - this.lastTime) / 1000;
                 this.lastTime = time;
-                if (dt > 0.1) { requestAnimationFrame(this._boundUpdate); return; }
+                // Long-frame handling (F2): after a stall (tab backgrounded, GC pause, etc.)
+                // dt can be huge. Instead of dropping the frame entirely — which caused a
+                // visible post-stall freeze — clamp dt and run the step. The coupling impulse
+                // is already *dt-scaled, and the decays are now frameDecay()-normalized, so a
+                // clamped step stays stable.
+                dt = Math.min(dt, 0.1);
                 
                 this.waveSystem.time += dt;
-                this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * (1.0 - this.vineTension * 0.008);
+                this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * tensionSagFactor(this.vineTension);
                 this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
-                if (_continuousCoupling) {
-                    // Continuous coupling (B.10): gravity ALWAYS applies; the coupling impulse
-                    // fights it only while pulsing, so the climb is an active energy battle.
-                    this.physics.applyGravityAndDrag(this.monkey, dt, false, this.gravityMultiplier, this.dragMultiplier);
-                    const chargeBefore = this.epmCharge;
-                    if (this.monkey.isGrabbing && !this.epmBrownout) {
-                        const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
-                        this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor();
-                        this.monkey.x = this.wave.x - this.monkey.width / 2;
-
-                        // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave
-                        // coupling regenerates it, attenuated by altitude (Q-P3) + gated by material.
-                        const tier = this.monkey.equipment.magnet || 'base';
-                        const drain = GameConfig.EPM.DRAIN[tier] || GameConfig.EPM.DRAIN.base;
-                        const regenGain = GameConfig.EPM.REGEN[tier] || GameConfig.EPM.REGEN.base;
-                        const energyFactor = this.waveEnergyFactor(this.monkey.altitude);
-                        this.epmCharge += (c.quality * energyFactor * regenGain - drain) * dt;
-                        if (this.epmCharge <= 0) { this.epmCharge = 0; this.epmBrownout = true; this.audio.brownout(); }
-
-                        this.lastGrabQuality = c.quality;
-                        this.grabFlashColor = c.flashColor;
-                        this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
-                        // Throttled coupling particles for feedback (avoids a per-frame burst)
-                        this._couplingParticleTimer = (this._couplingParticleTimer || 0) - dt;
-                        if (this._couplingParticleTimer <= 0) {
-                            this._couplingParticleTimer = GameConfig.COUPLING.PARTICLE_INTERVAL;
-                            this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.max(1, Math.floor(c.quality * 6)), c.flashColor);
-                        }
-                        // Polish (Stage 4 / 3.1): rhythmic pulse tone, pitch tracks coupling quality.
-                        this._audioPulseTimer = (this._audioPulseTimer || 0) - dt;
-                        if (this._audioPulseTimer <= 0) {
-                            this._audioPulseTimer = 0.16;
-                            this.audio.pulse(c.quality);
-                        }
-                    } else if (this.monkey.isGrabbing && this.epmBrownout) {
-                        // Browned out: EPM can't fire — no momentum imparted, just stay on the tether.
-                        this.monkey.x = this.wave.x - this.monkey.width / 2;
-                        this.lastGrabQuality = 0;
-                    }
-                    // Ambient eddy-current trickle (always near the tether) — recover by coasting.
-                    this.epmCharge = Math.min(GameConfig.EPM.CAPACITY, this.epmCharge + GameConfig.EPM.TRICKLE * dt);
-                    if (this.epmBrownout && this.epmCharge >= GameConfig.EPM.BROWNOUT_RECOVER) this.epmBrownout = false;
-                    this.epmNetPerSec = dt > 0 ? (this.epmCharge - chargeBefore) / dt : 0;
+                // SIM: dispatch to the active coupling model. The two integrators are kept in
+                // separate methods so the model branching lives in exactly one place.
+                if (this._isContinuous()) {
+                    this.updateContinuous(dt);
                 } else {
-                    this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
-                    if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
+                    this.updateLegacy(dt);
                 }
                 this.physics.updatePosition(this.monkey, dt, this.canvas.width, this.wave.x);
                 this.checkCollisions();
@@ -2708,7 +2856,7 @@
 
                 // SIM (Stage 2 / B.11): cargo delivery — credit cargo the first time the climber
                 // reaches Kármán in continuous mode, and add it to the cumulative bootstrap meter.
-                if (_continuousCoupling && !this.cargoDelivered &&
+                if (this._isContinuous() && !this.cargoDelivered &&
                     this.monkey.altitude >= GameConfig.MISSION.DELIVER_ALTITUDE_M) {
                     this.cargoDelivered = true;
                     this.deliveredKg = this.monkey.weight;
@@ -2925,7 +3073,7 @@
                 // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow. In the pulse model the hands
                 // are electro-permanent magnets — they glow brighter/pulse faster with EPM charge,
                 // redden + flicker near brownout, and go dark at zero. Reinforces "pulsing magnets".
-                if (_continuousCoupling) {
+                if (this._isContinuous()) {
                     this.renderEpmHandsGlow(ctx, monkeyScreenY);
                 }
                 
@@ -3097,6 +3245,7 @@
                 this.renderEffects(ctx, width, height);
                 this.renderControls(ctx, height);
                 this.renderCouplingModeIndicator(ctx, width);
+                this.renderMissionHud(ctx, width);
                 this.renderEpmGauge(ctx, width, height);
                 this.renderFirstHint(ctx, width);
             }
@@ -3117,12 +3266,36 @@
 
             // SIM: on-canvas badge shown only when the hidden legacy "classic grab" model is active.
             renderCouplingModeIndicator(ctx, width) {
-                if (_continuousCoupling) return;
+                if (this._isContinuous()) return;
                 ctx.save();
                 ctx.font = 'bold 11px monospace';
                 ctx.textAlign = 'left';
                 ctx.fillStyle = 'rgba(255, 180, 0, 0.9)';
                 ctx.fillText('CLASSIC GRAB MODE  (K to restore pulse)', 10, 16);
+                ctx.restore();
+            }
+
+            // SIM (Stage 2 / B.11): persistent mission HUD — surface the same cargo / mission-score
+            // and bootstrap metrics shown at game-over so the player tracks them during the climb.
+            // Pulse model only (the legacy grab model has no cargo mission).
+            renderMissionHud(ctx, width) {
+                if (!this._isContinuous()) return;
+                const cargoKg = this.monkey ? this.monkey.weight : 0;
+                // Live mission score = cargo kg × current altitude km (locks in at Kármán delivery).
+                const km = this.monkey ? this.monkey.altitude / 1000 : 0;
+                const liveScore = cargoKg * km;
+                const bootPct = bootstrapPct(this.bootstrapKg);
+                ctx.save();
+                ctx.textAlign = 'left';
+                ctx.font = 'bold 11px monospace';
+                ctx.fillStyle = this.cargoDelivered ? 'rgba(0, 229, 255, 0.95)' : 'rgba(190, 240, 255, 0.85)';
+                const scoreLabel = this.cargoDelivered
+                    ? `Mission score: ${Math.round(missionScore(this.deliveredKg))} kg·km (DELIVERED)`
+                    : `Mission: ${cargoKg.toFixed(0)} kg cargo · ${Math.round(liveScore)} kg·km so far`;
+                ctx.fillText(scoreLabel, 10, 16);
+                ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
+                ctx.font = '10px monospace';
+                ctx.fillText(`Tether bootstrap: ${bootPct.toFixed(1)}%`, 10, 30);
                 ctx.restore();
             }
 
@@ -3165,7 +3338,7 @@
             // SIM (Stage 2 / B.5.1): fixed EPM charge gauge — always-legible battery bar with a
             // net-flow arrow (▲ regen >= drain, ▼ net-draining) plus a brownout warning.
             renderEpmGauge(ctx, width, height) {
-                if (!_continuousCoupling) return;
+                if (!this._isContinuous()) return;
                 const w = 18, h = 150, x = width - w - 16, y = 72;
                 const charge = Math.max(0, Math.min(GameConfig.EPM.CAPACITY, this.epmCharge || 0));
                 const pct = charge / GameConfig.EPM.CAPACITY;

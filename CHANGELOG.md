@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Zero-dependency unit test suite** (`tests/`, Node's built-in `node:test`) covering
+  wave math, physics/coupling, frame-rate decay, tether/scoring helpers, and the
+  altimeter table. Runs in CI (`node --test tests/*.test.mjs`) before the build.
+- **WebGL fallback + hardening** — context acquisition now retries
+  `experimental-webgl`, shader compile/link status is checked, and `webglcontextlost`/
+  `webglcontextrestored` are handled. On any failure the decorative background falls
+  back to a static CSS gradient sky and the game keeps running.
+- **Persistent mission HUD** — the cargo / mission-score (`kg·km`) and tether
+  bootstrap % are now shown during play (pulse model), not only at game-over.
+
+### Changed
+
+- **Frame-rate-independent physics.** Air drag, horizontal drift decay, and camera
+  smoothing are now normalized per-second via `frameDecay(base, dt) = base^(dt·60)`,
+  so behaviour no longer depends on display refresh rate. **60 Hz is the reference
+  frame and is byte-identical to before**, so no score reset is needed; high-refresh
+  PBs set before this fix may have been *understated* (more drag was applied per
+  second), and are only helped going forward.
+- **Long-frame handling** — after a stall the frame's `dt` is now clamped (to 0.1 s)
+  and the step still runs, instead of being dropped, fixing a post-stall freeze.
+- **Scoring semantics unified** — the game-over panel now shows clearly-labeled
+  "Altitude" (always) and "Mission score: … kg·km" (on Kármán delivery) metrics; the
+  internal `bestScore`/`previousScore` variables were renamed to `bestAltitude`/
+  `previousAltitude` (the `localStorage` keys are unchanged, so saves survive).
+- **Tuning consolidated** — magic numbers (tension sag, material damping, slider
+  scalings, coupling audio cadence) moved into `GameConfig`; the dual physics model is
+  now isolated into `updateContinuous`/`updateLegacy` with the model flag read through
+  a single `_isContinuous()` helper.
+
+### Fixed
+
+- Persisted scores/altitudes are now defensively parsed (`NaN`/`Infinity`/negative
+  values are rejected) so a corrupted `localStorage` entry can't poison scoring state.
+
 ## [1.0.0] - 2026-06-16
 
 Reframe from "climbing game" to a **cartoon-wrapped simulation of contactless
