@@ -37,6 +37,12 @@ jobs:
             exit 1
           fi
 
+      - name: Strip VCS / CI metadata from the published artifact
+        if: github.event_name != 'pull_request'
+        # Avoid publishing .git (full repo history) and CI config to the live site.
+        # Keep "Space Elevator_files/" — index.html loads landmark sprites from it at runtime.
+        run: rm -rf .git .github
+
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
