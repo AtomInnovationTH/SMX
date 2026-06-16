@@ -57,3 +57,6 @@ temp/
 # Cache
 .cache/
 *.cache
+
+# Kilo agent tooling (local only)
+.kilo/
