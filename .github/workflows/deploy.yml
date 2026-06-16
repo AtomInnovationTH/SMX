@@ -44,19 +44,22 @@ jobs:
             exit 1
           fi
 
-      - name: Strip VCS / CI metadata from the published artifact
+      - name: Assemble the published site (the game only)
         if: github.event_name != 'pull_request'
-        # Avoid publishing .git (full repo history) and CI config to the live site.
-        # Keep "Space Elevator_files/" — index.html loads landmark sprites from it at runtime.
-        run: rm -rf .git .github
+        # Publish ONLY what the game needs at runtime: the built index.html and the
+        # "Space Elevator_files/" folder (landmark sprites load from it at runtime).
+        # Source, tests, docs, screenshots, and CI config stay out of the live site.
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp index.html _site/
+          cp -R "Space Elevator_files" _site/
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
-          # The site is the repo root: index.html is served alongside
-          # the "Space Elevator_files/" folder (landmark sprites load at runtime).
-          path: '.'
+          path: '_site'
 
   deploy:
     # Only deploy on pushes to main, not on PRs.
