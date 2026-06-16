@@ -63,6 +63,10 @@
         #settingsPanel.visible { display: block; }
         .slider-container { margin: 10px 0; }
         .slider-container label { display: block; margin-bottom: 5px; }
+        .setting-hint { display: block; font-size: 10px; color: #9bb6c9; opacity: 0.85; margin-top: 3px; line-height: 1.35; }
+        .settings-concept { font-size: 11px; color: #cfe6f5; background: rgba(0, 90, 130, 0.22); border-left: 3px solid #00b4e6; padding: 7px 9px; margin: 6px 0 12px; line-height: 1.45; max-width: 320px; }
+        .wave-explainer { font-size: 10px; color: #cfe6f5; background: rgba(0, 90, 130, 0.18); border-radius: 4px; padding: 6px 8px; margin: 6px 0 4px; line-height: 1.4; max-width: 320px; }
+        .wave-explainer b { color: #ffe08a; }
         input[type="range"] { width: 200px; }
         
         /* Style monkey sliders brown to match monkey */
@@ -155,6 +159,8 @@
         .go-new-best { font-size: 18px; color: #FF6B6B; margin-bottom: 12px; }
         .go-cargo { font-size: 20px; color: #00E5FF; margin-bottom: 6px; }
         .go-bootstrap { font-size: 15px; color: #9fd4a0; margin-bottom: 14px; }
+        .go-geo { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 460px; line-height: 1.5; text-align: left; }
+        .go-geo b { color: #ffe08a; }
         .go-prompt { font-size: 15px; color: #aaa; margin-bottom: 20px; animation: pulse-spin 2s ease-in-out infinite; }
         .go-settings { font-size: 12px; color: #6bc8ff; cursor: pointer; text-decoration: underline; }
         
@@ -214,6 +220,16 @@
             <div class="go-best" id="go-best"></div>
             <div class="go-cargo" id="go-cargo" style="display:none;"></div>
             <div class="go-bootstrap" id="go-bootstrap" style="display:none;"></div>
+            <div class="go-geo" id="go-geo" style="display:none;">
+                <b>You reached the Kármán Line (100 km) — but that's only the start.</b><br>
+                A real space-elevator seed tether continues to <b>geostationary orbit (35,786 km)</b>,
+                where gravity and centrifugal force balance, and on to a <b>counterweight</b> beyond — above
+                GEO the effective gravity <b>flips outward</b>. This game stops at Kármán; the rest is the
+                concept it points to.<br><br>
+                You flew the <b>up-climber</b>: carry cargo up, ride the beamed waves, manage EPM charge.
+                The <b>down-climber</b> — which would brake regeneratively on the way down and reinforce the
+                tether — is the next chapter.
+            </div>
             <div class="go-new-best" id="go-new-best" style="display:none;">🎉 NEW BEST! 🎉</div>
             <div class="go-prompt" id="go-prompt">Press SPACE or Tap to restart</div>
             <div class="go-settings" id="go-settings-link">Settings</div>
@@ -235,8 +251,14 @@
     
     <div id="settingsPanel">
         <h3>Settings (Press S to toggle)</h3>
-        
-        <h4>Tether (Vine)</h4>
+        <div class="settings-concept">
+            Your hands are <b>electro-permanent magnets (EPMs)</b>. A ground station beams traveling
+            waves up a conductive graphene seed tether; <b>pulse (SPACE) at the wave's peak velocity</b>
+            to induce eddy currents and ride the wave upward — skimming &lt;10% of the energy to recharge
+            your magnets. No physical contact.
+        </div>
+
+        <h4>Tether (seed)</h4>
         <div class="slider-container">
             <label>Material: <span id="materialValue">300 GPa CC-CNT</span></label>
             <select id="material">
@@ -246,39 +268,53 @@
                 <option value="150">150 GPa CNT</option>
                 <option value="300" selected>300 GPa CC-CNT</option>
             </select>
+            <small class="setting-hint">Real space-elevator-candidate carbon materials, by specific strength. Stiffer tethers carry waves higher before they fade — so material sets how high you can climb.</small>
         </div>
         <div class="slider-container">
             <label>Frequency: <span id="frequencyValue">0.5 Hz</span></label>
             <input type="range" id="frequency" min="0" max="100" step="1" value="0">
+            <small class="setting-hint">How fast the ground station shakes the tether — a driver control.</small>
         </div>
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">700 mm</span></label>
             <input type="range" id="amplitude" min="100" max="1000" step="50" value="700">
+            <small class="setting-hint">How far the wave swings — bigger waves carry more momentum per pulse.</small>
         </div>
         <div class="slider-container">
             <label>Width: <span id="widthValue">45 mm</span></label>
             <input type="range" id="width" min="10" max="1000" step="10" value="45">
+            <small class="setting-hint">Tether diameter. With material density it sets the linear mass μ, and so the wave speed.</small>
         </div>
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
             <input type="range" id="tension" min="1" max="20000" step="1" value="100">
+            <small class="setting-hint">Higher tension → faster waves (v=√(T/μ)) → more momentum available per coupling.</small>
         </div>
         <div class="slider-container">
             <label>Wave speed (v=√(T/μ)): <span id="waveSpeedValue">— m/s</span></label>
+            <small class="setting-hint">Derived from tension and tether mass — this is what your pulses couple to.</small>
         </div>
-        
+        <div class="wave-explainer">
+            <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
+            An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
+            even with steady pulsing (efficient). A <b>square</b> wave only couples at its sharp edges (extreme skill).
+        </div>
+
         <h4>Monkey</h4>
         <div class="slider-container">
             <label>Grip: <span id="gripValue">1%</span></label>
             <input type="range" id="grip" min="1" max="100" step="1" value="1">
+            <small class="setting-hint">EPM field strength — stronger coupling per pulse (magnet upgrades raise this: Alnico → Neodymium → Halbach).</small>
         </div>
         <div class="slider-container">
             <label>Gravity: <span id="gravityValue">1.00 G</span></label>
             <input type="range" id="gravity" min="0.01" max="1" step="0.01" value="1.00">
+            <small class="setting-hint">Pulls the climber down; you beat it only by coupling to the wave.</small>
         </div>
         <div class="slider-container">
             <label>Weight: <span id="weightValue">1 kg</span></label>
             <input type="range" id="weight" min="0.2" max="200" step="0.2" value="1">
+            <small class="setting-hint">Climber + cargo. Heavier needs more momentum per metre, but cargo delivered to 100 km is your score.</small>
         </div>
     </div>
 
@@ -343,11 +379,11 @@
         let _uxReducedMotion = false;
         let _uxColorblind = false;
 
-        // SIM (Stage 2 / B.10): continuous-coupling prototype flag.
-        // Default OFF — the discrete grab model stays the shipping default.
-        // Toggle at runtime with 'K' for playtesting; persisted in localStorage.
+        // SIM: coupling model. Continuous "pulse/couple" (the contactless EPM model) is the
+        // DEFAULT experience. The legacy discrete "grab/hold" model is kept as a hidden backup,
+        // toggled at runtime with 'K' and persisted in localStorage.
         const CONTINUOUS_COUPLING_KEY = 'spaceMonkey.continuousCoupling.v1';
-        let _continuousCoupling = false;
+        let _continuousCoupling = true;
 
         // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap progress.
         const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run score (kg·km)
@@ -2249,7 +2285,7 @@
                     else if (e.key === '2') this.waveSystem.setType('square');
                     else if (e.key === '3') this.waveSystem.setType('sawtooth');
 
-                    // SIM (Stage 2 / B.10): toggle the continuous-coupling prototype for playtesting.
+                    // SIM: K toggles between the default pulse/couple model and the hidden legacy grab model.
                     if (e.key === 'k' || e.key === 'K') {
                         _continuousCoupling = !_continuousCoupling;
                         try { localStorage.setItem(CONTINUOUS_COUPLING_KEY, _continuousCoupling ? '1' : '0'); } catch (err) {}
@@ -2260,7 +2296,7 @@
                         this.epmCharge = GameConfig.EPM.CAPACITY;
                         this.epmBrownout = false;
                         this.epmNetPerSec = 0;
-                        console.log('[SIM] continuous coupling:', _continuousCoupling ? 'ON' : 'OFF');
+                        console.log('[SIM] coupling model:', _continuousCoupling ? 'PULSE (default)' : 'CLASSIC GRAB');
                     }
                     
                     // Pause toggle — skip if game-over is showing
@@ -2443,9 +2479,14 @@
                         bootEl.style.display = 'block';
                         bootEl.textContent = `Tether bootstrap: ${this.bootstrapKg.toFixed(0)} / ${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg  (${pct.toFixed(1)}%)`;
                     }
+                    // "What's above 100 km" teaching panel — shown once the player reaches Kármán.
+                    const geoEl = document.getElementById('go-geo');
+                    if (geoEl) geoEl.style.display = this.cargoDelivered ? 'block' : 'none';
                 } else {
                     if (cargoEl) cargoEl.style.display = 'none';
                     if (bootEl) bootEl.style.display = 'none';
+                    const geoEl = document.getElementById('go-geo');
+                    if (geoEl) geoEl.style.display = 'none';
                 }
                 if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'flex';
             }
@@ -2773,6 +2814,13 @@
                     ctx.shadowOffsetY = 0;
                     ctx.restore();
                 }
+
+                // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow. In the pulse model the hands
+                // are electro-permanent magnets — they glow brighter/pulse faster with EPM charge,
+                // redden + flicker near brownout, and go dark at zero. Reinforces "pulsing magnets".
+                if (_continuousCoupling) {
+                    this.renderEpmHandsGlow(ctx, monkeyScreenY);
+                }
                 
                 const bx = this.monkey.x + GameConfig.MONKEY.BADGE_X_OFFSET, by = monkeyScreenY + GameConfig.MONKEY.BADGE_Y_OFFSET;
                 ctx.shadowBlur = GameConfig.RENDER.SHADOW_BLUR.BADGE;
@@ -2900,7 +2948,7 @@
                 ctx.fillRect(GameConfig.RENDER.CONTROLS_OFFSET, height - 125, GameConfig.RENDER.CONTROLS_WIDTH, GameConfig.RENDER.CONTROLS_HEIGHT + 45);
                 ctx.fillStyle = 'white';
                 ctx.font = '11px monospace';
-                ctx.fillText('SPACE: Grab cable', 20, height - 105);
+                ctx.fillText('SPACE: Pulse / catch wave', 20, height - 105);
                 ctx.fillText('\u2190 \u2192: Move left/right', 20, height - 90);
                 ctx.fillText('1-3: Wave type', 20, height - 75);
                 ctx.fillText('P / ESC: Pause', 20, height - 60);
@@ -2932,14 +2980,50 @@
                 this.renderEpmGauge(ctx, width, height);
             }
 
-            // SIM (Stage 2 / B.10): on-canvas badge so playtesters can see the active model.
+            // SIM: on-canvas badge shown only when the hidden legacy "classic grab" model is active.
             renderCouplingModeIndicator(ctx, width) {
-                if (!_continuousCoupling) return;
+                if (_continuousCoupling) return;
                 ctx.save();
                 ctx.font = 'bold 11px monospace';
                 ctx.textAlign = 'left';
-                ctx.fillStyle = 'rgba(0, 229, 255, 0.85)';
-                ctx.fillText('COUPLING: CONTINUOUS  (K)', 10, 16);
+                ctx.fillStyle = 'rgba(255, 180, 0, 0.9)';
+                ctx.fillText('CLASSIC GRAB MODE  (K to restore pulse)', 10, 16);
+                ctx.restore();
+            }
+
+            // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow drawn over the climber's hands.
+            // Brightness/pulse-rate scale with EPM charge; reddens + flickers near brownout; dark at zero.
+            renderEpmHandsGlow(ctx, monkeyScreenY) {
+                const cap = GameConfig.EPM.CAPACITY;
+                const charge = Math.max(0, Math.min(cap, this.epmCharge || 0)) / cap; // 0..1
+                const cx = this.monkey.x + this.monkey.width / 2;
+                const handY = monkeyScreenY + 6;   // just above the head, where the hands reach
+                let r, g, b, intensity;
+                if (this.epmBrownout || charge <= 0.001) {
+                    // Browned out: dark red flicker.
+                    const flick = (Math.floor(performance.now() / 120) % 2 === 0) ? 0.45 : 0.12;
+                    r = 230; g = 60; b = 40; intensity = flick;
+                } else {
+                    // Charged: green; fading to amber/red as charge drops.
+                    if (charge > 0.5) { r = 90; g = 235; b = 150; }
+                    else if (charge > 0.2) { r = 245; g = 200; b = 70; }
+                    else { r = 235; g = 95; b = 55; }
+                    const pulseAmt = _uxReducedMotion ? 0.85
+                        : 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * (4 + charge * 10)));
+                    intensity = (0.3 + 0.7 * charge) * pulseAmt * (this.monkey.isGrabbing ? 1 : 0.5);
+                }
+                const radius = 9 + 7 * charge;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (const dx of [-9, 9]) {
+                    const grd = ctx.createRadialGradient(cx + dx, handY, 0, cx + dx, handY, radius);
+                    grd.addColorStop(0, `rgba(${r},${g},${b},${(0.9 * intensity).toFixed(3)})`);
+                    grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                    ctx.fillStyle = grd;
+                    ctx.beginPath();
+                    ctx.arc(cx + dx, handY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 ctx.restore();
             }
 
@@ -3044,9 +3128,10 @@
                 if (saved.reducedMotion !== undefined) _uxReducedMotion = saved.reducedMotion;
             } catch(e) {}
 
-            // SIM (Stage 2 / B.10): restore the continuous-coupling prototype flag.
+            // SIM: restore the coupling-model preference (defaults to the pulse model).
             try {
-                _continuousCoupling = localStorage.getItem(CONTINUOUS_COUPLING_KEY) === '1';
+                const stored = localStorage.getItem(CONTINUOUS_COUPLING_KEY);
+                if (stored !== null) _continuousCoupling = stored === '1';
             } catch(e) {}
             
             // UX: backup original palette then apply colorblind if saved (2f)

@@ -2,12 +2,20 @@
 
 **Play it:** [atominnovationth.github.io/SMX](https://atominnovationth.github.io/SMX/)
 
-**Space Monkey Elevator — a vertical climbing game about reaching the Kármán line.**
+**Space Monkey Elevator — a contactless space-elevator-climber simulation, reaching the Kármán line.**
 
 <!-- TODO: replace with a 10–15s gameplay GIF when one is available -->
 ![Space Monkey Elevator — falling back to Earth](screenshots/falling.png)
 
-Physics-based vertical climbing game where you ride a vibrating graphene tether from sea level to the Kármán Line (100 km). Time your `SPACE` presses to the wave peaks for maximum momentum.
+You play an up-climber riding a vibrating graphene space-elevator seed tether from sea level to the Kármán Line (100 km). The monkey's hands are **electro-permanent magnets (EPMs)** that *pulse* to couple to the tether's traveling waves — no physical contact. Tap `SPACE` in time with the wave's peak velocity to gain upward momentum while regeneratively powering your magnets.
+
+---
+
+## How it works (the concept)
+
+> A ground station beams mechanical traveling waves up a conductive graphene/CNT space-elevator seed tether. An up-climber rides them contactlessly: its electro-permanent-magnet hands pulse to induce eddy currents in the moving tether, coupling at peak wave velocity to gain upward momentum while regeneratively skimming &lt;10% of that energy to power the magnets. It carries cargo (tether material) toward the Kármán Line. Waves fade with altitude, so a stronger tether material reaches higher. Down-climbers — which would brake regeneratively on descent and reinforce the tether — are the next chapter.
+
+The cute monkey is intentional: it keeps people open-minded about a genuinely novel propulsion concept. The playable climb stops at the **Kármán Line (100 km)**; in reality the seed tether continues to **geostationary orbit (35,786 km)** and a counterweight beyond, where effective gravity flips outward — that part is shown as context on the finish screen, not simulated.
 
 ---
 
@@ -35,13 +43,14 @@ Three ways to play:
 
 | Key | Action |
 |---|---|
-| `Space` | Grab / release the tether (hold during a missed window to buffer the next grab) |
-| `←` / `→` | Move left / right while grabbing |
+| `Space` | Pulse your EPM hands to couple to the wave (hold to keep pulsing; time it to the wave's peak velocity) |
+| `←` / `→` | Move left / right while pulsing |
 | `R` | Restart run |
 | `S` | Toggle settings panel |
 | `C` | Toggle Okabe-Ito colorblind palette |
 | `Esc` / `P` | Pause / resume |
 | `1` / `2` / `3` | Switch wave type — sine / square / sawtooth |
+| `K` | Switch to the legacy "classic grab" model (hidden backup) |
 | ⚙ button (top-right) | Open settings panel (same as `S`) |
 
 ---
@@ -51,10 +60,10 @@ Three ways to play:
 - **Milestone shake + particles** triggered when the player crosses a milestone altitude
 - **Named landmarks** along the climb — Burj Khalifa → Mt. Everest → Kármán Line → ISS Orbit
 - **Ghost-line PB tracker** — best altitude persisted in `localStorage` and drawn as a horizontal target line
-- **Coyote time + input buffering** (`COYOTE_MS` / `BUFFER_MS` in [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html)) so near-miss grabs still feel fair
+- **Coyote time + input buffering** (`COYOTE_MS` / `BUFFER_MS` in [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html)) so near-miss pulses still feel fair
 - **One-button restart** (`R`) with a clear game-over state
 - **`prefers-reduced-motion`** honored — camera shake and particle bursts are suppressed automatically
-- **Okabe-Ito colorblind palette** toggle (`C`) — grab quality is no longer colour-only
+- **Okabe-Ito colorblind palette** toggle (`C`) — coupling quality is no longer colour-only
 
 ---
 
