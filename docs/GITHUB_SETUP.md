@@ -8,7 +8,7 @@
 
 **Status:** ✅ Done (new user-friendly version created)
 
-Your [`README.md`](README.md) is now visitor-friendly with:
+Your [`README.md`](../README.md) is now visitor-friendly with:
 - Clear "Play Now" button
 - Simple controls and goal
 - Badges for visual appeal
@@ -32,7 +32,7 @@ All technical documentation moved to [`DEVELOPERS.md`](DEVELOPERS.md) including:
 
 **Status:** ✅ Done
 
-[`LICENSE`](LICENSE) file created with MIT License - allows others to:
+[`LICENSE`](../LICENSE) file created with MIT License - allows others to:
 - Use the code
 - Modify it
 - Distribute it
@@ -107,7 +107,7 @@ All technical documentation moved to [`DEVELOPERS.md`](DEVELOPERS.md) including:
 
 **Action Required:**
 
-Your [`Space Elevator_files/`](Space Elevator_files/) folder has 100+ assets but may not be on GitHub yet.
+Your [`Space Elevator_files/`](../Space Elevator_files/) folder has 100+ assets but may not be on GitHub yet.
 
 **Option A: Push assets directly (Recommended)**
 ```bash
@@ -165,7 +165,7 @@ Then on GitHub:
 **Action Required:**
 
 1. **In SMX Repository:**
-   - Already added to new [`README.md`](README.md) under "For Developers"
+   - Already added to new [`README.md`](../README.md) under "For Developers"
 
 2. **In GMX Repository:**
    - Go to: `https://github.com/AtomInnovationTH/GMX`
@@ -202,9 +202,9 @@ Capture gameplay at different altitudes and add to README:
 ```markdown
 ## 📸 Screenshots
 
-![Ground Level](screenshots/ground.png)
-![Stratosphere](screenshots/stratosphere.png)
-![Space](screenshots/space.png)
+![Ground Level](../screenshots/ground.png)
+![Stratosphere](../screenshots/stratosphere.png)
+![Space](../screenshots/space.png)
 ```
 
 ### Add Social Preview Image

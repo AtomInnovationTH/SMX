@@ -4,7 +4,7 @@ Current architecture and contributor workflow for **Space Monkey Elevator** — 
 cartoon-wrapped simulation of contactless climbing of a space-elevator seed tether.
 
 > The original combined design/roadmap document is archived at
-> [`docs/history/DEVELOPERS-design-doc.md`](docs/history/DEVELOPERS-design-doc.md)
+> [`docs/history/DEVELOPERS-design-doc.md`](history/DEVELOPERS-design-doc.md)
 > (historical; parts are stale). This file is the current reference.
 
 ---
@@ -15,8 +15,8 @@ The game is a single self-rendering file. There are exactly two HTML files:
 
 | File | Role |
 |---|---|
-| [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) | **The source of truth — the only file you edit.** |
-| [`index.html`](index.html) | **Generated build artifact.** Never hand-edit (it carries a DO-NOT-EDIT banner). |
+| [`Space_Monkey_Elevator.html`](../Space_Monkey_Elevator.html) | **The source of truth — the only file you edit.** |
+| [`index.html`](../index.html) | **Generated build artifact.** Never hand-edit (it carries a DO-NOT-EDIT banner). |
 
 Workflow:
 
@@ -31,7 +31,7 @@ and are **not** inlined, so `index.html` must be served alongside the
 `Space Elevator_files/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
-Run locally with [`start.sh`](start.sh) (serves on `:8000` and opens `index.html`).
+Run locally with [`start.sh`](../start.sh) (serves on `:8000` and opens `index.html`).
 CI (`.github/workflows/`) runs the unit tests, re-runs the build on push and fails if
 the committed `index.html` is out of sync, then deploys to GitHub Pages.
 
@@ -47,10 +47,10 @@ the altimeter table — without splitting the single HTML file:
 node --test tests/*.test.mjs
 ```
 
-[`tests/extract.mjs`](tests/extract.mjs) slices the single inline `<script>` out of
+[`tests/extract.mjs`](../tests/extract.mjs) slices the single inline `<script>` out of
 `Space_Monkey_Elevator.html`, appends a `return { … }` of the pure top-level symbols,
 and evaluates it with no-op DOM/WebGL/audio stubs (the bottom `load` handler only
-*registers* under the stub, so no game boots). [`tests/pure.test.mjs`](tests/pure.test.mjs)
+*registers* under the stub, so no game boots). [`tests/pure.test.mjs`](../tests/pure.test.mjs)
 holds the assertions. When you add a pure top-level function or class worth testing,
 add its name to `EXPORTED_SYMBOLS` in `extract.mjs`.
 
@@ -115,5 +115,5 @@ A legacy discrete **grab/hold** model is preserved as a hidden backup, toggled w
   `python3 embed_assets.py` and confirm `index.html` differs from the source only by
   inlined assets.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for PR process and
+See [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) for PR process and
 [`CHANGELOG.md`](CHANGELOG.md) for release history.

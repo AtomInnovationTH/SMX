@@ -89,13 +89,15 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 
 ```
 .
+├── index.html                   # the game (served by Pages, alongside the assets folder)
+├── Space Elevator_files/        # runtime assets (.webp, .svg) — landmark sprites load from here
 ├── Space_Monkey_Elevator.html   # editable source (this is what you edit)
-├── index.html                   # build artifact, most assets inlined (served by Pages alongside the assets folder)
 ├── embed_assets.py              # build script: source → index.html
 ├── start.sh                     # dev launcher (python3 http.server on :8000)
-├── Space Elevator_files/        # source assets (.webp, .svg) used by the editable HTML
+├── tests/                       # zero-dependency Node unit tests (node --test)
 ├── screenshots/                 # README / social imagery
-├── docs/history/                # archived pre-v1.0 planning docs (stale, kept for provenance)
+├── docs/                        # DEVELOPERS, CHANGELOG, setup guide, archived planning docs
+├── .github/                     # CI workflow, issue/PR templates, CONTRIBUTING, CODE_OF_CONDUCT
 ├── LICENSE                      # MIT
 └── README.md                    # you are here
 ```
@@ -119,4 +121,4 @@ Per-asset attributions for the photographic imagery in [`Space Elevator_files/`]
 
 ---
 
-> ⚠️ **Project status: archived / not actively maintained.** Issues and PRs may not receive responses. Forks are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+> ⚠️ **Project status: archived / not actively maintained.** Issues and PRs may not receive responses. Forks are welcome — see [CONTRIBUTING.md](.github/CONTRIBUTING.md).

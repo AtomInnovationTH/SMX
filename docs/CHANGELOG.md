@@ -83,7 +83,7 @@ default; the legacy discrete grab/hold model is kept as a hidden backup (`K`).
 - `index.html` now carries an auto-generated DO-NOT-EDIT banner; README is honest
   that it is served alongside `Space Elevator_files/` (not a standalone offline file).
 - `DEVELOPERS.md` rewritten to current architecture; the original design doc and the
-  pre-publish planning docs are archived under [`docs/history/`](docs/history).
+  pre-publish planning docs are archived under [`docs/history/`](history).
 
 ### Fixed
 
@@ -93,7 +93,7 @@ default; the legacy discrete grab/hold model is kept as a hidden backup (`K`).
 ## [0.1.0] - 2026-05-21
 
 First tagged release — UX polish pass and build-pipeline fix ahead of public
-GitHub publication. See [`docs/history/REVIEW.md`](docs/history/REVIEW.md) for the
+GitHub publication. See [`docs/history/REVIEW.md`](history/REVIEW.md) for the
 full pre-publish engineering review.
 
 ### Added
@@ -104,7 +104,7 @@ full pre-publish engineering review.
 - **Ghost-line personal-best tracker** — best altitude persisted to
   `localStorage` and rendered as a horizontal target line during play.
 - **Coyote time + input buffering** for grabs (see `COYOTE_MS` / `BUFFER_MS`
-  in [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html)) so near-miss
+  in [`Space_Monkey_Elevator.html`](../Space_Monkey_Elevator.html)) so near-miss
   timing still feels fair.
 - **One-button restart** (`R`) with an explicit game-over state.
 - **`prefers-reduced-motion` support** — camera shake and particle bursts
@@ -117,7 +117,7 @@ full pre-publish engineering review.
 - **Build pipeline writing to the wrong file.** [`embed_assets.py`](embed_assets.py)
   previously wrote to `Space_Monkey_Elevator_Embedded.html`, which nothing else
   referenced — meaning rebuilds never updated the deployed game. It now writes
-  to [`index.html`](index.html), the artifact served by GitHub Pages.
+  to [`index.html`](../index.html), the artifact served by GitHub Pages.
 
 ### Changed
 
