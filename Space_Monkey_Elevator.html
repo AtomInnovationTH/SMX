@@ -153,6 +153,8 @@
         .go-current { font-size: 42px; color: #bef0ff; text-shadow: 0 0 20px rgba(100,200,255,0.5); margin-bottom: 8px; }
         .go-best { font-size: 24px; color: #FFD700; margin-bottom: 16px; }
         .go-new-best { font-size: 18px; color: #FF6B6B; margin-bottom: 12px; }
+        .go-cargo { font-size: 20px; color: #00E5FF; margin-bottom: 6px; }
+        .go-bootstrap { font-size: 15px; color: #9fd4a0; margin-bottom: 14px; }
         .go-prompt { font-size: 15px; color: #aaa; margin-bottom: 20px; animation: pulse-spin 2s ease-in-out infinite; }
         .go-settings { font-size: 12px; color: #6bc8ff; cursor: pointer; text-decoration: underline; }
         
@@ -206,14 +208,16 @@
     <div id="restart-toast">Press R again to restart</div>
     
     <!-- UX: Game Over Overlay (2e) -->
-    <div id="game-over-overlay">
-        <div class="go-previous" id="go-previous"></div>
-        <div class="go-current" id="go-current"></div>
-        <div class="go-best" id="go-best"></div>
-        <div class="go-new-best" id="go-new-best" style="display:none;">🎉 NEW BEST! 🎉</div>
-        <div class="go-prompt" id="go-prompt">Press SPACE or Tap to restart</div>
-        <div class="go-settings" id="go-settings-link">Settings</div>
-    </div>
+        <div id="game-over-overlay">
+            <div class="go-previous" id="go-previous"></div>
+            <div class="go-current" id="go-current"></div>
+            <div class="go-best" id="go-best"></div>
+            <div class="go-cargo" id="go-cargo" style="display:none;"></div>
+            <div class="go-bootstrap" id="go-bootstrap" style="display:none;"></div>
+            <div class="go-new-best" id="go-new-best" style="display:none;">🎉 NEW BEST! 🎉</div>
+            <div class="go-prompt" id="go-prompt">Press SPACE or Tap to restart</div>
+            <div class="go-settings" id="go-settings-link">Settings</div>
+        </div>
     
     <!-- UX: Altimeter landmark label (2d) -->
     <div id="ux-altimeter-label"></div>
@@ -258,6 +262,9 @@
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
             <input type="range" id="tension" min="1" max="20000" step="1" value="100">
+        </div>
+        <div class="slider-container">
+            <label>Wave speed (v=√(T/μ)): <span id="waveSpeedValue">— m/s</span></label>
         </div>
         
         <h4>Monkey</h4>
@@ -335,6 +342,16 @@
         // UX: runtime flags (2f) — set during init
         let _uxReducedMotion = false;
         let _uxColorblind = false;
+
+        // SIM (Stage 2 / B.10): continuous-coupling prototype flag.
+        // Default OFF — the discrete grab model stays the shipping default.
+        // Toggle at runtime with 'K' for playtesting; persisted in localStorage.
+        const CONTINUOUS_COUPLING_KEY = 'spaceMonkey.continuousCoupling.v1';
+        let _continuousCoupling = false;
+
+        // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap progress.
+        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run score (kg·km)
+        const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v1';  // cumulative kg delivered to Kármán
         
         // Store originals so we can swap back
         const _ORIGINAL_PALETTE = {};
@@ -1263,6 +1280,57 @@
                 GOOD_COLOR: COLOR_PALETTE.GRAB_GOOD,
                 POOR_COLOR: COLOR_PALETTE.GRAB_POOR
             };
+
+            // SIM (Stage 2 / B.10): continuous-coupling integrator tunables.
+            // All values are INITIAL GUESSES flagged for playtest (see roadmap B.5/B.6/S12).
+            static COUPLING = {
+                GAIN: 1.0,            // per-frame coupling force scale: impulse = -waveVelocity * GAIN * tetherMult * gripMult * dt
+                RATCHET_GAIN: 0.18,   // S12: steady net up-assist for asymmetric (sawtooth) waves, timing-independent
+                PERFECT_QUALITY: 0.85,// |waveVel|/(amp*omega) above this reads as a perfect coupling (peak-velocity timing, B.6)
+                GOOD_QUALITY: 0.45,   // above this reads as a good coupling
+                PARTICLE_INTERVAL: 0.08 // seconds between coupling particle bursts while pulsing (throttle)
+            };
+
+            // SIM (Stage 2 / B.5): EPM charge / regen energy loop tunables (continuous mode only).
+            // Capacity normalized 0-100. All values are INITIAL GUESSES flagged for playtest.
+            //   - Pulsing DRAINS charge (per-tier: strength-vs-draw tradeoff, S11).
+            //   - A well-timed up-wave coupling REGENs charge: quality * waveEnergyFactor(alt) * tier regen.
+            //   - waveEnergyFactor attenuates with altitude (Q-P3); stiffer material attenuates less,
+            //     so material choice sets reachable altitude (the difficulty curve).
+            //   - Ambient TRICKLE near the tether makes brownout recoverable by coasting.
+            static EPM = {
+                CAPACITY: 100,
+                START_CHARGE: 100,
+                TRICKLE: 1.5,            // /s ambient eddy-current regen (always, near tether)
+                BROWNOUT_RECOVER: 15,    // re-enable pulsing once charge climbs back above this %
+                ATTEN_BASE_M: 40000,     // e-fold wave attenuation length (m) per 100 GPa of material
+                // keyed by monkey.equipment.magnet ('base' = no upgrade): drain /s, regen gain
+                DRAIN: { base: 3, alnico: 4, neodymium: 8, hallbach: 15 },
+                REGEN: { base: 7, alnico: 8, neodymium: 12, hallbach: 18 }
+            };
+
+            // SIM (Stage 2 / B.8): light units chain — wire the tether sliders into one model.
+            //   diameter (width) + carbon density -> linear mass density mu
+            //   tension T + mu                    -> wave speed v = sqrt(T/mu)  [displayed]
+            // Higher tension / thinner tether -> faster waves -> more momentum per coupling.
+            // No tether-break fail state (S13). Density is held constant (carbon allotropes);
+            // material's gameplay role is altitude attenuation (Q-P3), not wave speed.
+            static TETHER = {
+                CARBON_DENSITY: 1800,   // kg/m^3, representative for graphene / CNT
+                KGF_TO_N: 9.81,         // the Tension slider is in kgf
+                SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
+                SPEED_FACTOR_MAX: 2.0
+            };
+
+            // SIM (Stage 2 / B.11): cargo delivery mission (S10/S15/S16).
+            //   - Cargo (the Weight slider, kg) is "delivered" when the climber reaches Kármán.
+            //   - Headline score = cargo_kg * altitude_km (kg·km); personal best persisted (S15).
+            //   - Cumulative delivered kg fills a "bootstrap %" meter toward BOOTSTRAP_TARGET_KG (S16),
+            //     a hook toward the future down-climber / tether-reinforcement chapter.
+            static MISSION = {
+                DELIVER_ALTITUDE_M: 100000,   // Kármán Line
+                BOOTSTRAP_TARGET_KG: 5000     // cumulative kg for a full bootstrap meter
+            };
             
             static CAMERA = { VERTICAL_OFFSET: 0.7 };
             
@@ -1418,7 +1486,11 @@
             }
             
             calculateWaveVelocity(waveSystem) { return waveSystem.calculateVelocity(waveSystem.time); }
-            
+
+            // Heavier climber (+ cargo) accelerates less per unit coupling momentum.
+            // Shared by both the discrete and continuous coupling models so they cannot drift.
+            weightFactor(monkey) { return 1.0 / (1.0 + monkey.weight / 100); }
+
             calculateGrabMomentum(waveSystem, monkey, gripMult, tetherMult) {
                 const waveVelocity = this.calculateWaveVelocity(waveSystem);
                 const wavePhase = (waveSystem.time * waveSystem.frequency) % 1;
@@ -1442,10 +1514,44 @@
                 }
                 
                 const momentum = waveVelocity * quality * tetherMult * gripMult;
-                const weightFactor = 1.0 / (1.0 + monkey.weight / 100);
+                const weightFactor = this.weightFactor(monkey);
                 return { quality, momentum: momentum * weightFactor, flashColor };
             }
-            
+
+            // SIM (Stage 2 / B.10): continuous coupling integrator — coupling(t) x waveVelocity(t)
+            // applied per-frame while the EPM is pulsing. Returns a per-frame impulse (already
+            // scaled by dt), a coupling quality in [0,1], and a feedback flash colour.
+            //   B.6: coupling efficiency peaks at PEAK transverse wave velocity (the displacement
+            //        zero-crossing), not at the crest — quality = |waveVel| / (amp*omega).
+            //   S12: an asymmetric (sawtooth) wave adds a small timing-independent net up-assist
+            //        (the traveling-wave / ratchet motor effect).
+            // Tunables live in GameConfig.COUPLING and are initial guesses flagged for playtest.
+            calculateContinuousCoupling(waveSystem, monkey, gripMult, tetherMult, dt) {
+                const waveVelocity = this.calculateWaveVelocity(waveSystem);
+                const omega = waveSystem.frequency * 2 * Math.PI;
+                const maxVel = (waveSystem.amplitude * omega) || 1;
+                const quality = Math.min(1, Math.abs(waveVelocity) / maxVel);
+
+                // Rectified timing coupling: always imparts UP momentum (negative velocityY),
+                // with magnitude proportional to how close the pulse lands to peak wave velocity.
+                let impulse = -GameConfig.COUPLING.GAIN * maxVel * quality * tetherMult * gripMult * dt;
+
+                // S12 ratchet: asymmetric waveform yields net directional thrust without timing.
+                if (waveSystem.type === 'sawtooth') {
+                    impulse += -GameConfig.COUPLING.RATCHET_GAIN * maxVel * tetherMult * gripMult * dt;
+                }
+
+                const weightFactor = this.weightFactor(monkey);
+                impulse *= weightFactor;
+
+                let flashColor;
+                if (quality >= GameConfig.COUPLING.PERFECT_QUALITY) flashColor = GameConfig.GRAB.PERFECT_COLOR;
+                else if (quality >= GameConfig.COUPLING.GOOD_QUALITY) flashColor = GameConfig.GRAB.GOOD_COLOR;
+                else flashColor = GameConfig.GRAB.POOR_COLOR;
+
+                return { impulse, quality, flashColor };
+            }
+
             applyGravityAndDrag(monkey, dt, isGrabbing, gravityMult, dragMult) {
                 if (!isGrabbing) {
                     monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
@@ -1722,6 +1828,14 @@
                     this.bestScore = parseFloat(localStorage.getItem('spaceMonkey.bestScore') || '0');
                     this.ghostBestAltitude = parseFloat(localStorage.getItem(GHOST_STORAGE_KEY) || '0');
                 } catch(e) {}
+
+                // SIM (Stage 2 / B.11): load persisted cargo best + cumulative bootstrap kg
+                this.cargoBest = 0;
+                this.bootstrapKg = 0;
+                try {
+                    this.cargoBest = parseFloat(localStorage.getItem(CARGO_BEST_KEY) || '0') || 0;
+                    this.bootstrapKg = parseFloat(localStorage.getItem(BOOTSTRAP_KG_KEY) || '0') || 0;
+                } catch(e) {}
                 
                 // UX: settings gear button handler (2f)
                 const gearBtn = document.getElementById('ux-settings-btn');
@@ -1975,9 +2089,24 @@
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
                 this.materialDamping = 1.0;
+                this.materialGpa = 300;        // CC-CNT default (matches the Material dropdown)
                 this.gripMultiplier = 1.0;
                 this.gravityMultiplier = 1.0;
                 this.dragMultiplier = 1.0;
+
+                // SIM (Stage 2 / B.5): EPM energy loop state (used in continuous-coupling mode)
+                this.epmCharge = GameConfig.EPM.START_CHARGE;
+                this.epmBrownout = false;
+                this.epmNetPerSec = 0;
+
+                // SIM (Stage 2 / B.8): baseline wave speed at default tension/width, used to
+                // normalise the coupling modifier; refresh the derived settings readout.
+                this._refWaveSpeed = this.tetherWaveSpeed();
+                this.updateDerivedReadouts();
+
+                // SIM (Stage 2 / B.11): per-run cargo delivery state
+                this.cargoDelivered = false;
+                this.deliveredKg = 0;
                 
                 this.running = true;
                 this.lastGrabQuality = 0;
@@ -2100,8 +2229,8 @@
                 });
                 this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) this.waveSystem.frequency = data.value; });
                 this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = data.value / 10; });
-                this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / 10; });
-                this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; });
+                this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / 10; this.updateDerivedReadouts(); });
+                this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = data.value / 20; });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
@@ -2110,13 +2239,29 @@
                     // Higher GPa = stiffer material = less swing (lower damping multiplier)
                     // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.3
                     const gpa = data.value;
+                    this.materialGpa = gpa;                 // feeds waveEnergyFactor attenuation (Q-P3)
                     this.materialDamping = 1.3 - (gpa / 1000);
+                    this.updateDerivedReadouts();
                 });
                 
                 window.addEventListener('keydown', (e) => {
                     if (e.key === '1') this.waveSystem.setType('sine');
                     else if (e.key === '2') this.waveSystem.setType('square');
                     else if (e.key === '3') this.waveSystem.setType('sawtooth');
+
+                    // SIM (Stage 2 / B.10): toggle the continuous-coupling prototype for playtesting.
+                    if (e.key === 'k' || e.key === 'K') {
+                        _continuousCoupling = !_continuousCoupling;
+                        try { localStorage.setItem(CONTINUOUS_COUPLING_KEY, _continuousCoupling ? '1' : '0'); } catch (err) {}
+                        // Reset transient coupling state so the mode switch is clean.
+                        if (this.monkey) this.monkey.isGrabbing = false;
+                        this.lastGrabQuality = 0;
+                        this._couplingParticleTimer = 0;
+                        this.epmCharge = GameConfig.EPM.CAPACITY;
+                        this.epmBrownout = false;
+                        this.epmNetPerSec = 0;
+                        console.log('[SIM] continuous coupling:', _continuousCoupling ? 'ON' : 'OFF');
+                    }
                     
                     // Pause toggle — skip if game-over is showing
                     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
@@ -2167,9 +2312,46 @@
                 ctx.closePath();
                 fill ? ctx.fill() : ctx.stroke();
             }
-            
+
+            // SIM (Stage 2 / Q-P3): wave energy remaining at a given altitude. Ground-driven
+            // waves attenuate with height; a stiffer (higher-GPa) material attenuates less, so
+            // material choice sets how high regen stays net-positive (the difficulty curve).
+            waveEnergyFactor(altitude) {
+                const attenLength = GameConfig.EPM.ATTEN_BASE_M * (this.materialGpa / 100);
+                return Math.exp(-Math.max(0, altitude) / attenLength);
+            }
+
+            // SIM (Stage 2 / B.8): wave speed v = sqrt(T/mu) from the tether sliders.
+            // vineWidth 4.5 corresponds to a 45 mm diameter (slider mm / 10), so diameter_m = vineWidth/100.
+            tetherWaveSpeed() {
+                const diameter = this.vineWidth / 100;                       // metres
+                const area = Math.PI * (diameter / 2) * (diameter / 2);       // m^2
+                const mu = GameConfig.TETHER.CARBON_DENSITY * area;          // kg/m
+                const tensionN = this.vineTension * GameConfig.TETHER.KGF_TO_N;
+                return Math.sqrt(tensionN / Math.max(1e-9, mu));
+            }
+
+            // Normalised coupling modifier: faster waves (higher T / thinner tether) carry more
+            // momentum, so the continuous coupling scales with wave speed relative to the default.
+            waveSpeedFactor() {
+                const ref = this._refWaveSpeed || this.tetherWaveSpeed();
+                return Math.max(GameConfig.TETHER.SPEED_FACTOR_MIN,
+                       Math.min(GameConfig.TETHER.SPEED_FACTOR_MAX, this.tetherWaveSpeed() / ref));
+            }
+
+            // Refresh derived settings readouts (wave speed). Safe before the DOM exists.
+            updateDerivedReadouts() {
+                const el = document.getElementById('waveSpeedValue');
+                if (el) el.textContent = this.tetherWaveSpeed().toFixed(1) + ' m/s';
+            }
+
             attemptGrab() {
-                const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
+                if (_continuousCoupling) {
+                    // Continuous mode: pressing only ENGAGES the EPM coupling; the upward
+                    // impulse is integrated every frame in update() while SPACE is held.
+                    this.monkey.isGrabbing = true;
+                    return;
+                }                const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
                 this.monkey.velocityY += g.momentum * this.materialDamping;
                 this.lastGrabQuality = g.quality;
                 this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
@@ -2237,6 +2419,34 @@
                 if (curEl) curEl.textContent = `${(currentScore / 1000).toFixed(2)} km`;
                 if (bestEl) bestEl.textContent = `Best: ${(this.bestScore / 1000).toFixed(2)} km`;
                 if (newBestEl) newBestEl.style.display = isNewBest ? 'block' : 'none';
+
+                // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap meter.
+                const cargoEl = document.getElementById('go-cargo');
+                const bootEl = document.getElementById('go-bootstrap');
+                if (_continuousCoupling) {
+                    // Headline score (S15): cargo kg × delivered altitude km. Only nonzero on a
+                    // successful Kármán delivery; persist the personal best.
+                    const score = this.cargoDelivered
+                        ? this.deliveredKg * (GameConfig.MISSION.DELIVER_ALTITUDE_M / 1000) : 0;
+                    if (score > this.cargoBest) {
+                        this.cargoBest = score;
+                        try { localStorage.setItem(CARGO_BEST_KEY, this.cargoBest.toString()); } catch(e) {}
+                    }
+                    if (cargoEl) {
+                        cargoEl.style.display = 'block';
+                        cargoEl.textContent = this.cargoDelivered
+                            ? `Cargo delivered: ${this.deliveredKg.toFixed(1)} kg  →  ${Math.round(score)} kg·km  (best ${Math.round(this.cargoBest)})`
+                            : 'No cargo delivered — reach the Kármán Line (100 km)';
+                    }
+                    if (bootEl) {
+                        const pct = Math.min(100, (this.bootstrapKg / GameConfig.MISSION.BOOTSTRAP_TARGET_KG) * 100);
+                        bootEl.style.display = 'block';
+                        bootEl.textContent = `Tether bootstrap: ${this.bootstrapKg.toFixed(0)} / ${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg  (${pct.toFixed(1)}%)`;
+                    }
+                } else {
+                    if (cargoEl) cargoEl.style.display = 'none';
+                    if (bootEl) bootEl.style.display = 'none';
+                }
                 if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'flex';
             }
             
@@ -2282,8 +2492,47 @@
                 this.waveSystem.time += dt;
                 this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * (1.0 - this.vineTension * 0.008);
                 this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
-                this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
-                if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
+                if (_continuousCoupling) {
+                    // Continuous coupling (B.10): gravity ALWAYS applies; the coupling impulse
+                    // fights it only while pulsing, so the climb is an active energy battle.
+                    this.physics.applyGravityAndDrag(this.monkey, dt, false, this.gravityMultiplier, this.dragMultiplier);
+                    const chargeBefore = this.epmCharge;
+                    if (this.monkey.isGrabbing && !this.epmBrownout) {
+                        const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
+                        this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor();
+                        this.monkey.x = this.wave.x - this.monkey.width / 2;
+
+                        // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave
+                        // coupling regenerates it, attenuated by altitude (Q-P3) + gated by material.
+                        const tier = this.monkey.equipment.magnet || 'base';
+                        const drain = GameConfig.EPM.DRAIN[tier] || GameConfig.EPM.DRAIN.base;
+                        const regenGain = GameConfig.EPM.REGEN[tier] || GameConfig.EPM.REGEN.base;
+                        const energyFactor = this.waveEnergyFactor(this.monkey.altitude);
+                        this.epmCharge += (c.quality * energyFactor * regenGain - drain) * dt;
+                        if (this.epmCharge <= 0) { this.epmCharge = 0; this.epmBrownout = true; }
+
+                        this.lastGrabQuality = c.quality;
+                        this.grabFlashColor = c.flashColor;
+                        this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
+                        // Throttled coupling particles for feedback (avoids a per-frame burst)
+                        this._couplingParticleTimer = (this._couplingParticleTimer || 0) - dt;
+                        if (this._couplingParticleTimer <= 0) {
+                            this._couplingParticleTimer = GameConfig.COUPLING.PARTICLE_INTERVAL;
+                            this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.max(1, Math.floor(c.quality * 6)), c.flashColor);
+                        }
+                    } else if (this.monkey.isGrabbing && this.epmBrownout) {
+                        // Browned out: EPM can't fire — no momentum imparted, just stay on the tether.
+                        this.monkey.x = this.wave.x - this.monkey.width / 2;
+                        this.lastGrabQuality = 0;
+                    }
+                    // Ambient eddy-current trickle (always near the tether) — recover by coasting.
+                    this.epmCharge = Math.min(GameConfig.EPM.CAPACITY, this.epmCharge + GameConfig.EPM.TRICKLE * dt);
+                    if (this.epmBrownout && this.epmCharge >= GameConfig.EPM.BROWNOUT_RECOVER) this.epmBrownout = false;
+                    this.epmNetPerSec = dt > 0 ? (this.epmCharge - chargeBefore) / dt : 0;
+                } else {
+                    this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
+                    if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
+                }
                 this.physics.updatePosition(this.monkey, dt, this.canvas.width, this.wave.x);
                 this.checkCollisions();
                 
@@ -2307,6 +2556,17 @@
                 // UX: track max altitude (2a, 2c, 2e)
                 if (this.monkey.altitude > this.maxAltitude) {
                     this.maxAltitude = this.monkey.altitude;
+                }
+
+                // SIM (Stage 2 / B.11): cargo delivery — credit cargo the first time the climber
+                // reaches Kármán in continuous mode, and add it to the cumulative bootstrap meter.
+                if (_continuousCoupling && !this.cargoDelivered &&
+                    this.monkey.altitude >= GameConfig.MISSION.DELIVER_ALTITUDE_M) {
+                    this.cargoDelivered = true;
+                    this.deliveredKg = this.monkey.weight;
+                    this.bootstrapKg += this.deliveredKg;
+                    try { localStorage.setItem(BOOTSTRAP_KG_KEY, this.bootstrapKg.toString()); } catch(e) {}
+                    this.triggerMilestone('CARGO DELIVERED');
                 }
                 
                 // UX: distance milestones every MILESTONE_INTERVAL_M (2a)
@@ -2668,6 +2928,64 @@
                 this.renderMonkey(ctx);
                 this.renderEffects(ctx, width, height);
                 this.renderControls(ctx, height);
+                this.renderCouplingModeIndicator(ctx, width);
+                this.renderEpmGauge(ctx, width, height);
+            }
+
+            // SIM (Stage 2 / B.10): on-canvas badge so playtesters can see the active model.
+            renderCouplingModeIndicator(ctx, width) {
+                if (!_continuousCoupling) return;
+                ctx.save();
+                ctx.font = 'bold 11px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.85)';
+                ctx.fillText('COUPLING: CONTINUOUS  (K)', 10, 16);
+                ctx.restore();
+            }
+
+            // SIM (Stage 2 / B.5.1): fixed EPM charge gauge — always-legible battery bar with a
+            // net-flow arrow (▲ regen >= drain, ▼ net-draining) plus a brownout warning.
+            renderEpmGauge(ctx, width, height) {
+                if (!_continuousCoupling) return;
+                const w = 18, h = 150, x = width - w - 16, y = 72;
+                const charge = Math.max(0, Math.min(GameConfig.EPM.CAPACITY, this.epmCharge || 0));
+                const pct = charge / GameConfig.EPM.CAPACITY;
+                ctx.save();
+                ctx.textAlign = 'center';
+                // backing
+                ctx.fillStyle = 'rgba(0,0,0,0.45)';
+                ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+                // fill
+                let col = pct > 0.5 ? '#2ecc71' : pct > 0.2 ? '#f1c40f' : '#e74c3c';
+                if (this.epmBrownout) col = '#e74c3c';
+                const fillH = h * pct;
+                ctx.fillStyle = col;
+                ctx.fillRect(x, y + (h - fillH), w, fillH);
+                // frame
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(x, y, w, h);
+                // labels
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.font = 'bold 10px monospace';
+                ctx.fillText('EPM', x + w / 2, y - 16);
+                ctx.fillText(Math.round(charge) + '%', x + w / 2, y - 5);
+                // net-flow arrow below the bar
+                const up = (this.epmNetPerSec || 0) >= 0;
+                ctx.fillStyle = up ? '#2ecc71' : '#e74c3c';
+                const ax = x + w / 2, ay = y + h + 14;
+                ctx.beginPath();
+                if (up) { ctx.moveTo(ax, ay - 7); ctx.lineTo(ax - 6, ay + 3); ctx.lineTo(ax + 6, ay + 3); }
+                else { ctx.moveTo(ax, ay + 3); ctx.lineTo(ax - 6, ay - 7); ctx.lineTo(ax + 6, ay - 7); }
+                ctx.closePath();
+                ctx.fill();
+                // brownout warning (blinks)
+                if (this.epmBrownout && Math.floor(performance.now() / 350) % 2 === 0) {
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.font = 'bold 14px monospace';
+                    ctx.fillText('EPM BROWNOUT — coast to recharge', width / 2, 44);
+                }
+                ctx.restore();
             }
         }
         
@@ -2724,6 +3042,11 @@
                 const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}');
                 if (saved.colorblind !== undefined) _uxColorblind = saved.colorblind;
                 if (saved.reducedMotion !== undefined) _uxReducedMotion = saved.reducedMotion;
+            } catch(e) {}
+
+            // SIM (Stage 2 / B.10): restore the continuous-coupling prototype flag.
+            try {
+                _continuousCoupling = localStorage.getItem(CONTINUOUS_COUPLING_KEY) === '1';
             } catch(e) {}
             
             // UX: backup original palette then apply colorblind if saved (2f)
