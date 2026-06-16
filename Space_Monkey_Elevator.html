@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Monkey Elevator</title>
+
+    <!-- SEO / social metadata (3.2) -->
+    <meta name="description" content="A cartoon-wrapped simulation of contactless climbing of a space-elevator seed tether: pulse electro-permanent magnets to couple to traveling waves and ride them to the Kármán Line.">
+    <meta name="theme-color" content="#0b1f3a">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Space Monkey Elevator">
+    <meta property="og:description" content="Contactless space-elevator-climber sim — pulse your EPMs to catch the tether's waves and reach the Kármán Line.">
+    <meta property="og:image" content="screenshots/falling.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Space Monkey Elevator">
+    <meta name="twitter:description" content="Contactless space-elevator-climber sim — pulse your EPMs to catch the tether's waves and reach the Kármán Line.">
+    <meta name="twitter:image" content="screenshots/falling.png">
+
+    <!-- Favicon: the monkey character (3.3) -->
+    <link rel="icon" type="image/svg+xml" href="Space Elevator_files/character.svg">
     <style>
         :root {
             --scale-factor: 1.0;
@@ -187,10 +202,15 @@
     </style>
 </head>
 <body>
+    <noscript>
+        <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b1f3a;color:#cfe6f5;font-family:monospace;text-align:center;padding:24px;z-index:9999;">
+            Space Monkey Elevator needs JavaScript enabled. It's a contactless space-elevator-climber simulation that runs entirely in your browser — please enable JavaScript and reload.
+        </div>
+    </noscript>
     <canvas id="bgCanvas"></canvas>
     <div id="clouds-container"></div>
     <div id="landmarks-container"></div>
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" aria-label="Space Monkey Elevator — contactless space-elevator climber" role="img"></canvas>
     
     <!-- Visual Enhancement Overlays -->
     <div class="grid-overlay"></div>
@@ -388,6 +408,9 @@
         // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap progress.
         const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run score (kg·km)
         const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v1';  // cumulative kg delivered to Kármán
+
+        // Polish (Stage 4 / 3.1): audio mute preference (audio starts MUTED per A4).
+        const AUDIO_MUTED_KEY = 'spaceMonkey.audioMuted.v1';
         
         // Store originals so we can swap back
         const _ORIGINAL_PALETTE = {};
@@ -1781,7 +1804,53 @@
             getActiveParticles() { return this.particlePool.getActive(); }
             getActiveSpeedLines() { return this.speedLinePool.getActive(); }
         }
-        
+
+        // Polish (Stage 4 / 3.1): tiny WebAudio synth — no asset files. A short sine burst on each
+        // pulse (pitch 300 Hz poor → 800 Hz perfect coupling) and a low tone on brownout.
+        // Starts MUTED (A4); the AudioContext is created lazily on the first user gesture.
+        class AudioManager {
+            constructor() {
+                this.ctx = null;
+                this.muted = true; // default muted per A4
+                try {
+                    const stored = localStorage.getItem(AUDIO_MUTED_KEY);
+                    if (stored !== null) this.muted = stored !== '0';
+                } catch (e) {}
+            }
+            unlock() {
+                if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) this.ctx = new AC();
+                } catch (e) { this.ctx = null; }
+            }
+            setMuted(m) {
+                this.muted = m;
+                try { localStorage.setItem(AUDIO_MUTED_KEY, m ? '1' : '0'); } catch (e) {}
+                if (!m) this.unlock();
+            }
+            toggleMute() { this.setMuted(!this.muted); return this.muted; }
+            blip(freq, dur, type, gain) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = type; osc.frequency.value = freq;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.linearRampToValueAtTime(gain, t + 0.008);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+                    osc.connect(g); g.connect(this.ctx.destination);
+                    osc.start(t); osc.stop(t + dur + 0.02);
+                } catch (e) {}
+            }
+            pulse(quality) {
+                const q = Math.max(0, Math.min(1, quality || 0));
+                this.blip(300 + 500 * q, 0.06, 'sine', 0.05);
+            }
+            brownout() { this.blip(110, 0.3, 'sawtooth', 0.07); }
+        }
+
         class SpaceMonkeyGame {
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
@@ -1872,6 +1941,9 @@
                     this.cargoBest = parseFloat(localStorage.getItem(CARGO_BEST_KEY) || '0') || 0;
                     this.bootstrapKg = parseFloat(localStorage.getItem(BOOTSTRAP_KG_KEY) || '0') || 0;
                 } catch(e) {}
+
+                // Polish (Stage 4 / 3.1): audio synth (starts muted; unlocked on first input)
+                this.audio = new AudioManager();
                 
                 // UX: settings gear button handler (2f)
                 const gearBtn = document.getElementById('ux-settings-btn');
@@ -2143,6 +2215,9 @@
                 // SIM (Stage 2 / B.11): per-run cargo delivery state
                 this.cargoDelivered = false;
                 this.deliveredKg = 0;
+
+                // Polish (Stage 4 / 3.5): show the onboarding pulse hint until the first coupling
+                this._firstCoupleDone = false;
                 
                 this.running = true;
                 this.lastGrabQuality = 0;
@@ -2281,9 +2356,18 @@
                 });
                 
                 window.addEventListener('keydown', (e) => {
+                    // Polish (Stage 4 / 3.1): unlock audio on the first user gesture (autoplay policy).
+                    if (this.audio) this.audio.unlock();
+
                     if (e.key === '1') this.waveSystem.setType('sine');
                     else if (e.key === '2') this.waveSystem.setType('square');
                     else if (e.key === '3') this.waveSystem.setType('sawtooth');
+
+                    // Polish (Stage 4 / 3.1): mute toggle.
+                    if (e.key === 'm' || e.key === 'M') {
+                        const muted = this.audio.toggleMute();
+                        this.showToast(muted ? '🔇 Sound off' : '🔊 Sound on');
+                    }
 
                     // SIM: K toggles between the default pulse/couple model and the hidden legacy grab model.
                     if (e.key === 'k' || e.key === 'K') {
@@ -2382,18 +2466,21 @@
             }
 
             attemptGrab() {
+                this._firstCoupleDone = true;   // hides the first-load pulse hint (3.5)
                 if (_continuousCoupling) {
                     // Continuous mode: pressing only ENGAGES the EPM coupling; the upward
                     // impulse is integrated every frame in update() while SPACE is held.
                     this.monkey.isGrabbing = true;
                     return;
-                }                const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
+                }
+                const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
                 this.monkey.velocityY += g.momentum * this.materialDamping;
                 this.lastGrabQuality = g.quality;
                 this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
                 this.grabFlashColor = g.flashColor;
                 this.monkey.isGrabbing = true;
                 this.eventBus.emit('grab', { quality: g.quality, momentum: g.momentum });
+                this.audio.pulse(g.quality);
                 this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.floor(g.quality * GameConfig.PARTICLES.MAX_COUNT), g.flashColor);
             }
             
@@ -2430,6 +2517,19 @@
                 }
             }
             
+            // Polish (Stage 4): transient toast, reusing the restart-toast element.
+            showToast(msg, ms = 1200) {
+                const toast = document.getElementById('restart-toast');
+                if (!toast) return;
+                toast.textContent = msg;
+                toast.classList.add('visible');
+                clearTimeout(this._toastTimer);
+                this._toastTimer = setTimeout(() => {
+                    toast.classList.remove('visible');
+                    toast.textContent = 'Press R again to restart';
+                }, ms);
+            }
+
             // UX: show game-over overlay with scores (2e)
             showGameOver() {
                 this.gameOver = true;
@@ -2550,7 +2650,7 @@
                         const regenGain = GameConfig.EPM.REGEN[tier] || GameConfig.EPM.REGEN.base;
                         const energyFactor = this.waveEnergyFactor(this.monkey.altitude);
                         this.epmCharge += (c.quality * energyFactor * regenGain - drain) * dt;
-                        if (this.epmCharge <= 0) { this.epmCharge = 0; this.epmBrownout = true; }
+                        if (this.epmCharge <= 0) { this.epmCharge = 0; this.epmBrownout = true; this.audio.brownout(); }
 
                         this.lastGrabQuality = c.quality;
                         this.grabFlashColor = c.flashColor;
@@ -2560,6 +2660,12 @@
                         if (this._couplingParticleTimer <= 0) {
                             this._couplingParticleTimer = GameConfig.COUPLING.PARTICLE_INTERVAL;
                             this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.max(1, Math.floor(c.quality * 6)), c.flashColor);
+                        }
+                        // Polish (Stage 4 / 3.1): rhythmic pulse tone, pitch tracks coupling quality.
+                        this._audioPulseTimer = (this._audioPulseTimer || 0) - dt;
+                        if (this._audioPulseTimer <= 0) {
+                            this._audioPulseTimer = 0.16;
+                            this.audio.pulse(c.quality);
                         }
                     } else if (this.monkey.isGrabbing && this.epmBrownout) {
                         // Browned out: EPM can't fire — no momentum imparted, just stay on the tether.
@@ -2915,6 +3021,17 @@
                     ctx.lineWidth = GameConfig.RENDER.BORDER_WIDTH.GRAB_FLASH;
                     ctx.globalAlpha = this.grabFlashTimer / GameConfig.GRAB.FLASH_DURATION;
                     ctx.strokeRect(5, 5, width - 10, height - 10);
+                    // Polish (Stage 4 / 3.6): colorblind coupling glyph — shape encodes quality,
+                    // so it reads without relying on the flash colour. ✓ perfect · ~ good · ✗ poor.
+                    const q = this.lastGrabQuality || 0;
+                    const glyph = q > 0.8 ? '\u2713' : q > 0.5 ? '\u223C' : '\u2717';
+                    const gx = this.monkey.x + this.monkey.width / 2;
+                    const gy = (this.monkey.y - this.camera.getY()) - 16;
+                    ctx.fillStyle = this.grabFlashColor;
+                    ctx.font = 'bold 26px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(glyph, gx, gy);
+                    ctx.textAlign = 'left';
                     ctx.globalAlpha = 1.0;
                 }
                 // UX: km milestone text + current landmark hero label (2a, 2d)
@@ -2945,17 +3062,19 @@
             
             renderControls(ctx, height) {
                 ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
-                ctx.fillRect(GameConfig.RENDER.CONTROLS_OFFSET, height - 125, GameConfig.RENDER.CONTROLS_WIDTH, GameConfig.RENDER.CONTROLS_HEIGHT + 45);
+                ctx.fillRect(GameConfig.RENDER.CONTROLS_OFFSET, height - 140, GameConfig.RENDER.CONTROLS_WIDTH, GameConfig.RENDER.CONTROLS_HEIGHT + 60);
                 ctx.fillStyle = 'white';
                 ctx.font = '11px monospace';
-                ctx.fillText('SPACE: Pulse / catch wave', 20, height - 105);
-                ctx.fillText('\u2190 \u2192: Move left/right', 20, height - 90);
-                ctx.fillText('1-3: Wave type', 20, height - 75);
-                ctx.fillText('P / ESC: Pause', 20, height - 60);
-                ctx.fillText('R: Restart', 20, height - 45);
-                ctx.fillText('S: Settings', 20, height - 30);
+                ctx.fillText('SPACE: Pulse / catch wave', 20, height - 120);
+                ctx.fillText('\u2190 \u2192: Move left/right', 20, height - 105);
+                ctx.fillText('1-3: Wave type', 20, height - 90);
+                ctx.fillText('P / ESC: Pause', 20, height - 75);
+                ctx.fillText('R: Restart', 20, height - 60);
+                ctx.fillText('S: Settings', 20, height - 45);
                 // UX: colorblind toggle hint (2f)
-                ctx.fillText('C: Color mode', 20, height - 15);
+                ctx.fillText('C: Color mode', 20, height - 30);
+                // Polish (Stage 4 / 3.1): mute toggle hint reflects current state
+                ctx.fillText('M: Sound ' + (this.audio && this.audio.muted ? '(off)' : '(on)'), 20, height - 15);
             }
             
             render() {
@@ -2978,6 +3097,21 @@
                 this.renderControls(ctx, height);
                 this.renderCouplingModeIndicator(ctx, width);
                 this.renderEpmGauge(ctx, width, height);
+                this.renderFirstHint(ctx, width);
+            }
+
+            // Polish (Stage 4 / 3.5): dimmed, pulsing onboarding hint near the climber on first load.
+            renderFirstHint(ctx, width) {
+                if (this._firstCoupleDone) return;
+                const monkeyScreenY = this.monkey.y - this.camera.getY();
+                const pulse = _uxReducedMotion ? 0.7 : 0.4 + 0.35 * (0.5 + 0.5 * Math.sin(performance.now() / 350));
+                ctx.save();
+                ctx.globalAlpha = pulse;
+                ctx.fillStyle = '#bef0ff';
+                ctx.font = 'bold 15px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('Press SPACE to pulse your EPMs and catch the wave', width / 2, monkeyScreenY - 44);
+                ctx.restore();
             }
 
             // SIM: on-canvas badge shown only when the hidden legacy "classic grab" model is active.

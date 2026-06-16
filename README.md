@@ -48,6 +48,7 @@ Three ways to play:
 | `R` | Restart run |
 | `S` | Toggle settings panel |
 | `C` | Toggle Okabe-Ito colorblind palette |
+| `M` | Toggle sound (starts muted) |
 | `Esc` / `P` | Pause / resume |
 | `1` / `2` / `3` | Switch wave type — sine / square / sawtooth |
 | `K` | Switch to the legacy "classic grab" model (hidden backup) |
