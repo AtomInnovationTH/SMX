@@ -26,6 +26,9 @@ const {
   safePersistedNumber,
   missionScore,
   bootstrapPct,
+  temperatureAtAltitude,
+  thermalSuitIndex,
+  coldGripFactor,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -277,6 +280,42 @@ test('bootstrapPct is 0-100 and saturates at the target', () => {
   approx(bootstrapPct(target / 2), 50);
   approx(bootstrapPct(target), 100);
   assert.equal(bootstrapPct(target * 10), 100); // clamped, never exceeds 100
+});
+
+// ---------------------------------------------------------------------------
+// Thermal layer (temperature model + suit progression + cold penalty)
+// ---------------------------------------------------------------------------
+test('temperatureAtAltitude follows the standard atmosphere', () => {
+  approx(temperatureAtAltitude(0), 15);          // sea level
+  approx(temperatureAtAltitude(11000), 15 - 6.5 * 11); // tropopause ≈ -56.5
+  approx(temperatureAtAltitude(20000), -56.5);   // isothermal lower stratosphere
+  approx(temperatureAtAltitude(-500), 15);       // below ground clamps to sea level
+  // Monotonic cooling through the troposphere.
+  assert.ok(temperatureAtAltitude(1000) < temperatureAtAltitude(0));
+  assert.ok(temperatureAtAltitude(8000) < temperatureAtAltitude(1000));
+  // Stratopause is comparatively warm vs the tropopause.
+  assert.ok(temperatureAtAltitude(47000) > temperatureAtAltitude(11000));
+});
+
+test('thermalSuitIndex steps up at the configured altitudes', () => {
+  const [s0, s1, s2] = GameConfig.THERMAL.SUITS;
+  assert.equal(thermalSuitIndex(0), -1);                 // bare
+  assert.equal(thermalSuitIndex(s0.altitude - 1), -1);
+  assert.equal(thermalSuitIndex(s0.altitude), 0);        // flight suit
+  assert.equal(thermalSuitIndex(s1.altitude), 1);        // pressure suit
+  assert.equal(thermalSuitIndex(s2.altitude), 2);        // full space suit
+  assert.equal(thermalSuitIndex(s2.altitude + 1e6), 2);  // stays at top tier
+});
+
+test('coldGripFactor is 1.0 when warm and capped when cold', () => {
+  const { PENALTY_CAP } = GameConfig.THERMAL;
+  assert.equal(coldGripFactor(0, -20), 1.0);        // warmer than threshold
+  assert.equal(coldGripFactor(-20, -20), 1.0);      // exactly at threshold
+  const cold = coldGripFactor(-100, -20);           // far below threshold
+  assert.ok(cold < 1.0 && cold >= 1.0 - PENALTY_CAP);
+  approx(cold, 1.0 - PENALTY_CAP);                  // saturates at the cap
+  // A better-rated suit (lower shiveringAt) restores grip at the same temperature.
+  assert.ok(coldGripFactor(-50, -60) > coldGripFactor(-50, -20));
 });
 
 // ---------------------------------------------------------------------------

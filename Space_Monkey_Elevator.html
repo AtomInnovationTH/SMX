@@ -521,6 +521,41 @@
         function bootstrapPct(bootstrapKg) {
             return Math.min(100, (bootstrapKg / GameConfig.MISSION.BOOTSTRAP_TARGET_KG) * 100);
         }
+
+        // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
+        // altitude (m), piecewise through the mesopause (~85 km), clamped above. Cartoon-simplified
+        // but directionally honest: cold troposphere, isothermal lower stratosphere, warm stratopause,
+        // cold mesopause. (The thermosphere is "hot" but near-vacuum, so it's clamped here.)
+        function temperatureAtAltitude(m) {
+            const h = Math.max(0, m) / 1000; // km
+            if (h <= 11)  return 15 - 6.5 * h;            // troposphere
+            if (h <= 20)  return -56.5;                   // tropopause / lower stratosphere
+            if (h <= 32)  return -56.5 + 1.0 * (h - 20);  // stratosphere
+            if (h <= 47)  return -44.5 + 2.8 * (h - 32);  // upper stratosphere -> stratopause (~ -2.5)
+            if (h <= 51)  return -2.5;                     // stratopause
+            if (h <= 71)  return -2.5 - 2.8 * (h - 51);   // mesosphere
+            if (h <= 85)  return -58.5 - 2.0 * (h - 71);  // -> mesopause (~ -86)
+            return -86.5;                                  // clamp (thermosphere is hot but ~vacuum)
+        }
+
+        // Index into GameConfig.THERMAL.SUITS for the altitude (m): -1 = bare (no suit yet).
+        function thermalSuitIndex(m) {
+            const suits = GameConfig.THERMAL.SUITS;
+            let idx = -1;
+            for (let i = 0; i < suits.length; i++) {
+                if (m >= suits[i].altitude) idx = i;
+            }
+            return idx;
+        }
+
+        // Cold coupling multiplier in (0,1]: 1.0 when warmer than the gear's shivering threshold,
+        // otherwise a small capped penalty. Donning a better-rated suit raises the threshold and
+        // restores grip — the reason the climber suits up.
+        function coldGripFactor(tempC, shiveringAt) {
+            if (tempC >= shiveringAt) return 1.0;
+            const penalty = Math.min((shiveringAt - tempC) * GameConfig.THERMAL.PENALTY_PER_C, GameConfig.THERMAL.PENALTY_CAP);
+            return 1.0 - penalty;
+        }
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -642,6 +677,7 @@
             { name: 'Learjet 45', altitude: 15200, sprite: 'learjet-45-sm.webp', width: 384, position: 'right' },
             { name: 'F-35', altitude: 16100, sprite: 'f-35-sm.webp', width: 360, position: 'left' },
             { name: 'Sukhoi Su-9', altitude: 17000, sprite: 'su-9-sm.webp', width: 424, position: 'right' },
+            { name: 'de Havilland Vampire', altitude: 18119, info: '1948 jet altitude record', sprite: 'vampire-mk-I-sm.webp', width: 336, position: 'right' },
             { name: 'Concorde', altitude: 18500, info: 'Supersonic cruising', sprite: 'concorde-sm.webp', width: 440, position: 'left' },
             
             // === GAP === Thinning atmosphere
@@ -663,6 +699,7 @@
             { name: 'NASA X-43', altitude: 32000, info: 'Experimental hypersonic aircraft', sprite: 'nasa-x-43-sm.webp', width: 368, position: 'right' },
             { name: 'Project Excelsior', altitude: 34500, info: '1960 skydive altitude record', sprite: 'highest-ejection-sm.webp', width: 96, position: 'left' },
             { name: 'Weather Balloon', altitude: 37000, sprite: 'weather-balloon-sm.webp', width: 240, position: 'right' },
+            { name: 'Bell X-2', altitude: 38466, info: '1956 altitude record (~126,000 ft), Mach 3', sprite: 'bell-x-2-sm.webp', width: 448, position: 'right' },
             { name: 'Paper Airplane', altitude: 38500, info: 'Highest paper airplane flight', sprite: 'paper-airplane-sm.webp', width: 112, position: 'left' },
             { name: 'Felix Baumgartner', altitude: 40000, info: 'First person to break sound barrier in freefall', sprite: 'felix-sm.webp', width: 139, position: 'right' },
             { name: 'Highest Mouse', altitude: 48000, info: 'V-2 biological experiment', sprite: 'highest-mouse-sm.webp', width: 96, position: 'left' },
@@ -1514,6 +1551,24 @@
                 DELIVER_ALTITUDE_M: 100000,   // Kármán Line
                 BOOTSTRAP_TARGET_KG: 5000     // cumulative kg for a full bootstrap meter
             };
+
+            // SIM (educational thermal layer): standard-atmosphere temperature + a protective-suit
+            // progression. The climber auto-dons warmer gear as it climbs; being under-dressed for
+            // the cold applies a small, capped coupling penalty (PENALTY_* are playtest-tunable and
+            // can be set to 0 to disable). Suit sprites are full-body overlays with an open helmet
+            // ring (the monkey's face shows through); they load from "Space Elevator_files/" at runtime.
+            static THERMAL = {
+                SUITS: [
+                    { sprite: 'space-suit-1-120.webp', altitude: 8000,  shiveringAt: -20,  label: 'Flight suit' },
+                    { sprite: 'space-suit-2-120.webp', altitude: 19000, shiveringAt: -60,  label: 'Pressure suit — past the Armstrong Limit' },
+                    { sprite: 'space-suit-3-120.webp', altitude: 50000, shiveringAt: -273, label: 'Full space suit' }
+                ],
+                BARE_SHIVERING_AT: 10,   // °C below which the unsuited climber starts to shiver
+                PENALTY_PER_C: 0.006,    // coupling loss per °C colder than the current gear's rating
+                PENALTY_CAP: 0.12,       // max cold coupling loss (keeps the climb beatable)
+                OVERLAY_SCALE: 1.02,     // suit overlay height relative to the monkey draw box (visual tune)
+                OVERLAY_Y_OFFSET: -6     // vertical nudge (px) to seat the helmet ring over the head
+            };
             
             static CAMERA = { VERTICAL_OFFSET: 0.7 };
             
@@ -2052,6 +2107,10 @@
                 this.milestonesPassed = new Set();
                 this.landmarksPassed = new Set();
                 this.ghostBestAltitude = 0;
+                // SIM (thermal layer): -1 = no suit yet; temperature/cold tracked for HUD + physics.
+                this._thermalTier = -1;
+                this.temperatureC = 15;
+                this._coldFactor = 1;
                 this.coyoteTimeLeft = 0;       // UX: coyote time (2b)
                 this.bufferedGrab = false;      // UX: input buffering (2b)
                 this.currentLandmarkName = '';
@@ -2285,6 +2344,18 @@
                 this.monkeyFallingImage = new Image();
                 this.monkeyFallingImage.onload = () => { URL.revokeObjectURL(fallingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
                 this.monkeyFallingImage.src = fallingUrl;
+
+                // SIM (thermal layer): protective-suit overlays + a thermometer gauge. Loaded from
+                // the assets folder at runtime (like landmark sprites), so they are not inlined into
+                // index.html and are not gated by the loading overlay — they pop in when ready.
+                const THERMAL_ASSET_BASE = 'Space Elevator_files/';
+                this.suitImages = GameConfig.THERMAL.SUITS.map(s => {
+                    const im = new Image();
+                    im.src = THERMAL_ASSET_BASE + s.sprite;
+                    return im;
+                });
+                this.thermometerImage = new Image();
+                this.thermometerImage.src = THERMAL_ASSET_BASE + 'thermometer.svg';
             }
             
             resizeCanvas() {
@@ -2362,6 +2433,10 @@
                 this.maxAltitude = 0;
                 this.milestonesPassed = new Set();
                 this.landmarksPassed = new Set();
+                // SIM (thermal layer): start each run unsuited at ground temperature.
+                this._thermalTier = -1;
+                this.temperatureC = 15;
+                this._coldFactor = 1;
                 this.coyoteTimeLeft = 0;
                 this.bufferedGrab = false;
                 this.currentLandmarkName = '';
@@ -2753,6 +2828,23 @@
             // branching localized rather than sprinkled across update/render/game-over.
             _isContinuous() { return _continuousCoupling; }
 
+            // SIM (thermal layer): update temperature + protective-suit tier from the current
+            // altitude, announce a new suit, and cache the cold coupling multiplier for the physics.
+            // Runs in both models so the climber visibly suits up regardless of coupling mode.
+            updateThermal() {
+                const alt = this.monkey.altitude;
+                this.temperatureC = temperatureAtAltitude(alt);
+                const tier = thermalSuitIndex(alt);
+                if (tier > this._thermalTier && tier >= 0) {
+                    this.showToast('🧥 ' + GameConfig.THERMAL.SUITS[tier].label);
+                }
+                this._thermalTier = tier;
+                const shiver = tier < 0
+                    ? GameConfig.THERMAL.BARE_SHIVERING_AT
+                    : GameConfig.THERMAL.SUITS[tier].shiveringAt;
+                this._coldFactor = coldGripFactor(this.temperatureC, shiver);
+            }
+
             // SIM (Stage 2 / B.10): continuous "pulse/couple" integrator (the default EPM model).
             // Gravity ALWAYS applies; the coupling impulse fights it only while pulsing, so the
             // climb is an active energy battle. Drives the EPM charge/brownout loop.
@@ -2761,7 +2853,8 @@
                 const chargeBefore = this.epmCharge;
                 if (this.monkey.isGrabbing && !this.epmBrownout) {
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
-                    this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor();
+                    // Cold reduces coupling unless the climber is adequately suited (thermal layer).
+                    this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor() * this._coldFactor;
                     this.monkey.x = this.wave.x - this.monkey.width / 2;
 
                     // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave
@@ -2822,6 +2915,7 @@
                 this.waveSystem.time += dt;
                 this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * tensionSagFactor(this.vineTension);
                 this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
+                this.updateThermal();
                 // SIM: dispatch to the active coupling model. The two integrators are kept in
                 // separate methods so the model branching lives in exactly one place.
                 if (this._isContinuous()) {
@@ -3067,6 +3161,20 @@
                     ctx.drawImage(monkeyImage, svgX, svgY, svgWidth, svgHeight);
                     ctx.shadowBlur = 0;
                     ctx.shadowOffsetY = 0;
+
+                    // SIM (thermal layer): draw the protective suit over the climber once suited.
+                    // The sprite is a full-body figure with an open helmet ring, so the monkey's
+                    // face shows through; drawn aspect-preserved (native 120×260) and centered.
+                    if (this._thermalTier >= 0 && this.suitImages) {
+                        const suitImg = this.suitImages[this._thermalTier];
+                        if (suitImg && suitImg.complete && suitImg.naturalWidth) {
+                            const suitH = svgHeight * GameConfig.THERMAL.OVERLAY_SCALE;
+                            const suitW = suitH * (120 / 260);
+                            const suitX = svgX + svgWidth / 2 - suitW / 2;
+                            const suitY = svgY + GameConfig.THERMAL.OVERLAY_Y_OFFSET;
+                            ctx.drawImage(suitImg, suitX, suitY, suitW, suitH);
+                        }
+                    }
                     ctx.restore();
                 }
 
@@ -3246,6 +3354,7 @@
                 this.renderControls(ctx, height);
                 this.renderCouplingModeIndicator(ctx, width);
                 this.renderMissionHud(ctx, width);
+                this.renderThermal(ctx, width, height);
                 this.renderEpmGauge(ctx, width, height);
                 this.renderFirstHint(ctx, width);
             }
@@ -3296,6 +3405,33 @@
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
                 ctx.font = '10px monospace';
                 ctx.fillText(`Tether bootstrap: ${bootPct.toFixed(1)}%`, 10, 30);
+                ctx.restore();
+            }
+
+            // SIM (thermal layer): top-left temperature readout (Standard-Atmosphere model) with the
+            // thermometer gauge sprite, plus the current protective-suit name once suited. Educational
+            // companion to the suit progression; shown in both coupling models.
+            renderThermal(ctx, width, height) {
+                const tempC = Math.round(this.temperatureC);
+                // Colder reads bluer; above freezing reads warm.
+                const col = tempC <= -40 ? 'rgba(140, 205, 255, 0.95)'
+                          : tempC <= 0  ? 'rgba(190, 235, 255, 0.92)'
+                                        : 'rgba(255, 214, 150, 0.95)';
+                ctx.save();
+                ctx.textAlign = 'left';
+                const iconH = 38, iconW = iconH * (170 / 498), iconX = 12, iconY = 44;
+                if (this.thermometerImage && this.thermometerImage.complete && this.thermometerImage.naturalWidth) {
+                    ctx.drawImage(this.thermometerImage, iconX, iconY, iconW, iconH);
+                }
+                const textX = iconX + iconW + 8;
+                ctx.fillStyle = col;
+                ctx.font = 'bold 13px monospace';
+                ctx.fillText(`${tempC}\u00B0C`, textX, iconY + 16);
+                if (this._thermalTier >= 0) {
+                    ctx.fillStyle = 'rgba(210, 225, 235, 0.85)';
+                    ctx.font = '10px monospace';
+                    ctx.fillText(GameConfig.THERMAL.SUITS[this._thermalTier].label, textX, iconY + 31);
+                }
                 ctx.restore();
             }
 

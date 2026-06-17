@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Thermal layer** — a Standard-Atmosphere temperature readout (with the thermometer
+  gauge) and a protective-suit progression: the climber auto-dons a flight suit, then a
+  pressure suit at the **Armstrong Limit (~19 km)**, then a full space suit, with a
+  small, capped, tunable cold coupling penalty when under-dressed. Wires in the
+  previously-unused suit and thermometer art.
+- **Two landmarks** — the **Bell X-2** (~38.5 km, 1956 altitude record) and the
+  **de Havilland Vampire** (18.1 km, 1948 jet altitude record), using sprites that
+  shipped but were never placed in the altimeter.
 - **Zero-dependency unit test suite** (`tests/`, Node's built-in `node:test`) covering
-  wave math, physics/coupling, frame-rate decay, tether/scoring helpers, and the
-  altimeter table. Runs in CI (`node --test tests/*.test.mjs`) before the build.
+  wave math, physics/coupling, frame-rate decay, tether/scoring helpers, the thermal
+  model, and the altimeter table. Runs in CI (`node --test tests/*.test.mjs`) before the build.
 - **WebGL fallback + hardening** — context acquisition now retries
   `experimental-webgl`, shader compile/link status is checked, and `webglcontextlost`/
   `webglcontextrestored` are handled. On any failure the decorative background falls

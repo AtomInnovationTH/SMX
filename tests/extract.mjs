@@ -37,6 +37,9 @@ const EXPORTED_SYMBOLS = [
   'safePersistedNumber',
   'missionScore',
   'bootstrapPct',
+  'temperatureAtAltitude',
+  'thermalSuitIndex',
+  'coldGripFactor',
 ];
 
 // Pull out the body of the single largest <script> block.
