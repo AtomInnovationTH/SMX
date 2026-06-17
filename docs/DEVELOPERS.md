@@ -31,7 +31,7 @@ and are **not** inlined, so `index.html` must be served alongside the
 `Space Elevator_files/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
-Run locally with [`start.sh`](../start.sh) (serves on `:8000` and opens `index.html`).
+Run locally with `python3 -m http.server 8000`, then open `http://localhost:8000/index.html`.
 CI (`.github/workflows/`) runs the unit tests, re-runs the build on push and fails if
 the committed `index.html` is out of sync, then deploys to GitHub Pages.
 

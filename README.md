@@ -30,9 +30,10 @@ Three ways to play:
    open index.html
    ```
    `index.html` loads the landmark sprites from the `Space Elevator_files/` folder (present in the clone). If your browser blocks those local files under `file://`, use the local dev server below.
-2. **Local dev server** — run [`start.sh`](start.sh), which launches `python3 -m http.server` on port `8000` and opens [`index.html`](index.html) (the same build artifact GitHub Pages serves) in your browser:
+2. **Local dev server** — serve the folder and open the same build artifact GitHub Pages serves:
    ```bash
-   ./start.sh
+   python3 -m http.server 8000
+   # then open http://localhost:8000/index.html
    ```
    To preview edits to the source before rebuilding, open `http://localhost:8000/Space_Monkey_Elevator.html` at the same server.
 3. **GitHub Pages** — open the live demo link at the top of this README (once Pages is enabled on your fork).
@@ -93,7 +94,6 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 ├── Space Elevator_files/        # runtime assets (.webp, .svg) — landmark sprites load from here
 ├── Space_Monkey_Elevator.html   # editable source (this is what you edit)
 ├── embed_assets.py              # build script: source → index.html
-├── start.sh                     # dev launcher (python3 http.server on :8000)
 ├── tests/                       # zero-dependency Node unit tests (node --test)
 ├── screenshots/                 # README / social imagery
 ├── docs/                        # DEVELOPERS, CHANGELOG, setup guide, archived planning docs
