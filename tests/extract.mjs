@@ -32,6 +32,7 @@ const EXPORTED_SYMBOLS = [
   'freqToLogSlider',
   'frameDecay',
   'tetherWaveSpeed',
+  'couplingMomentumScale',
   'waveEnergyFactor',
   'tensionSagFactor',
   'safePersistedNumber',

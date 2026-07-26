@@ -7,13 +7,13 @@
 <!-- TODO: replace with a 10–15s gameplay GIF when one is available -->
 ![Space Monkey Elevator — falling back to Earth](screenshots/falling.png)
 
-You play an up-climber riding a vibrating graphene space-elevator seed tether from sea level to the Kármán Line (100 km). The monkey's hands are **electro-permanent magnets (EPMs)** that *pulse* to couple to the tether's traveling waves — no physical contact. Tap `SPACE` in time with the wave's peak velocity to gain upward momentum while regeneratively powering your magnets.
+You play an up-climber riding a graphene space-elevator seed tether from sea level to the Kármán Line (100 km). A ground station beams **longitudinal (compression) waves** up the tether, and the monkey's hands are **electro-permanent magnets (EPMs)** that *pulse* to couple to them — no physical contact. Tap `SPACE` in time with the wave's peak velocity to gain upward momentum while regeneratively powering your magnets.
 
 ---
 
 ## How it works (the concept)
 
-> A ground station beams mechanical traveling waves up a conductive graphene/CNT space-elevator seed tether. An up-climber rides them contactlessly: its electro-permanent-magnet hands pulse to induce eddy currents in the moving tether, coupling at peak wave velocity to gain upward momentum while regeneratively skimming &lt;10% of that energy to power the magnets. It carries cargo (tether material) toward the Kármán Line. Waves fade with altitude, so a stronger tether material reaches higher. Down-climbers — which would brake regeneratively on descent and reinforce the tether — are the next chapter.
+> A ground station beams longitudinal (compression) waves up a conductive graphene/CNT space-elevator seed tether. An up-climber rides them contactlessly: its electro-permanent-magnet hands pulse to induce eddy currents in the moving tether, coupling at peak wave velocity to gain upward momentum while regeneratively skimming &lt;10% of that energy to power the magnets. It carries cargo (tether material) toward the Kármán Line. Waves fade with altitude, so a stronger tether material reaches higher. Down-climbers — which would brake regeneratively on descent and reinforce the tether — are the next chapter.
 
 The cute monkey is intentional: it keeps people open-minded about a genuinely novel propulsion concept. The playable climb stops at the **Kármán Line (100 km)**; in reality the seed tether continues to **geostationary orbit (35,786 km)** and a counterweight beyond, where effective gravity flips outward — that part is shown as context on the finish screen, not simulated.
 
@@ -108,16 +108,15 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 
 - Original concept: Space Monkey climbing game.
 - Technologies: vanilla JavaScript, Canvas 2D, WebGL atmosphere shader.
-- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). This project is an independent **clean-room re-implementation** inspired by that page; it does not reuse its code, and its imagery assets are separately licensed.
+- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). The *concept* — climbing past real-world landmarks toward the Kármán Line — is a tribute to that page. The **code in this repo is original and independently written** and does not reuse neal.fun's source. The original *Space Elevator* concept and its artwork are **© Neal Agarwal**. (Game mechanics and concepts are not themselves copyrightable; Neal's specific assets are.)
 
-<!-- TODO: create ATTRIBUTIONS.md with per-asset sourcing for the photographic .webp files in Space Elevator_files/ before any wide redistribution — see docs/history/REVIEW.md §6 -->
-Per-asset attributions for the photographic imagery in [`Space Elevator_files/`](Space%20Elevator_files) are pending in a future `ATTRIBUTIONS.md`. See [`docs/history/REVIEW.md`](docs/history/REVIEW.md) §6 for the audit.
+> ⚠️ **Artwork status — action required before redistribution.** The imagery currently in [`Space Elevator_files/`](Space%20Elevator_files) originates from neal.fun's *Space Elevator* and is **© Neal Agarwal**. It is **not licensed for redistribution** and is **not** covered by this repository's MIT license. These assets are being replaced with original and CC-licensed art; until that work is complete, this repo should not be redistributed or deployed. Tracking: [`docs/v1.0-roadmap.md`](docs/v1.0-roadmap.md) Phase 0; audit in [`docs/history/REVIEW.md`](docs/history/REVIEW.md) §6.
 
 ---
 
 ## License
 
-[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. The MIT grant covers the **code only**; embedded image assets are subject to their original licenses (see the attributions note above).
+[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. **The MIT grant covers this project's original code only.** It does **not** cover the imagery currently in [`Space Elevator_files/`](Space%20Elevator_files), which remains **© Neal Agarwal** and is not licensed for redistribution (see the artwork note above).
 
 ---
 

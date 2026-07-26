@@ -21,6 +21,7 @@ const {
   freqToLogSlider,
   frameDecay,
   tetherWaveSpeed,
+  couplingMomentumScale,
   waveEnergyFactor,
   tensionSagFactor,
   safePersistedNumber,
@@ -41,7 +42,7 @@ test('extraction exposes the core pure symbols', () => {
   for (const [name, val] of Object.entries({
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
-    tetherWaveSpeed, waveEnergyFactor, tensionSagFactor,
+    tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -225,21 +226,30 @@ test('logSlider <-> freq round-trips and hits endpoints', () => {
 });
 
 // ---------------------------------------------------------------------------
-// tetherWaveSpeed / waveEnergyFactor / tensionSagFactor (Item 4 helpers)
+// tetherWaveSpeed / couplingMomentumScale / waveEnergyFactor / tensionSagFactor
 // ---------------------------------------------------------------------------
-test('tetherWaveSpeed = sqrt(T/mu); rises with tension, falls with width', () => {
-  const baseSpeed = tetherWaveSpeed(4.5, 100);
-  assert.ok(baseSpeed > 0);
-  // Higher tension -> faster waves.
-  assert.ok(tetherWaveSpeed(4.5, 200) > baseSpeed);
-  // Thicker tether (more mass per length) -> slower waves.
-  assert.ok(tetherWaveSpeed(9.0, 100) < baseSpeed);
+test('tetherWaveSpeed = sqrt(E/rho), a material constant (longitudinal wave)', () => {
+  const v = tetherWaveSpeed();
+  assert.ok(v > 0);
+  // Longitudinal (compression) wave speed in a rod: v = sqrt(E/rho).
+  approx(v, Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY), 1e-9);
+  // ~23.6 km/s for E=1 TPa, rho=1800 — far above orbital velocity.
+  assert.ok(v > 20000 && v < 25000);
+});
+
+test('couplingMomentumScale = sqrt(T/mu); rises with tension, falls with width', () => {
+  const baseScale = couplingMomentumScale(4.5, 100);
+  assert.ok(baseScale > 0);
+  // Higher tension -> stronger coupling (gameplay proxy).
+  assert.ok(couplingMomentumScale(4.5, 200) > baseScale);
+  // Thicker tether (more mass per length) -> weaker coupling.
+  assert.ok(couplingMomentumScale(9.0, 100) < baseScale);
   // Exact formula check.
   const diameter = 4.5 / 100;
   const area = Math.PI * (diameter / 2) ** 2;
   const mu = GameConfig.TETHER.CARBON_DENSITY * area;
   const tensionN = 100 * GameConfig.TETHER.KGF_TO_N;
-  approx(baseSpeed, Math.sqrt(tensionN / mu), 1e-9);
+  approx(baseScale, Math.sqrt(tensionN / mu), 1e-9);
 });
 
 test('waveEnergyFactor decays with altitude (exp), 1.0 at ground', () => {

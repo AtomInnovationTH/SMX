@@ -298,26 +298,26 @@
         <div class="slider-container">
             <label>Frequency: <span id="frequencyValue">0.5 Hz</span></label>
             <input type="range" id="frequency" min="0" max="100" step="1" value="0">
-            <small class="setting-hint">How fast the ground station shakes the tether — a driver control.</small>
+            <small class="setting-hint">How fast the ground station drives compression pulses up the tether — a driver control.</small>
         </div>
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">700 mm</span></label>
             <input type="range" id="amplitude" min="100" max="1000" step="50" value="700">
-            <small class="setting-hint">How far the wave swings — bigger waves carry more momentum per pulse.</small>
+            <small class="setting-hint">How far the tether surges along its length in each pulse — bigger waves carry more momentum per coupling.</small>
         </div>
         <div class="slider-container">
             <label>Width: <span id="widthValue">45 mm</span></label>
             <input type="range" id="width" min="10" max="1000" step="10" value="45">
-            <small class="setting-hint">Tether diameter. With material density it sets the linear mass μ, and so the wave speed.</small>
+            <small class="setting-hint">Tether diameter. With material density it sets the linear mass μ.</small>
         </div>
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
             <input type="range" id="tension" min="1" max="20000" step="1" value="100">
-            <small class="setting-hint">Higher tension → faster waves (v=√(T/μ)) → more momentum available per coupling.</small>
+            <small class="setting-hint">Keeps the tether taut so the compression wave can travel up it; a slack tether can't carry the wave against gravity.</small>
         </div>
         <div class="slider-container">
-            <label>Wave speed (v=√(T/μ)): <span id="waveSpeedValue">— m/s</span></label>
-            <small class="setting-hint">Derived from tension and tether mass — this is what your pulses couple to.</small>
+            <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">— m/s</span></label>
+            <small class="setting-hint">Longitudinal (compression) wave speed, set by the material's stiffness and density — this is what your pulses couple to.</small>
         </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
@@ -341,6 +341,41 @@
             <input type="range" id="weight" min="0.2" max="200" step="0.2" value="1">
             <small class="setting-hint">Climber + cargo. Heavier needs more momentum per metre, but cargo delivered to 100 km is your score.</small>
         </div>
+
+        <h4>Beyond the Kármán Line 🚀</h4>
+        <div class="wave-explainer">
+            <b>The climb is just the first rung.</b> Reaching 100 km — or even the tether's far
+            counterweight — is how you get <i>off</i> Earth cheaply. The fun question is what comes
+            next: how do you fling a tiny probe all the way to another star?
+        </div>
+        <div class="wave-explainer">
+            <b>A spinning tether is a sling.</b> Whirl a long tether and let go at the tip — the
+            payload flies off fast (a "rotovator" or "skyhook"). The catch: the tip can only spin
+            so fast before the tether rips itself apart. That top speed depends <b>only on the
+            material, not the length</b> — about <b>12 km/s</b> for the strongest carbon. A longer
+            sling isn't faster; it just throws from higher up.
+        </div>
+        <div class="wave-explainer">
+            <b>Dive at the Sun to go faster (the Oberth trick).</b> A small shove counts for way
+            more when you're already moving fast. So you fall close to the Sun, where you're racing
+            at hundreds of km/s, and <i>then</i> throw the probe. Skim ~8–10 Sun-radii and you can
+            leave the Solar System at <b>~125 km/s</b> — far faster than throwing it out in cold,
+            slow deep space.
+        </div>
+        <div class="wave-explainer">
+            <b>The energy isn't free.</b> When the sling throws the probe, the sling itself slows
+            down and drops into a lower orbit — it spent its own spin and orbit energy. The Sun's
+            gravity is a <b>lever, not a battery</b>: it helps you trade speed efficiently, but it
+            doesn't hand out free energy.
+        </div>
+        <div class="wave-explainer">
+            <b>Even so… it's a long trip.</b> At ~125 km/s, the nearest star (Alpha Centauri,
+            4.37 light-years) is still <b>~7,000–10,000 years</b> away. Tethers alone top out around
+            0.0005c. To get interstellar-<i>fast</i> you'd need something else entirely — like a
+            laser-pushed light sail (~0.2c). The Space Monkey just builds the on-ramp. 🐵
+        </div>
+        <small class="setting-hint">Want the napkin math? Sling tip speed ≈ √2·√(strength/density);
+        Sun-dive boost ≈ √(2·v_perihelion·Δv + Δv²) (the Oberth effect).</small>
     </div>
 
     <script>
@@ -481,9 +516,21 @@
             return Math.pow(base, dt * 60);
         }
 
-        // SIM (Stage 2 / B.8): wave speed v = sqrt(T/mu) from tether width + tension.
-        // vineWidth 4.5 corresponds to a 45 mm diameter (slider mm / 10), so diameter_m = vineWidth/100.
-        function tetherWaveSpeed(vineWidth, vineTension) {
+        // SIM (Stage 2 / B.8): LONGITUDINAL (compression) wave speed v = sqrt(E/rho).
+        // Set by the material's Young's modulus and density — independent of tension and width.
+        // For the carbon materials in the ladder E ~ 1 TPa and rho ~ 1800 kg/m^3, giving
+        // v ~ 23.6 km/s (faster than orbital velocity): the pulse outruns the climber by ~3 orders
+        // of magnitude, which is exactly why the climber rides the wave rather than chasing it.
+        function tetherWaveSpeed() {
+            return Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY);
+        }
+
+        // GAMEPLAY (not the wave's propagation speed): a coupling-momentum modifier. A tauter,
+        // thinner tether couples the EPM to the wave more effectively, so it scales the per-pulse
+        // momentum within [SPEED_FACTOR_MIN, SPEED_FACTOR_MAX]. Uses the transverse-style sqrt(T/mu)
+        // shape purely as a convenient, monotonic tuning curve — it is a coupling-stiffness proxy,
+        // not a physical wave speed. vineWidth 4.5 == 45 mm diameter (slider mm / 10).
+        function couplingMomentumScale(vineWidth, vineTension) {
             const diameter = vineWidth / 100;                            // metres
             const area = Math.PI * (diameter / 2) * (diameter / 2);      // m^2
             const mu = GameConfig.TETHER.CARBON_DENSITY * area;          // kg/m
@@ -1521,12 +1568,18 @@
 
             // SIM (Stage 2 / B.8): light units chain — wire the tether sliders into one model.
             //   diameter (width) + carbon density -> linear mass density mu
-            //   tension T + mu                    -> wave speed v = sqrt(T/mu)  [displayed]
-            // Higher tension / thinner tether -> faster waves -> more momentum per coupling.
-            // No tether-break fail state (S13). Density is held constant (carbon allotropes);
-            // material's gameplay role is altitude attenuation (Q-P3), not wave speed.
+            //   tension T + mu                    -> coupling-momentum modifier (gameplay, see below)
+            // The tether carries a LONGITUDINAL (compression) wave, so its propagation speed is
+            // v = sqrt(E/rho) — set by material stiffness & density, NOT by tension (that's the
+            // transverse/string formula). Young's modulus is ~1 TPa across the carbon allotropes in
+            // the material ladder (it's tensile STRENGTH that varies 50-300 GPa, not stiffness), and
+            // density is held constant, so the longitudinal wave speed is a material-independent
+            // constant here. Tension's gameplay role is a coupling-momentum modifier (a tauter tether
+            // couples better), and material's role is altitude attenuation (Q-P3). No tether-break
+            // fail state (S13).
             static TETHER = {
                 CARBON_DENSITY: 1800,   // kg/m^3, representative for graphene / CNT
+                YOUNGS_MODULUS: 1.0e12, // Pa (~1 TPa), representative for graphene / CNT
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
                 SPEED_FACTOR_MAX: 2.0,
@@ -1759,7 +1812,7 @@
             // SIM (Stage 2 / B.10): continuous coupling integrator — coupling(t) x waveVelocity(t)
             // applied per-frame while the EPM is pulsing. Returns a per-frame impulse (already
             // scaled by dt), a coupling quality in [0,1], and a feedback flash colour.
-            //   B.6: coupling efficiency peaks at PEAK transverse wave velocity (the displacement
+            //   B.6: coupling efficiency peaks at PEAK longitudinal wave velocity (the displacement
             //        zero-crossing), not at the crest — quality = |waveVel| / (amp*omega).
             //   S12: an asymmetric (sawtooth) wave adds a small timing-independent net up-assist
             //        (the traveling-wave / ratchet motor effect).
@@ -2411,7 +2464,7 @@
 
                 // SIM (Stage 2 / B.8): baseline wave speed at default tension/width, used to
                 // normalise the coupling modifier; refresh the derived settings readout.
-                this._refWaveSpeed = this.tetherWaveSpeed();
+                this._refCouplingScale = couplingMomentumScale(this.vineWidth, this.vineTension);
                 this.updateDerivedReadouts();
 
                 // SIM (Stage 2 / B.11): per-run cargo delivery state
@@ -2646,23 +2699,26 @@
                 return waveEnergyFactor(altitude, this.materialGpa);
             }
 
-            // SIM (Stage 2 / B.8): wave speed v = sqrt(T/mu) from the tether sliders.
+            // SIM (Stage 2 / B.8): longitudinal wave speed v = sqrt(E/rho) — a material constant,
+            // shown as a derived readout. Independent of the tension/width sliders.
             tetherWaveSpeed() {
-                return tetherWaveSpeed(this.vineWidth, this.vineTension);
+                return tetherWaveSpeed();
             }
 
-            // Normalised coupling modifier: faster waves (higher T / thinner tether) carry more
-            // momentum, so the continuous coupling scales with wave speed relative to the default.
+            // Normalised coupling modifier: a tauter / thinner tether couples the EPM more
+            // effectively, so continuous coupling scales with the coupling-momentum proxy relative
+            // to its default. (Gameplay tuning curve, not the wave's propagation speed.)
             waveSpeedFactor() {
-                const ref = this._refWaveSpeed || this.tetherWaveSpeed();
+                const ref = this._refCouplingScale || couplingMomentumScale(this.vineWidth, this.vineTension);
                 return Math.max(GameConfig.TETHER.SPEED_FACTOR_MIN,
-                       Math.min(GameConfig.TETHER.SPEED_FACTOR_MAX, this.tetherWaveSpeed() / ref));
+                       Math.min(GameConfig.TETHER.SPEED_FACTOR_MAX,
+                                couplingMomentumScale(this.vineWidth, this.vineTension) / ref));
             }
 
             // Refresh derived settings readouts (wave speed). Safe before the DOM exists.
             updateDerivedReadouts() {
                 const el = document.getElementById('waveSpeedValue');
-                if (el) el.textContent = this.tetherWaveSpeed().toFixed(1) + ' m/s';
+                if (el) el.textContent = (this.tetherWaveSpeed() / 1000).toFixed(1) + ' km/s';
             }
 
             attemptGrab() {

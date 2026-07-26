@@ -60,3 +60,7 @@ temp/
 
 # Kilo agent tooling (local only)
 .kilo/
+
+# Local art-generation working dir (not for commit)
+art-gen/
+.env
