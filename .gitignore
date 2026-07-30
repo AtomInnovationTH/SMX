@@ -64,3 +64,7 @@ temp/
 # Local art-generation working dir (not for commit)
 art-gen/
 .env
+
+# Local working files — art pipeline preview + agent handoff notes (never on remote)
+art-preview.html
+handoff.md
