@@ -38,6 +38,7 @@ const EXPORTED_SYMBOLS = [
   'safePersistedNumber',
   'missionScore',
   'bootstrapPct',
+  'densityRatio',
   'temperatureAtAltitude',
   'thermalSuitIndex',
   'coldGripFactor',

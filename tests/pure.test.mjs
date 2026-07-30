@@ -27,6 +27,7 @@ const {
   safePersistedNumber,
   missionScore,
   bootstrapPct,
+  densityRatio,
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
@@ -43,6 +44,7 @@ test('extraction exposes the core pure symbols', () => {
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
+    densityRatio,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -158,7 +160,7 @@ test('applyGravityAndDrag does nothing while grabbing, applies gravity while fal
   p.applyGravityAndDrag(grabbing, 1 / 60, true, 1, 1);
   assert.equal(grabbing.velocityY, 0);
 
-  const falling = { velocityY: 0 };
+  const falling = { velocityY: 0, altitude: 0 };
   p.applyGravityAndDrag(falling, 1 / 60, false, 1, 1);
   assert.ok(falling.velocityY > 0, 'gravity should pull downward (positive velocityY)');
 });
@@ -326,6 +328,40 @@ test('coldGripFactor is 1.0 when warm and capped when cold', () => {
   approx(cold, 1.0 - PENALTY_CAP);                  // saturates at the cap
   // A better-rated suit (lower shiveringAt) restores grip at the same temperature.
   assert.ok(coldGripFactor(-50, -60) > coldGripFactor(-50, -20));
+});
+
+// ---------------------------------------------------------------------------
+// B.14/B.15 — vacuum-correct drag & the aero-kit fix
+// ---------------------------------------------------------------------------
+test('densityRatio: 1.0 at sea level, ~2.2e6x lower at the Karman line', () => {
+  approx(densityRatio(0), 1.0, 1e-12);
+  approx(densityRatio(-5000), 1.0, 1e-12);              // clamped below ground
+  approx(densityRatio(10000), 0.3376, 2e-3);            // US Standard 10 km
+  approx(densityRatio(100000), 4.575e-7, 1e-9);
+  approx(densityRatio(150000), densityRatio(100000), 1e-15);  // clamped above table
+  for (let h = 0; h < 100000; h += 2500) {
+    assert.ok(densityRatio(h) > densityRatio(h + 2500), `monotonic at ${h} m`);
+  }
+});
+
+test('B.14 split: aero x eddy == AIR_DRAG at sea level, reference field', () => {
+  const ef = GameConfig.PHYSICS.EDDY_FRACTION;
+  const aero = 1 - (1 - Math.pow(GameConfig.PHYSICS.AIR_DRAG, 1 - ef)) * densityRatio(0);
+  const eddy = Math.pow(Math.pow(GameConfig.PHYSICS.AIR_DRAG, ef), 1.0);
+  approx(aero * eddy, GameConfig.PHYSICS.AIR_DRAG, 1e-12);
+});
+
+test('B.15: an aero kit REDUCES drag, and drag vanishes with altitude', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const run = (dragMult, altitude) => {
+    const m = { velocityY: -1000, altitude };
+    p.applyGravityAndDrag(m, 1 / 60, false, 0, dragMult);   // gravityMult 0: isolate drag
+    return Math.abs(m.velocityY);
+  };
+  // lower dragMult (a kit) must RETAIN more speed at sea level
+  assert.ok(run(0.855, 0) > run(1.0, 0), 'aero kits must reduce drag, not increase it');
+  // and aerodynamic drag must be negligible at 100 km
+  approx(run(1.0, 100000), 1000, 1e-3);
 });
 
 // ---------------------------------------------------------------------------

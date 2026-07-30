@@ -280,7 +280,9 @@
             Your hands are <b>electro-permanent magnets (EPMs)</b>. A ground station beams traveling
             waves up a conductive graphene seed tether; <b>pulse (SPACE) at the wave's peak velocity</b>
             to induce eddy currents and ride the wave upward — skimming &lt;10% of the energy to recharge
-            your magnets. No physical contact.
+            your magnets. No physical contact.<br><br>
+            Above ~40 km there is effectively no air — let go and you keep your speed.
+            Your magnets latch off at zero power, so coasting costs nothing.
         </div>
 
         <h4>Tether (seed)</h4>
@@ -318,6 +320,10 @@
         <div class="slider-container">
             <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">— m/s</span></label>
             <small class="setting-hint">Longitudinal (compression) wave speed, set by the material's stiffness and density — this is what your pulses couple to.</small>
+        </div>
+        <div class="slider-container">
+            <label>Air density: <span id="airDensityValue">100%</span> of sea level</label>
+            <small class="setting-hint">How much air is left at your altitude (US Standard Atmosphere) — the factor that scales aerodynamic drag.</small>
         </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
@@ -567,6 +573,30 @@
         // Cumulative bootstrap progress as a 0-100% of the target kg.
         function bootstrapPct(bootstrapKg) {
             return Math.min(100, (bootstrapKg / GameConfig.MISSION.BOOTSTRAP_TARGET_KG) * 100);
+        }
+
+        // SIM (B.14): air density relative to sea level, US Standard Atmosphere.
+        // Log-linear interpolation between tabulated points (same layered spirit as
+        // temperatureAtAltitude). Density falls ~2,186,000x from sea level to the Karman line,
+        // which is why AERODYNAMIC drag effectively ceases to exist in the upper climb:
+        // at 100 km it is 0.00005% of its sea-level value.
+        const ATMO_DENSITY_KGM3 = [
+            [0, 1.225], [5, 0.7364], [10, 0.4135], [15, 0.1948], [20, 0.08891],
+            [25, 0.04008], [30, 0.01841], [40, 3.996e-3], [50, 1.027e-3],
+            [60, 3.097e-4], [70, 8.283e-5], [80, 1.846e-5], [90, 3.416e-6], [100, 5.604e-7]
+        ];
+        function densityRatio(m) {
+            const T = ATMO_DENSITY_KGM3;
+            const sl = T[0][1];
+            const h = Math.max(0, m) / 1000;                  // km
+            const top = T[T.length - 1];
+            if (h >= top[0]) return top[1] / sl;              // clamp above 100 km
+            let i = 0;
+            while (i < T.length - 2 && h > T[i + 1][0]) i++;
+            const [h0, r0] = T[i];
+            const [h1, r1] = T[i + 1];
+            const f = (h - h0) / (h1 - h0);
+            return Math.exp(Math.log(r0) + f * (Math.log(r1) - Math.log(r0))) / sl;
         }
 
         // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
@@ -1521,6 +1551,12 @@
             static PHYSICS = {
                 GRAVITY: 160,
                 AIR_DRAG: 0.985,
+                // B.14: share of the sea-level damping attributed to magnetic (eddy) coupling
+                // rather than to air. The aero and eddy factors multiply back to exactly AIR_DRAG
+                // at sea level with the EPMs engaged at reference field (gripMultiplier = 1).
+                // 0.08 => peak ~770 km/h, full climb ~10-12 min. Higher = slower
+                // (0.10 -> ~600 km/h/15 min; 0.25+ -> climb never completes). Flagged for playtest.
+                EDDY_FRACTION: 0.08,
                 HORIZONTAL_SPEED: 150,
                 MOMENTUM_MULTIPLIER: 3.6,
                 DRIFT_DECAY: 0.9,
@@ -1846,11 +1882,27 @@
             applyGravityAndDrag(monkey, dt, isGrabbing, gravityMult, dragMult) {
                 if (!isGrabbing) {
                     monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
-                    // Frame-rate-independent drag: the AIR_DRAG and dragMult decays were tuned
-                    // as per-frame factors at 60 Hz. Normalize to per-second so high-refresh
-                    // displays don't over-apply drag (F-rate bug). Exact no-op at dt = 1/60.
-                    monkey.velocityY *= frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt) * frameDecay(dragMult, dt);
+                    // B.14: AERODYNAMIC drag only. Scales with air density, so it fades to nothing
+                    // in the upper climb; the magnetic (eddy) term lives in applyEddyDrag and
+                    // applies only while the EPMs are engaged.
+                    // B.15: dragMult scales the drag LOSS, not the retention factor, so an
+                    // Aero/Streamline kit REDUCES drag (it previously multiplied the retention
+                    // factor, which made the kits dramatically worse -- see B.15 below).
+                    const ef = GameConfig.PHYSICS.EDDY_FRACTION;
+                    const aeroLossSeaLevel = (1 - Math.pow(GameConfig.PHYSICS.AIR_DRAG, 1 - ef)) * dragMult;
+                    const aero = 1 - aeroLossSeaLevel * densityRatio(monkey.altitude);
+                    monkey.velocityY *= frameDecay(aero, dt);
                 }
+            }
+
+            // SIM (B.14): eddy-current (magnetic) drag -- force ~ B^2 * sigma * v. A magnet moving
+            // relative to a conductor induces circulating currents that oppose the motion (Lenz's
+            // law); it needs NO air, so this is what limits speed once the atmosphere is gone.
+            // Because EPMs latch OFF at zero power, releasing the pulse removes it entirely, giving
+            // true frictionless coasting in vacuum. fieldFactor = gripMultiplier.
+            applyEddyDrag(monkey, dt, fieldFactor) {
+                const eddyRef = Math.pow(GameConfig.PHYSICS.AIR_DRAG, GameConfig.PHYSICS.EDDY_FRACTION);
+                monkey.velocityY *= frameDecay(Math.pow(eddyRef, Math.max(0, fieldFactor)), dt);
             }
             
             updatePosition(monkey, dt, screenWidth, vineX) {
@@ -2170,6 +2222,8 @@
                 this.currentLandmarkAlt = 0;
                 this.gameOverOverlay = document.getElementById('game-over-overlay');
                 this.altimeterLabel = document.getElementById('ux-altimeter-label');
+                // B.14: cached air-density readout element (refreshed per frame in update()).
+                this.airDensityLabel = document.getElementById('airDensityValue');
                 
                 // UX: load persisted best altitude + ghost (2c). Clamp on read (F9).
                 try {
@@ -2721,6 +2775,18 @@
                 if (el) el.textContent = (this.tetherWaveSpeed() / 1000).toFixed(1) + ' km/s';
             }
 
+            // B.14: live air-density readout (% of sea level) — the number the player watches
+            // collapse through the climb, making the vanishing aerodynamic drag visible. Unlike
+            // updateDerivedReadouts() this is altitude-dependent, so it refreshes every frame.
+            // Element is cached; the guard keeps it safe before/without the DOM.
+            updateAirDensityReadout() {
+                if (!this.airDensityLabel) return;
+                const pct = densityRatio(this.monkey.altitude) * 100;
+                this.airDensityLabel.textContent = pct >= 1 ? pct.toFixed(1) + '%'
+                                                 : pct >= 0.001 ? pct.toExponential(1) + '%'
+                                                 : '~0%';
+            }
+
             attemptGrab() {
                 this._firstCoupleDone = true;   // hides the first-load pulse hint (3.5)
                 if (this._isContinuous()) {
@@ -2911,6 +2977,10 @@
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor() * this._coldFactor;
+                    // B.14: the same magnetic interaction that couples to the wave also brakes
+                    // against the tether. Present only while the EPMs are on; releasing latches
+                    // them off (zero power) and the climber coasts.
+                    this.physics.applyEddyDrag(this.monkey, dt, this.gripMultiplier);
                     this.monkey.x = this.wave.x - this.monkey.width / 2;
 
                     // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave
@@ -2972,6 +3042,7 @@
                 this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * tensionSagFactor(this.vineTension);
                 this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
                 this.updateThermal();
+                this.updateAirDensityReadout();
                 // SIM: dispatch to the active coupling model. The two integrators are kept in
                 // separate methods so the model branching lives in exactly one place.
                 if (this._isContinuous()) {
