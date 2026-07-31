@@ -8,7 +8,7 @@ with open('Space_Monkey_Elevator.html', 'r') as f:
     html = f.read()
 
 # Get all asset files
-asset_dir = 'Space Elevator_files'
+asset_dir = 'assets'
 assets = {}
 
 for filename in os.listdir(asset_dir):
@@ -34,7 +34,7 @@ for filename in os.listdir(asset_dir):
         data_uri = f'data:{mime};base64,{b64}'
         
         # Store with the path as it appears in HTML
-        asset_path = f'Space Elevator_files/{filename}'
+        asset_path = f'assets/{filename}'
         assets[asset_path] = data_uri
         print(f'Encoded: {filename} ({len(data)} bytes)')
 
@@ -58,7 +58,7 @@ for path, data_uri in assets.items():
 pattern = r"ASSET_BASE_PATH \+ ['\"]([^'\"]+)['\"]"
 matches = re.findall(pattern, html)
 for filename in set(matches):
-    full_path = f'Space Elevator_files/{filename}'
+    full_path = f'assets/{filename}'
     if full_path in assets:
         # Replace the concatenation with the data URI directly
         html = re.sub(
@@ -78,7 +78,7 @@ banner = (
     "  Edit Space_Monkey_Elevator.html (the source of truth) and rerun:\n"
     "      python3 embed_assets.py\n"
     "  Note: the landmark sprites use a runtime-built path and are NOT inlined,\n"
-    "  so this file must be served alongside the 'Space Elevator_files/' folder.\n"
+    "  so this file must be served alongside the 'assets/' folder.\n"
     "-->\n"
 )
 doctype_match = re.match(r"\s*<!DOCTYPE html>\s*\n", html, re.IGNORECASE)

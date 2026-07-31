@@ -29,7 +29,7 @@ Three ways to play:
    cd SMX
    open index.html
    ```
-   `index.html` loads the landmark sprites from the `Space Elevator_files/` folder (present in the clone). If your browser blocks those local files under `file://`, use the local dev server below.
+   `index.html` loads the landmark sprites from the `assets/` folder (present in the clone). If your browser blocks those local files under `file://`, use the local dev server below.
 2. **Local dev server** — serve the folder and open the same build artifact GitHub Pages serves:
    ```bash
    python3 -m http.server 8000
@@ -73,8 +73,8 @@ Three ways to play:
 
 The repo ships two HTML files at the root:
 
-- [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) — **editable source of truth**. References assets in [`Space Elevator_files/`](Space%20Elevator_files).
-- [`index.html`](index.html) — **committed build artifact**, auto-generated (do not hand-edit). The statically-referenced assets (clouds, the monkey SVG, noise textures) are inlined as base64 data URIs. The ~70 landmark sprites are referenced through a runtime-built path, so they are **not** inlined and still load from [`Space Elevator_files/`](Space%20Elevator_files). `index.html` must therefore be served **alongside** that folder (as it is on GitHub Pages); it is not a standalone offline single file.
+- [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) — **editable source of truth**. References assets in [`assets/`](assets).
+- [`index.html`](index.html) — **committed build artifact**, auto-generated (do not hand-edit). The statically-referenced assets (clouds, the monkey SVG, noise textures) are inlined as base64 data URIs. The ~70 landmark sprites are referenced through a runtime-built path, so they are **not** inlined and still load from [`assets/`](assets). `index.html` must therefore be served **alongside** that folder (as it is on GitHub Pages); it is not a standalone offline single file.
 
 To rebuild after editing the source:
 
@@ -82,7 +82,7 @@ To rebuild after editing the source:
 python3 embed_assets.py
 ```
 
-This regenerates [`index.html`](index.html) by inlining the statically-referenced assets from [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html). The landmark sprites are skipped (their path is built at runtime) and continue to load from [`Space Elevator_files/`](Space%20Elevator_files). Commit **both** files together.
+This regenerates [`index.html`](index.html) by inlining the statically-referenced assets from [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html). The landmark sprites are skipped (their path is built at runtime) and continue to load from [`assets/`](assets). Commit **both** files together.
 
 ---
 
@@ -91,7 +91,7 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 ```
 .
 ├── index.html                   # the game (served by Pages, alongside the assets folder)
-├── Space Elevator_files/        # runtime assets (.webp, .svg) — landmark sprites load from here
+├── assets/                      # runtime assets (.webp, .svg) — landmark sprites load from here
 ├── Space_Monkey_Elevator.html   # editable source (this is what you edit)
 ├── embed_assets.py              # build script: source → index.html
 ├── tests/                       # zero-dependency Node unit tests (node --test)
@@ -110,13 +110,13 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 - Technologies: vanilla JavaScript, Canvas 2D, WebGL atmosphere shader.
 - Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). The *concept* — climbing past real-world landmarks toward the Kármán Line — is a tribute to that page. The **code in this repo is original and independently written** and does not reuse neal.fun's source. The original *Space Elevator* concept and its artwork are **© Neal Agarwal**. (Game mechanics and concepts are not themselves copyrightable; Neal's specific assets are.)
 
-> ⚠️ **Artwork status — action required before redistribution.** The imagery currently in [`Space Elevator_files/`](Space%20Elevator_files) originates from neal.fun's *Space Elevator* and is **© Neal Agarwal**. It is **not licensed for redistribution** and is **not** covered by this repository's MIT license. These assets are being replaced with original and CC-licensed art; until that work is complete, this repo should not be redistributed or deployed. Tracking: [`docs/v1.0-roadmap.md`](docs/v1.0-roadmap.md) Phase 0; audit in [`docs/history/REVIEW.md`](docs/history/REVIEW.md) §6.
+> ⚠️ **Artwork status — action required before redistribution.** The imagery currently in [`assets/`](assets) originates from neal.fun's *Space Elevator* and is **© Neal Agarwal**. It is **not licensed for redistribution** and is **not** covered by this repository's MIT license. These assets are being replaced with original and CC-licensed art; until that work is complete, this repo should not be redistributed or deployed. Tracking: [`docs/v1.0-roadmap.md`](docs/v1.0-roadmap.md) Phase 0; audit in [`docs/history/REVIEW.md`](docs/history/REVIEW.md) §6.
 
 ---
 
 ## License
 
-[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. **The MIT grant covers this project's original code only.** It does **not** cover the imagery currently in [`Space Elevator_files/`](Space%20Elevator_files), which remains **© Neal Agarwal** and is not licensed for redistribution (see the artwork note above).
+[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. **The MIT grant covers this project's original code only.** It does **not** cover the imagery currently in [`assets/`](assets), which remains **© Neal Agarwal** and is not licensed for redistribution (see the artwork note above).
 
 ---
 

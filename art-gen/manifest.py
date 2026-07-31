@@ -24,7 +24,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE_HTML = ROOT / "Space_Monkey_Elevator.html"
-OLD_ASSETS = ROOT / "Space Elevator_files"
+OLD_ASSETS = ROOT / "assets"
 
 
 class Chroma:

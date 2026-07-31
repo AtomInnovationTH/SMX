@@ -107,11 +107,11 @@ All technical documentation moved to [`DEVELOPERS.md`](DEVELOPERS.md) including:
 
 **Action Required:**
 
-Your [`Space Elevator_files/`](../Space Elevator_files/) folder has 100+ assets but may not be on GitHub yet.
+Your [`assets/`](../assets/) folder has 100+ assets but may not be on GitHub yet.
 
 **Option A: Push assets directly (Recommended)**
 ```bash
-git add "Space Elevator_files/"
+git add "assets/"
 git commit -m "Add game assets (images and icons)"
 git push origin main
 ```

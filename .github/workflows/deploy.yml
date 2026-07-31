@@ -1,10 +1,12 @@
 # Build only. DEPLOYMENT IS DISABLED.
 #
 # The `deploy` job and the Pages publish steps were removed deliberately: the imagery in
-# "Space Elevator_files/" is not licensed for redistribution (see the artwork warning in
+# "assets/" is not licensed for redistribution (see the artwork warning in
 # README.md :113). Deploying the site republishes those assets. Restore the `deploy` job
-# and re-enable Pages in Settings once the original-art greenfield lands
-# (docs/v1.0-roadmap.md Phase 0). Until then this workflow only tests and verifies that
+# and re-create Pages with its source set to GitHub Actions once the original-art
+# greenfield lands (docs/v1.0-roadmap.md Phase 0). Note the site was previously served
+# with build_type=legacy directly from the main branch, so simply reverting this file is
+# not sufficient to bring it back. Until then this workflow only tests and verifies that
 # the committed index.html matches its source.
 name: Build
 

@@ -26,9 +26,9 @@ Workflow:
 3. Commit **both** files together.
 
 `embed_assets.py` does static find/replace of asset paths. The ~70 landmark sprites
-are referenced via a runtime-built path (`Space Elevator_files/${landmark.sprite}`)
+are referenced via a runtime-built path (`assets/${landmark.sprite}`)
 and are **not** inlined, so `index.html` must be served alongside the
-`Space Elevator_files/` folder (as it is on GitHub Pages). It is not a standalone
+`assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
 Run locally with `python3 -m http.server 8000`, then open `http://localhost:8000/index.html`.

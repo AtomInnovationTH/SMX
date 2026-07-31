@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="https://atominnovationth.github.io/SMX/screenshots/falling.png">
 
     <!-- Favicon: the monkey character (3.3) -->
-    <link rel="icon" type="image/svg+xml" href="Space Elevator_files/character.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/character.svg">
     <style>
         :root {
             --scale-factor: 1.0;
@@ -56,26 +56,26 @@
         #gameCanvas { position: fixed; top: 0; left: 0; display: block; image-rendering: pixelated; z-index: 10; pointer-events: none; }
         
         /* Visual Enhancements */
-        .grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('Space Elevator_files/grid-750.webp'); background-size: 210px 210px; opacity: 0.15; pointer-events: none; z-index: 8; }
-        .grass-ground { position: fixed; bottom: 0; left: -150px; width: calc(100% + 170px); height: 170px; background-image: url('Space Elevator_files/grass-1400.webp'); background-position: center; background-size: 100% 170px; pointer-events: none; z-index: 6; opacity: 0; transition: opacity 0.5s; }
-        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('Space Elevator_files/noise.jpeg'); background-size: 400px 400px; mix-blend-mode: overlay; opacity: 0.12; pointer-events: none; z-index: 9; }
+        .grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('assets/grid-750.webp'); background-size: 210px 210px; opacity: 0.15; pointer-events: none; z-index: 8; }
+        .grass-ground { position: fixed; bottom: 0; left: -150px; width: calc(100% + 170px); height: 170px; background-image: url('assets/grass-1400.webp'); background-position: center; background-size: 100% 170px; pointer-events: none; z-index: 6; opacity: 0; transition: opacity 0.5s; }
+        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('assets/noise.jpeg'); background-size: 400px 400px; mix-blend-mode: overlay; opacity: 0.12; pointer-events: none; z-index: 9; }
         .grass-ground.visible { opacity: 1; }
         
         @media only screen and (max-width: 1200px) {
             .grass-ground {
-                background-image: url('Space Elevator_files/grass-1200.webp');
+                background-image: url('assets/grass-1200.webp');
             }
         }
         
         @media only screen and (max-width: 950px) {
             .grass-ground {
-                background-image: url('Space Elevator_files/grass-1000.webp');
+                background-image: url('assets/grass-1000.webp');
             }
         }
         
         @media only screen and (max-width: 700px) {
             .grass-ground {
-                background-image: url('Space Elevator_files/grass-900.webp');
+                background-image: url('assets/grass-900.webp');
             }
         }
         
@@ -385,7 +385,7 @@
     </div>
 
     <script>
-        const ASSET_BASE_PATH = 'Space Elevator_files/';
+        const ASSET_BASE_PATH = 'assets/';
         
         // ===== UX TUNABLE CONSTANTS ===== //
         // UX: coyote time + input buffering (2b)
@@ -1384,7 +1384,7 @@
                                 widthStyle = `width: calc(${landmark.width}px * var(--scale-factor));`;
                             }
                         }
-                        content = `<img class="landmark-icon" src="Space Elevator_files/${landmark.sprite}" alt="${landmark.name}" style="${widthStyle}">`;
+                        content = `<img class="landmark-icon" src="assets/${landmark.sprite}" alt="${landmark.name}" style="${widthStyle}">`;
                     }
                     content += `
                         <div class="landmark-caption">
@@ -1647,7 +1647,7 @@
             // progression. The climber auto-dons warmer gear as it climbs; being under-dressed for
             // the cold applies a small, capped coupling penalty (PENALTY_* are playtest-tunable and
             // can be set to 0 to disable). Suit sprites are full-body overlays with an open helmet
-            // ring (the monkey's face shows through); they load from "Space Elevator_files/" at runtime.
+            // ring (the monkey's face shows through); they load from "assets/" at runtime.
             static THERMAL = {
                 SUITS: [
                     { sprite: 'space-suit-1-120.webp', altitude: 8000,  shiveringAt: -20,  label: 'Flight suit' },
@@ -2459,7 +2459,7 @@
                 // SIM (thermal layer): protective-suit overlays + a thermometer gauge. Loaded from
                 // the assets folder at runtime (like landmark sprites), so they are not inlined into
                 // index.html and are not gated by the loading overlay — they pop in when ready.
-                const THERMAL_ASSET_BASE = 'Space Elevator_files/';
+                const THERMAL_ASSET_BASE = 'assets/';
                 this.suitImages = GameConfig.THERMAL.SUITS.map(s => {
                     const im = new Image();
                     im.src = THERMAL_ASSET_BASE + s.sprite;
