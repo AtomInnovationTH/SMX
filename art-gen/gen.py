@@ -190,6 +190,11 @@ def generate(subject, ref, out_path, key, key_phrase):
             if e.code in (401, 402, 403):
                 # Bad key or out of credit: retrying cannot help and burns time.
                 print(f"  FATAL: {reason}")
+                # Record the interrupted job so a re-run has a trace of it, then
+                # abort the batch -- continuing would fail every remaining sprite
+                # the same way and burn time on retries.
+                with FAILED.open("a") as fh:
+                    fh.write(f"{out_path.name}\tFATAL {reason}\n")
                 raise SystemExit("aborting batch -- fix credentials/credit first")
         except Exception as e:
             reason = f"{type(e).__name__}: {e}"
@@ -262,7 +267,9 @@ def main():
     todo, skipped = [], []
     for sprite, subject, chroma, ref in jobs:
         out = RAW / manifest.raw_name(sprite)
-        if out.exists() and not args.force:
+        # A zero-length file is a truncated write from an interrupted run, not a
+        # finished generation -- treat it as still to do rather than skipping it.
+        if out.exists() and out.stat().st_size > 0 and not args.force:
             skipped.append(sprite)
         else:
             todo.append((sprite, subject, chroma, ref, out))
@@ -296,6 +303,10 @@ def main():
     unit = COST_PER_IMAGE.get(MODEL)
     est = unit * len(todo) if unit else None
     acct = account(key)
+    if unit is None:
+        print(f"WARNING: no cost data for model {MODEL!r}. The estimated-cost, "
+              f"wallet-balance and --budget checks are DISABLED for this run -- "
+              f"spend is untracked until you add an entry to COST_PER_IMAGE.")
     if est is not None:
         print(f"estimated cost: {len(todo)} x ${unit:.3f} = ${est:.2f}"
               f"  (all 78 would be ${unit * 78:.2f})")

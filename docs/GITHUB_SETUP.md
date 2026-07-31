@@ -40,32 +40,26 @@ All technical documentation moved to [`DEVELOPERS.md`](DEVELOPERS.md) including:
 
 ---
 
-## 📤 Step 4: Enable GitHub Pages
+## 🚫 Step 4: GitHub Pages — DO NOT enable
 
-**Action Required:**
+**Deployment is disabled on purpose.**
 
-1. Push all files to GitHub:
-   ```bash
-   git add .
-   git commit -m "Add user-friendly README and docs"
-   git push origin main
-   ```
+Much of the imagery in [`assets/`](../assets/) is third-party (© Neal Agarwal) and is **not licensed
+for redistribution**. Publishing it — including via GitHub Pages — is a DMCA / repo-strike risk.
+The GitHub Pages site for this repo has been deleted, and the `deploy` job has been removed from
+`.github/workflows/deploy.yml` so that nothing can republish it.
 
-2. Go to your repository on GitHub: `https://github.com/AtomInnovationTH/SMX`
+Do **not** follow older instructions to enable Pages with **Source: Branch `main`, Folder `/ (root)`**.
+That "Deploy from a branch" mode serves the repo contents (including the unlicensed files) directly
+and never went through the workflow at all, so it would bypass every safeguard.
 
-3. Click **Settings** (top menu)
+Deployment may be restored only after the original-art greenfield finishes replacing **all** of the
+third-party imagery (tracking: [`docs/v1.0-roadmap.md`](v1.0-roadmap.md) Phase 0). When that is done:
 
-4. Scroll down to **Pages** section (left sidebar)
-
-5. Under **Source**, select:
-   - Branch: `main`
-   - Folder: `/ (root)`
-   - Click **Save**
-
-6. Wait 1-2 minutes, then your game will be live at:
-   ```
-   https://atominnovationth.github.io/SMX/
-   ```
+1. Restore the `deploy` job in `.github/workflows/deploy.yml`.
+2. Re-create the Pages site with **Source: GitHub Actions** (Settings → Pages → Build and
+   deployment). Do **not** choose "Deploy from a branch" — the workflow's `deploy-pages` action
+   only works with the Actions source.
 
 7. Test it by visiting the URL!
 
@@ -185,7 +179,7 @@ Once you complete the action-required steps above:
 - [x] Step 1: Update README.md ✅ Done
 - [x] Step 2: Move technical docs to DEVELOPERS.md ✅ Done  
 - [x] Step 3: Add LICENSE ✅ Done
-- [ ] Step 4: Enable GitHub Pages (requires GitHub settings)
+- [ ] Step 4: GitHub Pages — **skipped** (deployment is disabled until the art greenfield lands; see Step 4 above)
 - [ ] Step 5: Add repository metadata (requires GitHub settings)
 - [ ] Step 6: Upload asset files (requires git push)
 - [ ] Step 7: Create version tags (requires git commands)
@@ -219,10 +213,9 @@ Capture gameplay at different altitudes and add to README:
 ## 🆘 Troubleshooting
 
 ### GitHub Pages not working?
-- Check Settings → Pages shows green "Your site is published" message
-- Wait 2-3 minutes after enabling
-- Clear browser cache
-- Try incognito/private mode
+- Deployment is **disabled by design** — the site is intentionally offline while unlicensed
+  imagery remains in the repo. See Step 4 above. It will only be re-enabled (as
+  Source: GitHub Actions) once the original-art replacement is complete.
 
 ### Assets not loading?
 - Check file paths are correct (case-sensitive!)

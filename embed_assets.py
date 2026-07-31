@@ -3,40 +3,61 @@ import base64
 import re
 import os
 
+# The one place the asset folder is named. Every other reference below is
+# derived from this, so a future rename touches a single line.
+ASSET_DIR = 'assets'
+
 # Read the original HTML file
 with open('Space_Monkey_Elevator.html', 'r') as f:
     html = f.read()
 
-# Get all asset files
-asset_dir = 'assets'
-assets = {}
+# Work out which files the source can actually reference as a literal path.
+# Anything referenced only through a runtime-built path (e.g. the ~78 landmark
+# sprites via `${ASSET_BASE_PATH}${sprite}`, or suit sprites via string
+# concatenation) can never match a `html.replace('assets/<name>', ...)` call,
+# so reading and base64-encoding them is wasted work on every build. Find the
+# candidates FIRST, then encode only those.
+referenced = set(re.findall(rf"{re.escape(ASSET_DIR)}/([A-Za-z0-9._-]+)", html))
+# ASSET_BASE_PATH + 'filename' references are inlined by name later, so include
+# those filenames too.
+referenced |= set(re.findall(r"ASSET_BASE_PATH \+ ['\"]([^'\"]+)['\"]", html))
 
-for filename in os.listdir(asset_dir):
-    filepath = os.path.join(asset_dir, filename)
-    if os.path.isfile(filepath):
-        with open(filepath, 'rb') as f:
-            data = f.read()
-        
-        # Determine MIME type
-        ext = filename.lower().split('.')[-1]
-        mime_types = {
-            'webp': 'image/webp',
-            'jpeg': 'image/jpeg',
-            'jpg': 'image/jpeg',
-            'png': 'image/png',
-            'svg': 'image/svg+xml',
-            'gif': 'image/gif'
-        }
-        mime = mime_types.get(ext, 'application/octet-stream')
-        
-        # Create data URI
-        b64 = base64.b64encode(data).decode('utf-8')
-        data_uri = f'data:{mime};base64,{b64}'
-        
-        # Store with the path as it appears in HTML
-        asset_path = f'assets/{filename}'
-        assets[asset_path] = data_uri
-        print(f'Encoded: {filename} ({len(data)} bytes)')
+assets = {}
+skipped = []
+for filename in sorted(os.listdir(ASSET_DIR)):
+    filepath = os.path.join(ASSET_DIR, filename)
+    if not os.path.isfile(filepath):
+        continue
+    if filename not in referenced:
+        # Loaded at runtime via a built path; embedding it is a no-op.
+        skipped.append(filename)
+        continue
+
+    with open(filepath, 'rb') as f:
+        data = f.read()
+
+    # Determine MIME type
+    ext = filename.lower().split('.')[-1]
+    mime_types = {
+        'webp': 'image/webp',
+        'jpeg': 'image/jpeg',
+        'jpg': 'image/jpeg',
+        'png': 'image/png',
+        'svg': 'image/svg+xml',
+        'gif': 'image/gif'
+    }
+    mime = mime_types.get(ext, 'application/octet-stream')
+
+    # Create data URI
+    b64 = base64.b64encode(data).decode('utf-8')
+    data_uri = f'data:{mime};base64,{b64}'
+
+    # Store with the path as it appears in HTML
+    asset_path = f'{ASSET_DIR}/{filename}'
+    assets[asset_path] = data_uri
+    print(f'Encoded: {filename} ({len(data)} bytes)')
+
+print(f'Skipped {len(skipped)} runtime-loaded files (not inlined by design)')
 
 # Replace all asset references
 for path, data_uri in assets.items():
@@ -44,11 +65,11 @@ for path, data_uri in assets.items():
     html = html.replace(f"url('{path}')", f"url('{data_uri}')")
     html = html.replace(f'url("{path}")', f'url("{data_uri}")')
     html = html.replace(f"url({path})", f"url({data_uri})")
-    
+
     # Replace in src attributes
     html = html.replace(f"src=\"{path}\"", f'src="{data_uri}"')
-    html = html.replace(f"src='{path}'", f"src='{data_uri}'")
-    
+    html = html.replace(f"src='{path}'", f'src="{data_uri}"')
+
     # Replace string references (for JavaScript)
     html = html.replace(f"'{path}'", f"'{data_uri}'")
     html = html.replace(f'"{path}"', f'"{data_uri}"')
@@ -58,7 +79,7 @@ for path, data_uri in assets.items():
 pattern = r"ASSET_BASE_PATH \+ ['\"]([^'\"]+)['\"]"
 matches = re.findall(pattern, html)
 for filename in set(matches):
-    full_path = f'assets/{filename}'
+    full_path = f'{ASSET_DIR}/{filename}'
     if full_path in assets:
         # Replace the concatenation with the data URI directly
         html = re.sub(
@@ -78,7 +99,7 @@ banner = (
     "  Edit Space_Monkey_Elevator.html (the source of truth) and rerun:\n"
     "      python3 embed_assets.py\n"
     "  Note: the landmark sprites use a runtime-built path and are NOT inlined,\n"
-    "  so this file must be served alongside the 'assets/' folder.\n"
+    f"  so this file must be served alongside the '{ASSET_DIR}/' folder.\n"
     "-->\n"
 )
 doctype_match = re.match(r"\s*<!DOCTYPE html>\s*\n", html, re.IGNORECASE)

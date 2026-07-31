@@ -422,12 +422,22 @@ def chroma_for(sprite):
 
 
 def ref_for(sprite):
-    """Absolute path to a reference image, or None (the default)."""
+    """Absolute path to a reference image, or None (the default).
+
+    Hero pieces are EXPECTED to have their reference on disk -- warn if it is
+    missing, so a folder rename or a deleted file cannot silently downgrade the
+    generation to no-reference mode.
+    """
     name = HERO_REFS.get(sprite)
     if not name:
         return None
     path = OLD_ASSETS / name
-    return path if path.exists() else None
+    if not path.exists():
+        import warnings
+        warnings.warn(f"hero reference {path} is listed in HERO_REFS but does "
+                      f"not exist; generating {sprite} WITHOUT a reference")
+        return None
+    return path
 
 
 def raw_name(sprite):
