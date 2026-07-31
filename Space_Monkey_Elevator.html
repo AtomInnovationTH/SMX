@@ -1554,6 +1554,8 @@
                 // B.14: share of the sea-level damping attributed to magnetic (eddy) coupling
                 // rather than to air. The aero and eddy factors multiply back to exactly AIR_DRAG
                 // at sea level with the EPMs engaged at reference field (gripMultiplier = 1).
+                // This is a LINEARISED SLIP COEFFICIENT (arcade stand-in for the induction-motor
+                // slip curve), not a measured physical induction constant.
                 // 0.08 => peak ~770 km/h, full climb ~10-12 min. Higher = slower
                 // (0.10 -> ~600 km/h/15 min; 0.25+ -> climb never completes). Flagged for playtest.
                 EDDY_FRACTION: 0.08,
@@ -1895,11 +1897,13 @@
                 }
             }
 
-            // SIM (B.14): eddy-current (magnetic) drag -- force ~ B^2 * sigma * v. A magnet moving
-            // relative to a conductor induces circulating currents that oppose the motion (Lenz's
-            // law); it needs NO air, so this is what limits speed once the atmosphere is gone.
-            // Because EPMs latch OFF at zero power, releasing the pulse removes it entirely, giving
-            // true frictionless coasting in vacuum. fieldFactor = gripMultiplier.
+            // SIM (B.14): magnetic drag from the EPM's coupling to the tether -- the same
+            // linear-induction interaction that drives the climb also brakes it. The traveling
+            // compression wave is a moving field pattern with phase velocity sqrt(E/rho) ~ 23.6 km/s;
+            // the climber runs at high SLIP behind it, and the braking term grows with speed
+            // (Lenz: induced currents oppose relative motion). Needs NO air, so this is what limits
+            // speed once the atmosphere is gone. EPMs latch OFF at zero power, so releasing removes
+            // it entirely -> true frictionless coasting. fieldFactor = gripMultiplier.
             applyEddyDrag(monkey, dt, fieldFactor) {
                 const eddyRef = Math.pow(GameConfig.PHYSICS.AIR_DRAG, GameConfig.PHYSICS.EDDY_FRACTION);
                 monkey.velocityY *= frameDecay(Math.pow(eddyRef, Math.max(0, fieldFactor)), dt);
