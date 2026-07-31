@@ -46,6 +46,7 @@ Run:
     python3 art-gen/post.py --sheet-only     # rebuild the contact sheet(s)
 """
 import argparse
+import colorsys
 import pathlib
 import shutil
 import subprocess
@@ -64,7 +65,10 @@ FUZZ_DESPILL = "35%"    # wider: catches the anti-aliased fringe
 WEBP_QUALITY = "88"
 
 # --- verification thresholds ---
-RAW_CORNER_TOLERANCE = 60    # per-channel, 0-255: how far the raw corner may sit from the key
+RAW_CORNER_TOLERANCE = 60    # per-channel drift from the requested key before we report it
+HUE_TOLERANCE = 30           # degrees a border sample may differ from the background hue
+MIN_BG_SATURATION = 0.25     # below this a sample is grey -> checkerboard, not a key
+MIN_BG_INLIERS = 6           # of 8 border samples that must look like background
 MIN_TRANSPARENT = 0.04       # below this, keying almost certainly did not happen
 MAX_TRANSPARENT = 0.97       # above this, we trimmed away the subject
 MAX_KEY_FRINGE = 0.01        # residual near-key pixels, as a fraction of the image
@@ -127,27 +131,85 @@ def hex_to_rgb(h):
 
 
 def check_raw(raw_path, chroma):
-    """Gate the INPUT: the background must really be the flat chroma key.
+    """Gate the INPUT and work out which colour(s) to key.
 
-    This is the checkerboard detector. A model that ignored the instruction and
-    returned a painted transparency-grid (or scenery) will not have a key-
-    coloured corner, and keying it would produce a checkerboard sprite.
+    Models honour "flat uniform background" only loosely. Two real behaviours
+    we must tolerate, both seen in this batch:
+
+      * the exact hex is ignored -- "pure green" comes back as rgb(126,178,102),
+        so we key what is actually there rather than a hardcoded constant;
+      * the background is a soft GRADIENT of the right hue (the sounding rocket
+        ran rgb(240,149,198) at the top to rgb(228,26,140) at the bottom), which
+        a single-colour key with a tight fuzz cannot fully remove.
+
+    So the test is hue-family membership, not flat equality: every border sample
+    must share the background's hue and be reasonably saturated. That still
+    rejects the things we care about -- a painted checkerboard is grey
+    (desaturated), scenery has incoherent hues, and a subject that fills the
+    frame edge-to-edge (Everest did) leaves too few background samples.
+
+    Returns (problems, [key_hex, ...]) covering the observed spread.
     """
+    fmt = "\n".join(f"%[pixel:p{{{x},{y}}}]" for x, y in (
+        ("0", "0"), ("w-1", "0"), ("0", "h-1"), ("w-1", "h-1"),
+        ("w/2", "0"), ("w/2", "h-1"), ("0", "h/2"), ("w-1", "h/2"),
+    ))
+    samples = [parse_srgb(s)[:3] for s in magick_probe(raw_path, fmt).splitlines() if s.strip()]
+
+    def hsv(c):
+        return colorsys.rgb_to_hsv(*[v / 255 for v in c])
+
+    hues = sorted(hsv(c)[0] * 360 for c in samples)
+    median_hue = hues[len(hues) // 2]
+
+    def inlier(c):
+        h, s, v = hsv(c)
+        dh = abs(h * 360 - median_hue)
+        dh = min(dh, 360 - dh)          # hue is circular
+        return dh <= HUE_TOLERANCE and s >= MIN_BG_SATURATION
+
+    inliers = [c for c in samples if inlier(c)]
+    if len(inliers) < MIN_BG_INLIERS:
+        desat = sum(1 for c in samples if hsv(c)[1] < MIN_BG_SATURATION)
+        why = ("mostly desaturated (grey) -- likely a painted checkerboard"
+               if desat >= len(samples) / 2
+               else "hues are incoherent -- likely scenery, or the subject "
+                    "reaches the frame edges leaving no background to sample")
+        return ([f"only {len(inliers)}/{len(samples)} border samples look like a "
+                 f"background ({why}). Regenerate with a generous margin "
+                 f"(gen.py --only ... --force)"], None)
+
+    # A near-white background would key the style's white sticker border away.
+    if all(min(c) > 200 for c in inliers):
+        return (["background is near-white; keying it would eat the white "
+                 "sticker border -- regenerate with a stronger key colour"], None)
+
+    def to_hex(c):
+        return "#%02X%02X%02X" % tuple(c)
+
+    mid = tuple(round(sum(c[i] for c in inliers) / len(inliers)) for i in range(3))
+    # Key the mean plus the extremes, so a gradient background is fully covered.
+    darkest = min(inliers, key=sum)
+    lightest = max(inliers, key=sum)
+    keys, seen = [], set()
+    for c in (mid, darkest, lightest):
+        h = to_hex(c)
+        if h not in seen:
+            seen.add(h)
+            keys.append(h)
+
     want = hex_to_rgb(chroma.hex)
-    problems = []
-    for corner in ("p{0,0}", "p{%[fx:w-1],0}"):
-        got = parse_srgb(magick_probe(raw_path, f"%[pixel:{corner}]"))[:3]
-        if max(abs(a - b) for a, b in zip(got, want)) > RAW_CORNER_TOLERANCE:
-            problems.append(
-                f"raw background is not {chroma.hex} at {corner}: got rgb{got}. "
-                f"The model likely returned a painted checkerboard or scenery -- "
-                f"regenerate this one (gen.py --only ... --force)"
-            )
-            break
-    return problems
+    drift = max(abs(a - b) for a, b in zip(mid, want))
+    if drift > RAW_CORNER_TOLERANCE:
+        print(f"       note: asked for {chroma.hex}, got {to_hex(mid)} "
+              f"(drift {drift}) -- keying the sampled colour(s)")
+    if len(keys) > 1:
+        print(f"       note: gradient background, keying {len(keys)} colours: "
+              f"{' '.join(keys)}")
+    return [], keys
 
 
-def check_output(png_path, chroma, target_width):
+def check_output(png_path, key_hex, target_width):
     """Gate the OUTPUT: real alpha, transparent corner, sane coverage."""
     problems, warnings = [], []
 
@@ -172,12 +234,12 @@ def check_output(png_path, chroma, target_width):
 
     fringe = 1.0 - float(sh([
         "magick", str(png_path), "-alpha", "off", "-fuzz", "25%",
-        "-fill", "white", "+opaque", chroma.hex,
-        "-fill", "black", "-opaque", chroma.hex,
+        "-fill", "white", "+opaque", key_hex,
+        "-fill", "black", "-opaque", key_hex,
         "-format", "%[fx:mean]", "info:",
     ]))
     if fringe > MAX_KEY_FRINGE:
-        warnings.append(f"{fringe:.2%} of pixels are still near {chroma.hex} -- "
+        warnings.append(f"{fringe:.2%} of pixels are still near {key_hex} -- "
                         f"check the edges for a colour fringe")
 
     width = int(magick_probe(png_path, "%w"))
@@ -199,22 +261,22 @@ def process_one(sprite, chroma, display_width, force):
     if out_webp.exists() and not force:
         return "skipped", [], []
 
-    raw_problems = check_raw(raw_path, chroma)
+    raw_problems, key_hexes = check_raw(raw_path, chroma)
     if raw_problems:
         return "rejected", raw_problems, []
 
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    sh([
-        "magick", str(raw_path),
-        "-fuzz", FUZZ_KEY, "-transparent", chroma.hex,
-        "-channel", "A", "-morphology", "Erode", "Disk:1", "+channel",
-        "-channel", "RGB", "-fuzz", FUZZ_DESPILL,
-        "-fill", "white", "-opaque", chroma.hex, "+channel",
-        "-trim", "+repage",
-        "-resize", f"{target_width}x>",
-        str(out_png),
-    ])
-    problems, warnings = check_output(out_png, chroma, target_width)
+    cmd = ["magick", str(raw_path), "-fuzz", FUZZ_KEY]
+    for k in key_hexes:                      # one pass per sampled colour
+        cmd += ["-transparent", k]
+    cmd += ["-channel", "A", "-morphology", "Erode", "Disk:1", "+channel",
+            "-channel", "RGB", "-fuzz", FUZZ_DESPILL]
+    for k in key_hexes:                      # despill each toward white
+        cmd += ["-fill", "white", "-opaque", k]
+    cmd += ["+channel", "-trim", "+repage",
+            "-resize", f"{target_width}x>", str(out_png)]
+    sh(cmd)
+    problems, warnings = check_output(out_png, key_hexes[0], target_width)
     if problems:
         REJECTED.mkdir(parents=True, exist_ok=True)
         out_png.replace(REJECTED / out_png.name)
@@ -222,7 +284,7 @@ def process_one(sprite, chroma, display_width, force):
 
     sh(["cwebp", "-quiet", "-q", WEBP_QUALITY, str(out_png), "-o", str(out_webp)])
     # The webp is what ships, so verify it too rather than trusting the encoder.
-    webp_problems, _ = check_output(out_webp, chroma, target_width)
+    webp_problems, _ = check_output(out_webp, key_hexes[0], target_width)
     if webp_problems:
         REJECTED.mkdir(parents=True, exist_ok=True)
         out_webp.replace(REJECTED / out_webp.name)

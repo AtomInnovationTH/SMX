@@ -61,6 +61,49 @@ def load_key():
     sys.exit("No OPENROUTER_API_KEY (set env or put it in ./.env)")
 
 
+# Per-image cost, measured from OpenRouter's `image_output` token price times the
+# tokens these models emit per image. Verified against the providers' own
+# published per-image rates.
+#   gemini-3-pro-image   1120 tok * $0.00012 = $0.134/img -> 78 imgs = $10.45
+#   gemini-2.5-flash-image 1290 tok * $0.00003 = $0.039/img -> 78 imgs = $3.02
+COST_PER_IMAGE = {
+    "google/gemini-3-pro-image": 0.134,
+    "google/gemini-3-pro-image-preview": 0.134,
+    "google/gemini-2.5-flash-image": 0.039,
+}
+
+
+def account(key):
+    """Live balance from OpenRouter, so spend is measured and not guessed.
+
+    NOTE: /api/v1/key reports the *key's* spend cap, which is NOT the wallet
+    balance -- trusting it produced a confident "$17.52 remaining" moments
+    before a 402. /api/v1/credits is the real money. We report both.
+    """
+    def get(path):
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1" + path,
+            headers={"Authorization": f"Bearer {key}"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)["data"]
+
+    out = {}
+    try:
+        c = get("/credits")
+        out["balance"] = c.get("total_credits", 0) - c.get("total_usage", 0)
+    except Exception:
+        out["balance"] = None
+    try:
+        k = get("/key")
+        out["key_usage"] = k["usage"]
+        out["key_limit"] = k.get("limit")
+    except Exception:
+        pass
+    return out or None
+
+
+
 STYLE = (
     "Render in an ORIGINAL flat cartoon 'sticker' style: bold clean shapes, crisp "
     "cel shading with 3-4 tones per colour, a thin dark-sepia outline, a clean "
@@ -201,6 +244,8 @@ def main():
                     help="re-generate even if the raw PNG already exists")
     ap.add_argument("--yes", action="store_true",
                     help=f"confirm a run of more than {CONFIRM_ABOVE} billed jobs")
+    ap.add_argument("--budget", type=float,
+                    help="refuse to start if the estimated cost exceeds this many dollars")
     ap.add_argument("--dry-run", action="store_true",
                     help="list what would be generated and exit (no API calls, no cost)")
     args = ap.parse_args()
@@ -245,6 +290,31 @@ def main():
                  f"guard. Re-run with --yes, or use --wave N to work in waves.")
 
     key = load_key()
+
+    # Budget check. Refuse to start a run we cannot afford, and refuse to exceed
+    # an explicit --budget cap, rather than discovering it halfway through.
+    unit = COST_PER_IMAGE.get(MODEL)
+    est = unit * len(todo) if unit else None
+    acct = account(key)
+    if est is not None:
+        print(f"estimated cost: {len(todo)} x ${unit:.3f} = ${est:.2f}"
+              f"  (all 78 would be ${unit * 78:.2f})")
+    if acct:
+        bal = acct.get("balance")
+        if bal is not None:
+            print(f"wallet balance: ${bal:.2f}")
+            if est is not None and est > bal:
+                sys.exit(f"estimated ${est:.2f} exceeds ${bal:.2f} wallet balance")
+        if acct.get("key_limit") is not None:
+            print(f"this key: ${acct['key_usage']:.2f} used of "
+                  f"${acct['key_limit']:.2f} cap")
+    if est is not None and args.budget is not None and est > args.budget:
+        sys.exit(f"estimated ${est:.2f} exceeds the --budget ${args.budget:.2f} cap. "
+                 f"Use a smaller --wave, or a cheaper model via ART_MODEL "
+                 f"(e.g. google/gemini-2.5-flash-image at "
+                 f"${COST_PER_IMAGE['google/gemini-2.5-flash-image']:.3f}/img).")
+
+    usage_before = acct.get("key_usage") if acct else None
     ok = failed = 0
     started = time.time()
     for i, (sprite, subject, chroma, ref, out) in enumerate(todo, 1):
@@ -258,6 +328,17 @@ def main():
         time.sleep(1)
 
     print(f"\ndone: {ok} generated, {failed} failed, {len(skipped)} skipped")
+    after = account(key)
+    if usage_before is not None and after and after.get("key_usage") is not None:
+        spent = after["key_usage"] - usage_before
+        per = spent / ok if ok else 0
+        print(f"ACTUAL spend: ${spent:.3f} (${per:.4f}/image)"
+              + (f", wallet ${after['balance']:.2f} left"
+                 if after.get("balance") is not None else ""))
+        remaining_jobs = len(manifest.SUBJECTS) - ok - len(skipped)
+        if per and remaining_jobs > 0:
+            print(f"at this rate the remaining {remaining_jobs} would cost "
+                  f"${per * remaining_jobs:.2f}")
     if failed:
         print(f"permanent failures logged to {FAILED.relative_to(ROOT)} -- "
               f"re-run the same command to retry just those")

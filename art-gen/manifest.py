@@ -154,11 +154,15 @@ SUBJECTS = {
     "sopwith-camel-sm.webp":
         "a First World War single-seat biplane fighter, OLIVE-DRAB doped upper "
         "surfaces with CREAM undersides, rotary engine cowl, wooden propeller, "
-        "open cockpit, wire-braced wings, side view",
+        "open cockpit, wire-braced wings, side view. Every surface is "
+        "COMPLETELY BLANK AND UNMARKED: no roundels, no circles, no target "
+        "markings, no stripes, no insignia, no letters or numbers anywhere",
     "p-51-sm.webp":
         "a Second World War single-seat long-range fighter, POLISHED "
         "BARE-METAL SILVER fuselage, clear bubble canopy, laminar-flow wings, "
-        "four-blade propeller, side view",
+        "four-blade propeller, side view. Every surface is COMPLETELY BLANK "
+        "AND UNMARKED: no roundels, no stars, no stripes, no insignia, no "
+        "nose art, no letters or numbers anywhere",
     "p-80-sm.webp":
         "an early straight-wing single-seat jet fighter, glossy PEARL-GREY "
         "fuselage with a smooth rounded nose intake, wingtip fuel tanks, "
@@ -192,9 +196,11 @@ SUBJECTS = {
         "bold BLACK bars across the nape, ORANGE-YELLOW bill and legs, wings "
         "outstretched, side view",
     "bearded-vulture-sm.webp":
-        "a bearded vulture soaring, RUST-ORANGE and cream underparts, "
-        "SLATE-GREY wings, narrow pointed wings and a long diamond-shaped "
-        "tail, black eye mask and bristly black beard, side view",
+        "a bearded vulture soaring, its head, neck and entire underside a "
+        "strong RUSTY ORANGE-RED, with SLATE-GREY wings and a long "
+        "diamond-shaped grey tail, a black eye mask and a bristly black "
+        "beard. The rust-orange body colour must be rich and obvious, NOT "
+        "white and NOT pale. Narrow pointed wings outstretched, side view",
     "douglas-dc-3-sm.webp":
         "a 1930s twin-engine propeller airliner, POLISHED BARE-METAL SILVER "
         "fuselage, tapered wings, two radial engines, tailwheel stance, "
@@ -204,8 +210,12 @@ SUBJECTS = {
         "spherical gas envelope in a rigging net with a riveted SILVER-GREY "
         "spherical pressurised gondola hanging below, side view",
     "party-balloons-sm.webp":
-        "a small bunch of shiny party balloons in VIVID RED, ORANGE, YELLOW "
-        "and ROYAL BLUE with curling white ribbon strings, three-quarter view",
+        "a bunch of five or six glossy inflated party balloons with curling "
+        "white ribbon strings. Each balloon is a DIFFERENT INTENSELY "
+        "SATURATED colour -- one bright scarlet RED, one vivid ORANGE, one "
+        "sunny YELLOW, one royal BLUE, one bright GREEN. Solidly filled with "
+        "rich colour, glossy highlights; absolutely NOT white, pale or "
+        "transparent. Three-quarter view",
     "paratrooper-sm.webp":
         "a paratrooper descending beneath a fully inflated round OLIVE-GREEN "
         "parachute canopy, rigging lines down to a figure in green fatigues "
@@ -223,9 +233,11 @@ SUBJECTS = {
         "DARK-BROWN body with pale cream markings, eight slender legs splayed, "
         "side view",
     "sandwort-sm.webp":
-        "a low alpine cushion plant, a dense mound of tiny GREEN leaves "
-        "studded with small VIVID MAGENTA-PURPLE five-petalled flowers with "
-        "yellow centres, growing over grey rock, side view",
+        "a low alpine cushion plant on grey rock: a dense rounded mound of "
+        "tiny DEEP GREEN leaves COMPLETELY COVERED in many small BRIGHT "
+        "MAGENTA-PINK five-petalled flowers with yellow centres. The flowers "
+        "must be vivid and clearly visible, high contrast against the green "
+        "cushion -- not white, not pale, not washed out. Side view",
     "yak-sm.webp":
         "a Himalayan yak standing, massive shaggy DARK-BROWN and black coat "
         "hanging almost to the ground, broad upward-curving PALE horns, bushy "
@@ -244,14 +256,20 @@ SUBJECTS = {
         "cylindrical body with a BLACK interstage band, nine engine nozzles "
         "clustered at the base, four small grid fins near the top, side view",
     "mount-everest-s-800.webp":
-        "a towering Himalayan mountain massif seen from a distance, a broad "
+        "a towering Himalayan mountain massif seen from far away, a broad "
         "pyramidal SNOW-WHITE summit with dark exposed GREY-BROWN rock ridges, "
         "long white glacier fields on its flanks and a sharp wind plume of "
-        "snow streaming off the peak, wide panoramic front view",
+        "snow streaming off the peak. Show the COMPLETE mountain as a single "
+        "small centered shape with a WIDE EMPTY MARGIN of flat background on "
+        "all four sides -- the mountain must NOT touch or run off any edge of "
+        "the image, and there must be no foreground, no trees and no ground "
+        "strip along the bottom",
     "spitfire-sm.webp":
         "a Second World War single-seat fighter with distinctive ELLIPTICAL "
         "wings, GREY-GREEN camouflaged upper surfaces and pale DUCK-EGG BLUE "
-        "undersides, four-blade propeller, framed canopy, side view",
+        "undersides, four-blade propeller, framed canopy, side view. Every "
+        "surface is COMPLETELY BLANK AND UNMARKED: no roundels, no circles, "
+        "no target markings, no stripes, no insignia, no letters or numbers",
     "an-225-sm.webp":
         "an enormous six-engine strategic cargo aircraft, WHITE upper fuselage "
         "and pale BLUE lower fuselage, very long high-mounted wings, TWIN "
@@ -286,12 +304,15 @@ SUBJECTS = {
         "engines, side view",
     "u-2-sm.webp":
         "a high-altitude reconnaissance aircraft with extremely long slender "
-        "straight glider-like wings, MATTE BLACK fuselage, single engine, "
-        "small tail, side view",
+        "straight glider-like wings, its whole airframe finished in solid "
+        "MATTE BLACK / very dark charcoal -- a dark silhouette, definitely NOT "
+        "white or silver. Single engine, small tail, side view",
     "bell-x-1-sm.webp":
-        "a bullet-shaped experimental rocket research aircraft, glossy BRIGHT "
-        "ORANGE fuselage shaped like a rifle bullet, short thin straight "
-        "wings, four rocket nozzles at the tail, side view",
+        "a bullet-shaped experimental rocket research aircraft whose ENTIRE "
+        "fuselage is painted a solid, intense, glossy ORANGE (the colour of a "
+        "traffic cone) -- filled with strong orange, definitely NOT white and "
+        "NOT pale. Shaped like a rifle bullet, with short thin straight wings "
+        "and four rocket nozzles at the tail, side view",
     "explorer-2-sm.webp":
         "a 1930s stratospheric research balloon at altitude, a huge partially "
         "inflated pale CREAM-WHITE envelope in a rigging net above a riveted "
@@ -345,7 +366,9 @@ SUBJECTS = {
     "felix-sm.webp":
         "a stratosphere skydiver in a bulky WHITE full-pressure suit with a "
         "large round white helmet and a chest-mounted control pack, arms "
-        "tucked in, falling in a head-down delta position, side view",
+        "tucked in, falling in a head-down delta position, side view. The suit "
+        "is PLAIN AND ENTIRELY UNMARKED: no flags, no flag patches, no "
+        "sponsor logos, no badges, no names, no text of any kind",
     "highest-mouse-sm.webp":
         "a small deer mouse, warm SANDY-BROWN fur with a WHITE belly, large "
         "round dark eyes, big pink ears, long thin tail, standing on all "
