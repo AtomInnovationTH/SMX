@@ -1,4 +1,12 @@
-name: Build & Deploy
+# Build only. DEPLOYMENT IS DISABLED.
+#
+# The `deploy` job and the Pages publish steps were removed deliberately: the imagery in
+# "Space Elevator_files/" is not licensed for redistribution (see the artwork warning in
+# README.md :113). Deploying the site republishes those assets. Restore the `deploy` job
+# and re-enable Pages in Settings once the original-art greenfield lands
+# (docs/v1.0-roadmap.md Phase 0). Until then this workflow only tests and verifies that
+# the committed index.html matches its source.
+name: Build
 
 on:
   push:
@@ -9,12 +17,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -43,33 +45,3 @@ jobs:
             git --no-pager diff --stat -- index.html
             exit 1
           fi
-
-      - name: Assemble the published site (the game only)
-        if: github.event_name != 'pull_request'
-        # Publish ONLY what the game needs at runtime: the built index.html and the
-        # "Space Elevator_files/" folder (landmark sprites load from it at runtime).
-        # Source, tests, docs, screenshots, and CI config stay out of the live site.
-        run: |
-          rm -rf _site
-          mkdir -p _site
-          cp index.html _site/
-          cp -R "Space Elevator_files" _site/
-
-      - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '_site'
-
-  deploy:
-    # Only deploy on pushes to main, not on PRs.
-    if: github.event_name == 'push'
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
