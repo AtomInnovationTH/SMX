@@ -61,8 +61,12 @@ temp/
 # Kilo agent tooling (local only)
 .kilo/
 
-# Local art-generation working dir (not for commit)
-art-gen/
+# Local art-generation working dir: the OUTPUTS stay local (raw renders, keyed
+# sprites, rejects, contact sheets), but the pipeline CODE is tracked — it is
+# original work, contains no credentials, and art-gen/manifest.py holds the
+# hand-written de-branded subject descriptions.
+art-gen/*
+!art-gen/*.py
 .env
 
 # Local working files — art pipeline preview + agent handoff notes (never on remote)
