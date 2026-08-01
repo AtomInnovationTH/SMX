@@ -56,28 +56,10 @@
         #gameCanvas { position: fixed; top: 0; left: 0; display: block; image-rendering: pixelated; z-index: 10; pointer-events: none; }
         
         /* Visual Enhancements */
-        .grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('assets/grid-750.webp'); background-size: 210px 210px; opacity: 0.15; pointer-events: none; z-index: 8; }
-        .grass-ground { position: fixed; bottom: 0; left: -150px; width: calc(100% + 170px); height: 170px; background-image: url('assets/grass-1400.webp'); background-position: center; background-size: 100% 170px; pointer-events: none; z-index: 6; opacity: 0; transition: opacity 0.5s; }
+        .grid-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('assets/grid.svg'); background-size: 210px 210px; opacity: 0.15; pointer-events: none; z-index: 8; }
+        .grass-ground { position: fixed; bottom: 0; left: -150px; width: calc(100% + 170px); height: 170px; background-image: url('assets/grass.svg'); background-position: center; background-size: 100% 170px; pointer-events: none; z-index: 6; opacity: 0; transition: opacity 0.5s; }
         .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('assets/noise.jpeg'); background-size: 400px 400px; mix-blend-mode: overlay; opacity: 0.12; pointer-events: none; z-index: 9; }
         .grass-ground.visible { opacity: 1; }
-        
-        @media only screen and (max-width: 1200px) {
-            .grass-ground {
-                background-image: url('assets/grass-1200.webp');
-            }
-        }
-        
-        @media only screen and (max-width: 950px) {
-            .grass-ground {
-                background-image: url('assets/grass-1000.webp');
-            }
-        }
-        
-        @media only screen and (max-width: 700px) {
-            .grass-ground {
-                background-image: url('assets/grass-900.webp');
-            }
-        }
         
         #settingsPanel { position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 100; }
         #settingsPanel.visible { display: block; }
@@ -1650,9 +1632,9 @@
             // ring (the monkey's face shows through); they load from "assets/" at runtime.
             static THERMAL = {
                 SUITS: [
-                    { sprite: 'space-suit-1-120.webp', altitude: 8000,  shiveringAt: -20,  label: 'Flight suit' },
-                    { sprite: 'space-suit-2-120.webp', altitude: 19000, shiveringAt: -60,  label: 'Pressure suit — past the Armstrong Limit' },
-                    { sprite: 'space-suit-3-120.webp', altitude: 50000, shiveringAt: -273, label: 'Full space suit' }
+                    { sprite: 'space-suit-1.svg', altitude: 8000,  shiveringAt: -20,  label: 'Flight suit' },
+                    { sprite: 'space-suit-2.svg', altitude: 19000, shiveringAt: -60,  label: 'Pressure suit — past the Armstrong Limit' },
+                    { sprite: 'space-suit-3.svg', altitude: 50000, shiveringAt: -273, label: 'Full space suit' }
                 ],
                 BARE_SHIVERING_AT: 10,   // °C below which the unsuited climber starts to shiver
                 PENALTY_PER_C: 0.006,    // coupling loss per °C colder than the current gear's rating
