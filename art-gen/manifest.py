@@ -19,6 +19,7 @@ Notes on the data:
     roundel, no flag, no livery text. Where a real airframe is recognisable we
     describe the *shape*, not the brand.
 """
+import functools
 import re
 import pathlib
 
@@ -525,6 +526,13 @@ LUMA_ALPHA = {s for s in ATMOSPHERE if s != "grass.webp"}
 ATMOS_WIDTH_OVERRIDES = {"grass.webp": 1400}
 
 
+# Members of ATMOSPHERE that are absent from the game's `this.clouds` array by
+# design: the ground strip is a CSS background, not a cloud. check() exempts
+# exactly this set -- keying the exemption on ATMOS_WIDTH_OVERRIDES instead
+# would let any future width-override entry silently escape cloud validation.
+NOT_YET_WIRED = {"grass.webp"}
+
+
 def style_for(sprite):
     """Prompt style for a sprite. Landmarks fall back to the sticker STYLE."""
     if sprite == "grass.webp":
@@ -539,6 +547,7 @@ def mode_for(sprite):
     return "luma" if sprite in LUMA_ALPHA else "key"
 
 
+@functools.lru_cache(maxsize=None)
 def cloud_widths():
     """Parse cloud sprite -> display width (px) out of the game's cloud array.
 
@@ -559,7 +568,10 @@ def cloud_widths():
 
 
 def atmos_widths():
-    w = cloud_widths()
+    # Copy: cloud_widths() is cached, so mutating its return value here would
+    # leak the ground strip into every later cloud_widths() call (and break
+    # check()'s cloud-set comparison).
+    w = dict(cloud_widths())
     w.update(ATMOS_WIDTH_OVERRIDES)
     return w
 
@@ -600,8 +612,14 @@ def raw_name(sprite):
     return sprite[:-len(".webp")].removesuffix("-sm") + ".png"
 
 
+@functools.lru_cache(maxsize=None)
 def landmark_widths():
-    """Parse sprite -> display width (px) straight out of LANDMARKS_DATA."""
+    """Parse sprite -> display width (px) straight out of LANDMARKS_DATA.
+
+    Cached: post.py calls display_width() per job and this re-reads and
+    regex-parses the ~200 KB source HTML on every call. The file cannot change
+    mid-run, and callers must not mutate the returned dict.
+    """
     src = SOURCE_HTML.read_text()
     start = src.index("const LANDMARKS_DATA = [")
     block = src[start:src.index("\n        ];", start)]
@@ -647,7 +665,7 @@ def check():
 
     # Atmosphere group: the clouds must match the game's cloud array exactly.
     clouds = cloud_widths()
-    described = set(ATMOSPHERE) - set(ATMOS_WIDTH_OVERRIDES)
+    described = set(ATMOSPHERE) - NOT_YET_WIRED
     for sprite in sorted(set(clouds) - described):
         problems.append(f"cloud in the game but missing from ATMOSPHERE: {sprite}")
     for sprite in sorted(described - set(clouds)):

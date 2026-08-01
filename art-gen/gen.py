@@ -262,6 +262,11 @@ def main():
                     help="list what would be generated and exit (no API calls, no cost)")
     args = ap.parse_args()
 
+    # Only 'all' is sliced into waves; in pilot/atmos mode --wave would be
+    # silently ignored (and the scope line would quote a landmark wave total).
+    if args.wave is not None and args.mode != "all":
+        sys.exit(f"--wave only applies to 'all' mode ({args.mode!r} has no waves)")
+
     problems = manifest.check()
     if problems:
         for p in problems:
@@ -315,8 +320,10 @@ def main():
               f"wallet-balance and --budget checks are DISABLED for this run -- "
               f"spend is untracked until you add an entry to COST_PER_IMAGE.")
     if est is not None:
-        print(f"estimated cost: {len(todo)} x ${unit:.3f} = ${est:.2f}"
-              f"  (all 78 would be ${unit * 78:.2f})")
+        batch_note = (f"  (all {len(manifest.SUBJECTS)} landmarks would be "
+                      f"${unit * len(manifest.SUBJECTS):.2f})"
+                      if args.mode != "atmos" else "")
+        print(f"estimated cost: {len(todo)} x ${unit:.3f} = ${est:.2f}" + batch_note)
     if acct:
         bal = acct.get("balance")
         if bal is not None:
@@ -354,7 +361,10 @@ def main():
         print(f"ACTUAL spend: ${spent:.3f} (${per:.4f}/image)"
               + (f", wallet ${after['balance']:.2f} left"
                  if after.get("balance") is not None else ""))
-        remaining_jobs = len(manifest.SUBJECTS) - ok - len(skipped)
+        # Scope the extrapolation to the selected group (78 landmarks, 13 atmos
+        # pieces, or a --wave/--only subset) -- len(manifest.SUBJECTS) here
+        # reported "65 remaining" after a complete atmos run.
+        remaining_jobs = len(jobs) - ok - len(skipped)
         if per and remaining_jobs > 0:
             print(f"at this rate the remaining {remaining_jobs} would cost "
                   f"${per * remaining_jobs:.2f}")
