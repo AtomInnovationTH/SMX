@@ -418,7 +418,162 @@ GREEN_KEYED = {
 
 
 def chroma_for(sprite):
+    if sprite in ATMOSPHERE:
+        return BLACK if sprite in LUMA_ALPHA else MAGENTA
     return GREEN if sprite in GREEN_KEYED else MAGENTA
+
+
+# ---------------------------------------------------------------------------
+# Atmosphere group (roadmap 2f): the 12 clouds + the ground strip.
+#
+# These are NOT stickers, so they do not use the sprite STYLE: a white sticker
+# border and a dark outline are actively wrong on a soft semi-transparent
+# backdrop. Two differences from the landmark pipeline:
+#
+#   * Clouds are generated on PURE BLACK and their alpha is taken from
+#     LUMINANCE, not chroma-keyed. Chroma keying is the worst possible tool for
+#     a wispy translucent edge -- the alpha erode eats the wisps and the despill
+#     leaves fringe. On black, a white cloud's own brightness *is* its opacity,
+#     which is the classic smoke/cloud trick and gives genuinely soft edges.
+#   * The ground strip is keyed normally: its crest is a hard edge against sky.
+#
+# Display widths come from the game's `this.clouds` maxWidth, parsed at runtime
+# like the landmark widths, so they cannot drift.
+# ---------------------------------------------------------------------------
+BLACK = Chroma("pure-black (#000000)", "#000000")
+
+CLOUD_STYLE = (
+    "Render it as a SOFT, NATURALISTIC cloud: billowing volumetric form, gentle "
+    "self-shadowing in cool pale grey, bright sunlit upper surfaces, and "
+    "genuinely WISPY, feathered, semi-transparent edges that fade gradually. "
+    "NO outline, NO dark line art, NO white sticker border, NO frame, NO "
+    "cartoon cel shading. The cloud must be the ONLY bright thing in the image: "
+    "no sun, no moon, no stars, no light rays, no lens flare, no horizon, no "
+    "ground, no birds, no aircraft, no text, no watermark."
+)
+
+GRASS_STYLE = (
+    "Render it as a SOFT, NATURALISTIC band of grassland seen from slightly "
+    "above ground level: rich saturated living green with warm yellow-green "
+    "sunlit highlights and cooler green shadow in the hollows, individual blade "
+    "detail along the top crest so the edge reads as grass and not as a cut "
+    "line. NO outline, NO sticker border, NO frame, NO cartoon cel shading. No "
+    "sky, no clouds, no horizon line, no trees, no flowers, no path, no fence, "
+    "no animals, no text, no watermark."
+)
+
+# sprite filename -> hand-written subject description.
+ATMOSPHERE = {
+    "cumulus-950.webp":
+        "a single fair-weather cumulus cloud, brilliant white heaped "
+        "cauliflower-like domes on top and a soft flat pale-grey base, "
+        "well-defined but soft-edged, seen from the side",
+    "stratus-900.webp":
+        "a low stratus cloud layer, a wide featureless soft sheet of pale "
+        "grey-white, almost no internal structure, drawn out horizontally",
+    "nimbostratus-750.webp":
+        "a thick nimbostratus rain layer, deep slate-grey and heavy, with a "
+        "ragged diffuse base trailing faint precipitation haze, no visible "
+        "raindrops, drawn out horizontally",
+    "altostratus-500.webp":
+        "a mid-level altostratus veil, a broad translucent sheet of soft "
+        "blue-grey, thin enough to be semi-transparent throughout, featureless "
+        "and drawn out horizontally",
+    "cumulonimbus-850.webp":
+        "a towering cumulonimbus storm cloud, brilliant white boiling upper "
+        "turrets flattening into a wide anvil top, dark blue-grey heavy base, "
+        "seen from the side",
+    "altocumulus-700.webp":
+        "a field of altocumulus cloudlets, many small rounded white puffs in "
+        "loose rows with pale grey undersides and clear gaps between them, "
+        "spread out horizontally",
+    "cirrus-700.webp":
+        "high thin cirrus cloud, delicate white ice-crystal streaks swept into "
+        "fine mare's-tail filaments, extremely wispy and translucent, spread "
+        "out horizontally",
+    "cirrus2-700.webp":
+        "high thin cirrus cloud, a looser scatter of fine white feathery "
+        "filaments hooked at one end, very translucent, spread out horizontally",
+    "cirrus3-700.webp":
+        "high thin cirrus cloud, long fine parallel white streaks combed in one "
+        "direction by wind shear, very translucent, spread out horizontally",
+    "cirrostratus-950.webp":
+        "a cirrostratus veil, an extremely thin faint translucent white sheet of "
+        "ice haze with barely any structure, ghostly and almost transparent, "
+        "spread out horizontally",
+    "cirrostratus2-950.webp":
+        "a cirrostratus veil, a very faint smooth translucent white ice haze "
+        "with soft fibrous banding, ghostly and almost transparent, spread out "
+        "horizontally",
+    "cirrostratus3-950.webp":
+        "a cirrostratus veil, a barely-there translucent white ice haze, "
+        "fainter at the edges, ghostly and almost transparent, spread out "
+        "horizontally",
+    "grass.webp":
+        "a wide panoramic band of sunlit green meadow grass filling the lower "
+        "half of the frame, gently undulating hummocks, fine blade detail along "
+        "the crest",
+}
+
+# Clouds: alpha from luminance (generated on black). Everything else in the
+# atmosphere group is chroma-keyed like a sprite.
+LUMA_ALPHA = {s for s in ATMOSPHERE if s != "grass.webp"}
+
+# The ground strip has no width in the game (CSS stretches it to 100%), so its
+# drawing width is a deliberate choice: the widest of the four rasters it
+# replaces.
+ATMOS_WIDTH_OVERRIDES = {"grass.webp": 1400}
+
+
+def style_for(sprite):
+    """Prompt style for a sprite. Landmarks fall back to the sticker STYLE."""
+    if sprite == "grass.webp":
+        return GRASS_STYLE
+    if sprite in ATMOSPHERE:
+        return CLOUD_STYLE
+    return None
+
+
+def mode_for(sprite):
+    """'luma' (alpha from brightness) or 'key' (chroma key)."""
+    return "luma" if sprite in LUMA_ALPHA else "key"
+
+
+def cloud_widths():
+    """Parse cloud sprite -> display width (px) out of the game's cloud array.
+
+    The clouds are sized in CSS (`width: '80vw', maxWidth: '1400px'`), so
+    maxWidth is the largest width they are ever drawn at, and therefore the
+    width to scale against.
+    """
+    src = SOURCE_HTML.read_text()
+    start = src.index("this.clouds = [")
+    block = src[start:src.index("\n                ];", start)]
+    widths = {}
+    for entry in re.findall(r"\{[^{}]*\}", block):
+        img = re.search(r"img:\s*ASSET_BASE_PATH\s*\+\s*'([^']*)'", entry)
+        mx = re.search(r"maxWidth:\s*'(\d+)px'", entry)
+        if img and mx:
+            widths[img.group(1)] = int(mx.group(1))
+    return widths
+
+
+def atmos_widths():
+    w = cloud_widths()
+    w.update(ATMOS_WIDTH_OVERRIDES)
+    return w
+
+
+def atmos_jobs():
+    """Ordered list of (sprite, subject, chroma, ref) for the atmosphere group."""
+    return [(s, ATMOSPHERE[s], chroma_for(s), None) for s in ATMOSPHERE]
+
+
+def display_width(sprite):
+    """Display width for any sprite, landmark or atmosphere."""
+    if sprite in ATMOSPHERE:
+        return atmos_widths().get(sprite)
+    return landmark_widths().get(sprite)
 
 
 def ref_for(sprite):
@@ -489,6 +644,14 @@ def check():
         # godwit is the intended correct spelling; the game references it and
         # the on-disk file is misspelled, so it must appear here.
         problems.append(f"in SUBJECTS but no width found in the game: {sprite}")
+
+    # Atmosphere group: the clouds must match the game's cloud array exactly.
+    clouds = cloud_widths()
+    described = set(ATMOSPHERE) - set(ATMOS_WIDTH_OVERRIDES)
+    for sprite in sorted(set(clouds) - described):
+        problems.append(f"cloud in the game but missing from ATMOSPHERE: {sprite}")
+    for sprite in sorted(described - set(clouds)):
+        problems.append(f"in ATMOSPHERE but not a cloud in the game: {sprite}")
     return problems
 
 
@@ -500,5 +663,13 @@ if __name__ == "__main__":
         key = "GREEN" if sprite in GREEN_KEYED else "magenta"
         ref = "REF" if ref_for(sprite) else "-"
         print(f"  {sprite:<28} w={str(w):>5} {key:<8} {ref:<4} {subject[:52]}...")
+
+    aw = atmos_widths()
+    print(f"\n{len(ATMOSPHERE)} atmosphere subjects "
+          f"({len(LUMA_ALPHA)} luma-alpha, {len(ATMOSPHERE) - len(LUMA_ALPHA)} keyed)")
+    for sprite, subject in ATMOSPHERE.items():
+        print(f"  {sprite:<28} w={str(aw.get(sprite, '?')):>5} "
+              f"{mode_for(sprite):<8} {'-':<4} {subject[:52]}...")
+
     for problem in check():
         print("  !!", problem)

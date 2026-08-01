@@ -18,6 +18,7 @@ Run:
     python3 art-gen/gen.py all --yes             # the whole batch (78 jobs)
     python3 art-gen/gen.py all --only sr-71,u-2  # named subjects only
     python3 art-gen/gen.py all --wave 2 --force  # re-generate, ignoring cache
+    python3 art-gen/gen.py atmos                 # 12 clouds + ground strip (2f)
 
 Safe to interrupt and re-run: anything already in art-gen/raw/ is skipped, so a
 crash at job 60 never re-bills the first 59. Permanent failures are appended to
@@ -116,7 +117,7 @@ STYLE = (
 )
 
 
-def prompt_for(subject, key_phrase, with_ref):
+def prompt_for(subject, key_phrase, with_ref, style=None):
     parts = [f"Create a single game sprite of {subject}. "]
     if with_ref:
         parts.append(
@@ -125,7 +126,7 @@ def prompt_for(subject, key_phrase, with_ref):
             "colours, textures, shading or fine details -- invent a fresh "
             "depiction. "
         )
-    parts.append(STYLE)
+    parts.append(style or STYLE)
     parts.append(
         f" Place it on a SOLID FLAT UNIFORM {key_phrase} background filling the "
         "entire canvas -- absolutely NO checkerboard pattern, no gradient, no "
@@ -144,8 +145,9 @@ class NoImageReturned(Exception):
     """The model replied with text instead of an image -- worth retrying."""
 
 
-def request_image(subject, ref, key, key_phrase):
-    content = [{"type": "text", "text": prompt_for(subject, key_phrase, ref is not None)}]
+def request_image(subject, ref, key, key_phrase, style=None):
+    content = [{"type": "text",
+                "text": prompt_for(subject, key_phrase, ref is not None, style)}]
     if ref is not None:
         content.append({"type": "image_url", "image_url": {"url": data_uri(ref)}})
     body = {
@@ -172,12 +174,12 @@ def request_image(subject, ref, key, key_phrase):
     return base64.b64decode(imgs[0]["image_url"]["url"].split(",", 1)[1])
 
 
-def generate(subject, ref, out_path, key, key_phrase):
+def generate(subject, ref, out_path, key, key_phrase, style=None):
     """Generate one sprite, retrying transient failures. Returns path or None."""
     delay = BACKOFF
     for attempt in range(1, RETRIES + 1):
         try:
-            data = request_image(subject, ref, key, key_phrase)
+            data = request_image(subject, ref, key, key_phrase, style)
         except NoImageReturned as e:
             reason = f"no image returned (text: {e})"
         except urllib.error.HTTPError as e:
@@ -227,6 +229,10 @@ def select_jobs(args):
     if args.mode == "pilot":
         jobs = [(s, manifest.SUBJECTS[s], manifest.chroma_for(s), manifest.ref_for(s))
                 for s in PILOT_SPRITES]
+    elif args.mode == "atmos":
+        # Roadmap 2f: the 12 clouds + the ground strip. Clouds are generated on
+        # black and get their alpha from luminance in post.py; see manifest.
+        jobs = manifest.atmos_jobs()
     else:
         jobs = manifest.jobs(wave=args.wave, wave_size=args.wave_size)
     if args.only:
@@ -240,7 +246,8 @@ def select_jobs(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", nargs="?", default="pilot", choices=["pilot", "all"])
+    ap.add_argument("mode", nargs="?", default="pilot",
+                    choices=["pilot", "all", "atmos"])
     ap.add_argument("--wave", type=int,
                     help="generate only wave N (1-based) so waves stay reviewable")
     ap.add_argument("--wave-size", type=int, default=20)
@@ -332,7 +339,8 @@ def main():
         print(f"[{i}/{len(todo)}] {out.name}  ({ok} ok, {failed} failed, "
               f"{int(time.time() - started)}s elapsed)")
         print(f"    {subject[:70]}...")
-        if generate(subject, ref, out, key, chroma.phrase):
+        if generate(subject, ref, out, key, chroma.phrase,
+                    manifest.style_for(sprite)):
             ok += 1
         else:
             failed += 1

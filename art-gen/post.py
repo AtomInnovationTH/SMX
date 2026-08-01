@@ -64,6 +64,18 @@ FUZZ_KEY = "18%"        # background keying tolerance
 FUZZ_DESPILL = "35%"    # wider: catches the anti-aliased fringe
 WEBP_QUALITY = "88"
 
+# --- atmosphere group (2f) ---
+# Clouds are generated on black and their alpha comes from LUMINANCE, so the
+# soft wispy edges survive. The level clips the black floor (killing faint
+# background haze) and pushes the cloud body to fully opaque; the tint is the
+# flat near-white the alpha is then applied to, which avoids the dirty grey
+# edges you get from using the raw RGB unpremultiplied.
+LUMA_LEVEL = "6%,88%"
+CLOUD_TINT = "#FBFDFF"
+DARK_BG_MAX = 48             # a "black" border sample may drift this high
+MIN_TRANSPARENT_LUMA = 0.02  # a faint cirrostratus veil is legitimately sparse
+MAX_TRANSPARENT_LUMA = 0.995
+
 # --- verification thresholds ---
 RAW_CORNER_TOLERANCE = 60    # per-channel drift from the requested key before we report it
 HUE_TOLERANCE = 30           # degrees a border sample may differ from the background hue
@@ -130,6 +142,38 @@ def hex_to_rgb(h):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
+BORDER_SAMPLES = (
+    ("0", "0"), ("w-1", "0"), ("0", "h-1"), ("w-1", "h-1"),
+    ("w/2", "0"), ("w/2", "h-1"), ("0", "h/2"), ("w-1", "h/2"),
+)
+
+
+def border_samples(raw_path):
+    fmt = "\n".join(f"%[pixel:p{{{x},{y}}}]" for x, y in BORDER_SAMPLES)
+    return [parse_srgb(s)[:3]
+            for s in magick_probe(raw_path, fmt).splitlines() if s.strip()]
+
+
+def check_raw_dark(raw_path):
+    """Gate a luma-alpha INPUT: the background must genuinely be black.
+
+    The chroma gate cannot be reused here -- it treats a desaturated background
+    as a painted checkerboard, and black is by definition desaturated. This
+    still catches the failures that matter: a grey checkerboard (~128) is not
+    dark, and scenery or a cloud that reaches the frame edge leaves too few
+    dark samples to pass.
+    """
+    samples = border_samples(raw_path)
+    dark = [c for c in samples if max(c) <= DARK_BG_MAX]
+    if len(dark) < MIN_BG_INLIERS:
+        brightest = max(samples, key=max)
+        return [f"only {len(dark)}/{len(samples)} border samples are black "
+                f"(brightest {brightest}) -- the background is not a clean black "
+                f"field, so luminance cannot be used as alpha. Regenerate with a "
+                f"generous margin (gen.py atmos --only ... --force)"]
+    return []
+
+
 def check_raw(raw_path, chroma):
     """Gate the INPUT and work out which colour(s) to key.
 
@@ -150,11 +194,7 @@ def check_raw(raw_path, chroma):
 
     Returns (problems, [key_hex, ...]) covering the observed spread.
     """
-    fmt = "\n".join(f"%[pixel:p{{{x},{y}}}]" for x, y in (
-        ("0", "0"), ("w-1", "0"), ("0", "h-1"), ("w-1", "h-1"),
-        ("w/2", "0"), ("w/2", "h-1"), ("0", "h/2"), ("w-1", "h/2"),
-    ))
-    samples = [parse_srgb(s)[:3] for s in magick_probe(raw_path, fmt).splitlines() if s.strip()]
+    samples = border_samples(raw_path)
 
     def hsv(c):
         return colorsys.rgb_to_hsv(*[v / 255 for v in c])
@@ -209,8 +249,13 @@ def check_raw(raw_path, chroma):
     return [], keys
 
 
-def check_output(png_path, key_hex, target_width):
-    """Gate the OUTPUT: real alpha, transparent corner, sane coverage."""
+def check_output(png_path, key_hex, target_width,
+                 min_transparent=MIN_TRANSPARENT, max_transparent=MAX_TRANSPARENT):
+    """Gate the OUTPUT: real alpha, transparent corner, sane coverage.
+
+    `key_hex` is None for luma-alpha output, where there is no key colour and
+    therefore no residual-fringe test to run.
+    """
     problems, warnings = [], []
 
     alpha = magick_probe(png_path, "%A")
@@ -225,22 +270,23 @@ def check_output(png_path, key_hex, target_width):
     opaque_mean = float(sh(["magick", str(png_path), "-alpha", "extract",
                             "-format", "%[fx:mean]", "info:"]))
     transparent = 1.0 - opaque_mean
-    if transparent < MIN_TRANSPARENT:
+    if transparent < min_transparent:
         problems.append(f"only {transparent:.1%} of the image is transparent -- "
                         f"the background was not removed")
-    elif transparent > MAX_TRANSPARENT:
+    elif transparent > max_transparent:
         problems.append(f"{transparent:.1%} of the image is transparent -- "
                         f"the subject was keyed or trimmed away")
 
-    fringe = 1.0 - float(sh([
-        "magick", str(png_path), "-alpha", "off", "-fuzz", "25%",
-        "-fill", "white", "+opaque", key_hex,
-        "-fill", "black", "-opaque", key_hex,
-        "-format", "%[fx:mean]", "info:",
-    ]))
-    if fringe > MAX_KEY_FRINGE:
-        warnings.append(f"{fringe:.2%} of pixels are still near {key_hex} -- "
-                        f"check the edges for a colour fringe")
+    if key_hex is not None:
+        fringe = 1.0 - float(sh([
+            "magick", str(png_path), "-alpha", "off", "-fuzz", "25%",
+            "-fill", "white", "+opaque", key_hex,
+            "-fill", "black", "-opaque", key_hex,
+            "-format", "%[fx:mean]", "info:",
+        ]))
+        if fringe > MAX_KEY_FRINGE:
+            warnings.append(f"{fringe:.2%} of pixels are still near {key_hex} -- "
+                            f"check the edges for a colour fringe")
 
     width = int(magick_probe(png_path, "%w"))
     if width < target_width:
@@ -250,33 +296,70 @@ def check_output(png_path, key_hex, target_width):
     return problems, warnings
 
 
+def process_luma(raw_path, out_png, target_width):
+    """Alpha from luminance: for soft translucent subjects (the clouds).
+
+    Chroma keying would destroy these -- the alpha erode eats a wispy edge and
+    the despill leaves fringe on a semi-transparent one. On a black field the
+    subject's own brightness IS its opacity, so the mask is just a levelled
+    greyscale copy applied to a flat near-white fill.
+    """
+    dims = magick_probe(raw_path, "%w %h").split()
+    mask = out_png.with_name(out_png.stem + "-lumamask.png")
+    try:
+        sh(["magick", str(raw_path), "-alpha", "off", "-colorspace", "gray",
+            "-level", LUMA_LEVEL, str(mask)])
+        sh(["magick", "-size", f"{dims[0]}x{dims[1]}", f"xc:{CLOUD_TINT}",
+            str(mask), "-alpha", "off", "-compose", "CopyOpacity", "-composite",
+            "-trim", "+repage", "-resize", f"{target_width}x>", str(out_png)])
+    finally:
+        mask.unlink(missing_ok=True)
+
+
 def process_one(sprite, chroma, display_width, force):
     raw_path = RAW / manifest.raw_name(sprite)
     out_png = PROCESSED / (sprite[:-len(".webp")] + ".png")
     out_webp = PROCESSED / sprite
     target_width = display_width * 2
+    mode = manifest.mode_for(sprite)
+    # The despill pushes residual key pixels to WHITE, which only hides against
+    # the sticker style's white border. An atmosphere piece has no such border,
+    # so a white fringe along a grass crest would be plainly visible.
+    despill = sprite not in manifest.ATMOSPHERE
 
     if not raw_path.exists():
         return "missing", [f"no raw at {raw_path.relative_to(ROOT)} -- run gen.py first"], []
     if out_webp.exists() and not force:
         return "skipped", [], []
 
-    raw_problems, key_hexes = check_raw(raw_path, chroma)
-    if raw_problems:
-        return "rejected", raw_problems, []
-
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    cmd = ["magick", str(raw_path), "-fuzz", FUZZ_KEY]
-    for k in key_hexes:                      # one pass per sampled colour
-        cmd += ["-transparent", k]
-    cmd += ["-channel", "A", "-morphology", "Erode", "Disk:1", "+channel",
-            "-channel", "RGB", "-fuzz", FUZZ_DESPILL]
-    for k in key_hexes:                      # despill each toward white
-        cmd += ["-fill", "white", "-opaque", k]
-    cmd += ["+channel", "-trim", "+repage",
-            "-resize", f"{target_width}x>", str(out_png)]
-    sh(cmd)
-    problems, warnings = check_output(out_png, key_hexes[0], target_width)
+
+    if mode == "luma":
+        raw_problems = check_raw_dark(raw_path)
+        if raw_problems:
+            return "rejected", raw_problems, []
+        key_hexes = [None]
+        bounds = (MIN_TRANSPARENT_LUMA, MAX_TRANSPARENT_LUMA)
+        process_luma(raw_path, out_png, target_width)
+    else:
+        raw_problems, key_hexes = check_raw(raw_path, chroma)
+        if raw_problems:
+            return "rejected", raw_problems, []
+        bounds = (MIN_TRANSPARENT, MAX_TRANSPARENT)
+        cmd = ["magick", str(raw_path), "-fuzz", FUZZ_KEY]
+        for k in key_hexes:                      # one pass per sampled colour
+            cmd += ["-transparent", k]
+        cmd += ["-channel", "A", "-morphology", "Erode", "Disk:1", "+channel"]
+        if despill:
+            cmd += ["-channel", "RGB", "-fuzz", FUZZ_DESPILL]
+            for k in key_hexes:                  # despill each toward white
+                cmd += ["-fill", "white", "-opaque", k]
+            cmd += ["+channel"]
+        cmd += ["-trim", "+repage",
+                "-resize", f"{target_width}x>", str(out_png)]
+        sh(cmd)
+
+    problems, warnings = check_output(out_png, key_hexes[0], target_width, *bounds)
     if problems:
         REJECTED.mkdir(parents=True, exist_ok=True)
         out_png.replace(REJECTED / out_png.name)
@@ -284,7 +367,7 @@ def process_one(sprite, chroma, display_width, force):
 
     sh(["cwebp", "-quiet", "-q", WEBP_QUALITY, str(out_png), "-o", str(out_webp)])
     # The webp is what ships, so verify it too rather than trusting the encoder.
-    webp_problems, _ = check_output(out_webp, key_hexes[0], target_width)
+    webp_problems, _ = check_output(out_webp, key_hexes[0], target_width, *bounds)
     if webp_problems:
         REJECTED.mkdir(parents=True, exist_ok=True)
         out_webp.replace(REJECTED / out_webp.name)
@@ -295,7 +378,7 @@ def process_one(sprite, chroma, display_width, force):
     return "ok", [], warnings + [f"-> {sprite} {dims} ({size} KB)"]
 
 
-def build_sheet(sprites, label):
+def build_sheet(sprites, label, background="none"):
     """Contact sheet for wave review. Replaces the hardcoded art-preview.html."""
     files = [PROCESSED / s for s in sprites if (PROCESSED / s).exists()]
     if not files:
@@ -309,8 +392,9 @@ def build_sheet(sprites, label):
     else:
         print("  (no usable font found -- contact sheet will be unlabelled)")
     # Checkerboard the sheet background so fake-transparent sprites stand out
-    # against real ones instead of blending into a flat backdrop.
-    cmd += ["-tile", "6x", "-geometry", "+6+6", "-background", "none",
+    # against real ones instead of blending into a flat backdrop. White clouds
+    # are the exception: they need a sky behind them to be visible at all.
+    cmd += ["-tile", "6x", "-geometry", "+6+6", "-background", background,
             *[str(f) for f in files], str(sheet)]
     sh(cmd)
     print(f"contact sheet: {sheet.relative_to(ROOT)} ({len(files)} sprites)")
@@ -322,6 +406,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--wave", type=int, help="process only wave N (1-based)")
     ap.add_argument("--wave-size", type=int, default=20)
+    ap.add_argument("--group", choices=["landmarks", "atmos"], default="landmarks",
+                    help="atmos = the 12 clouds + ground strip (roadmap 2f)")
     ap.add_argument("--only", help="comma-separated substrings of sprite names")
     ap.add_argument("--force", action="store_true", help="reprocess even if output exists")
     ap.add_argument("--sheet-only", action="store_true",
@@ -335,23 +421,29 @@ def main():
             print("manifest problem:", p)
         sys.exit("manifest is out of sync with the game")
 
-    widths = manifest.landmark_widths()
-    jobs = manifest.jobs(wave=args.wave, wave_size=args.wave_size)
+    if args.group == "atmos":
+        jobs = manifest.atmos_jobs()
+        label = "atmos"
+        # White clouds are invisible on a transparent sheet: give them a sky.
+        sheet_bg = "#4a90d9"
+    else:
+        jobs = manifest.jobs(wave=args.wave, wave_size=args.wave_size)
+        label = f"wave{args.wave}" if args.wave else "all"
+        sheet_bg = "none"
     if args.only:
         wanted = {w.strip() for w in args.only.split(",") if w.strip()}
         jobs = [j for j in jobs if any(w in j[0] for w in wanted)]
         if not jobs:
             sys.exit(f"--only {args.only!r} matched nothing")
 
-    label = f"wave{args.wave}" if args.wave else "all"
     if args.sheet_only:
-        build_sheet([j[0] for j in jobs], label)
+        build_sheet([j[0] for j in jobs], label, sheet_bg)
         return
 
     counts = {"ok": 0, "skipped": 0, "rejected": 0, "missing": 0}
     failures = []
     for sprite, _subject, chroma, _ref in jobs:
-        width = widths.get(sprite)
+        width = manifest.display_width(sprite)
         if width is None:
             print(f"{sprite}: no display width -- skipping")
             counts["missing"] += 1
@@ -372,7 +464,7 @@ def main():
     print(f"\n{counts['ok']} processed, {counts['skipped']} skipped, "
           f"{counts['rejected']} REJECTED, {counts['missing']} missing raws")
     if counts["ok"] or args.force:
-        build_sheet([j[0] for j in jobs], label)
+        build_sheet([j[0] for j in jobs], label, sheet_bg)
 
     print("\nreview each sprite on the sheet against the acceptance bar:")
     print("  real alpha (no checkerboard) | no text/logo/insignia | readable")
