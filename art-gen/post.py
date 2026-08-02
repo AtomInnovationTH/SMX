@@ -85,6 +85,13 @@ MIN_TRANSPARENT = 0.04       # below this, keying almost certainly did not happe
 MAX_TRANSPARENT = 0.97       # above this, we trimmed away the subject
 MAX_KEY_FRINGE = 0.01        # residual near-key pixels, as a fraction of the image
 
+# Despill pushes residual key-colour pixels toward a colour that hides against
+# the subject: WHITE for the sticker style (invisible against its white
+# border). Atmosphere pieces have no border, so the ground strip despills
+# toward its own grass green instead -- a white fringe along the crest would
+# be plainly visible against the sky -- and the luma-alpha clouds get none.
+DESPILL_COLOURS = {"grass.webp": "#5E8F27"}
+
 
 def sh(cmd):
     """Run a command, returning stdout. Raises with stderr included on failure."""
@@ -174,8 +181,13 @@ def check_raw_dark(raw_path):
     return []
 
 
-def check_raw(raw_path, chroma):
+def check_raw(raw_path, chroma, min_inliers=MIN_BG_INLIERS):
     """Gate the INPUT and work out which colour(s) to key.
+
+    `min_inliers` is lower for the ground strip: grass legitimately fills the
+    frame to the bottom and side edges (the viewport clips those, and a solid
+    bottom is required), so only the top edge -- the crest backdrop -- is
+    guaranteed to be background.
 
     Models honour "flat uniform background" only loosely. Two real behaviours
     we must tolerate, both seen in this batch:
@@ -209,7 +221,7 @@ def check_raw(raw_path, chroma):
         return dh <= HUE_TOLERANCE and s >= MIN_BG_SATURATION
 
     inliers = [c for c in samples if inlier(c)]
-    if len(inliers) < MIN_BG_INLIERS:
+    if len(inliers) < min_inliers:
         desat = sum(1 for c in samples if hsv(c)[1] < MIN_BG_SATURATION)
         why = ("mostly desaturated (grey) -- likely a painted checkerboard"
                if desat >= len(samples) / 2
@@ -322,10 +334,8 @@ def process_one(sprite, chroma, display_width, force):
     out_webp = PROCESSED / sprite
     target_width = display_width * 2
     mode = manifest.mode_for(sprite)
-    # The despill pushes residual key pixels to WHITE, which only hides against
-    # the sticker style's white border. An atmosphere piece has no such border,
-    # so a white fringe along a grass crest would be plainly visible.
-    despill = sprite not in manifest.ATMOSPHERE
+    despill = ("white" if sprite not in manifest.ATMOSPHERE
+               else DESPILL_COLOURS.get(sprite))
 
     if not raw_path.exists():
         return "missing", [f"no raw at {raw_path.relative_to(ROOT)} -- run gen.py first"], []
@@ -342,7 +352,10 @@ def process_one(sprite, chroma, display_width, force):
         bounds = (MIN_TRANSPARENT_LUMA, MAX_TRANSPARENT_LUMA)
         process_luma(raw_path, out_png, target_width)
     else:
-        raw_problems, key_hexes = check_raw(raw_path, chroma)
+        # The ground strip fills the frame to the bottom/side edges by design,
+        # so it can only offer the top edge's worth of background samples.
+        min_bg = 3 if sprite == "grass.webp" else MIN_BG_INLIERS
+        raw_problems, key_hexes = check_raw(raw_path, chroma, min_bg)
         if raw_problems:
             return "rejected", raw_problems, []
         bounds = (MIN_TRANSPARENT, MAX_TRANSPARENT)
@@ -352,10 +365,14 @@ def process_one(sprite, chroma, display_width, force):
         cmd += ["-channel", "A", "-morphology", "Erode", "Disk:1", "+channel"]
         if despill:
             cmd += ["-channel", "RGB", "-fuzz", FUZZ_DESPILL]
-            for k in key_hexes:                  # despill each toward white
-                cmd += ["-fill", "white", "-opaque", k]
+            for k in key_hexes:                  # despill each key colour
+                cmd += ["-fill", despill, "-opaque", k]
             cmd += ["+channel"]
-        cmd += ["-trim", "+repage",
+        # Reset fuzz before trimming: a lingering -fuzz 35% makes -trim treat
+        # semi-transparent edge pixels as trimmable background, eating soft
+        # edges (it chopped 180px off the grass crest). Sprites never showed
+        # it because their hard sticker edges have no semi-transparent band.
+        cmd += ["-fuzz", "0%", "-trim", "+repage",
                 "-resize", f"{target_width}x>", str(out_png)]
         sh(cmd)
 
