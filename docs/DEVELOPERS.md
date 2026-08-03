@@ -37,6 +37,26 @@ the committed `index.html` is out of sync, then deploys to GitHub Pages.
 
 ---
 
+## Art pipeline (`art-gen/`)
+
+All artwork is original and generated for this project. Only the pipeline **code**
+(`art-gen/*.py`) is tracked; raw renders, keyed sprites, rejects and contact sheets
+are gitignored.
+
+- **`manifest.py`** is the single source of truth for subject prompts, and parses
+  sprite widths live out of `Space_Monkey_Elevator.html` to prevent the manifest and
+  the game drifting apart.
+- **`gen.py`** calls OpenRouter for image generation (default model
+  `google/gemini-3-pro-image`), with a wallet-balance check, a `--budget` cap and a
+  `CONFIRM_ABOVE=25` guard before any billed batch. The API key comes from the
+  environment or `.env` — see [`.env.example`](../.env.example).
+- **`post.py`** chroma-keys / luma-alphas, despills, trims and resizes each sprite to
+  2× its on-screen display width, and **rejects** output that fails its alpha gates.
+- **`tools/check_refs.py`** verifies every asset path actually resolves on disk
+  (run after any source edit).
+
+---
+
 ## Tests
 
 A zero-dependency Node test suite (no `npm install`) exercises the pure logic —

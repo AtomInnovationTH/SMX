@@ -67,7 +67,6 @@ temp/
 # hand-written de-branded subject descriptions.
 art-gen/*
 !art-gen/*.py
-.env
 
 # Local working files — art pipeline preview + agent handoff notes (never on remote)
 art-preview.html
