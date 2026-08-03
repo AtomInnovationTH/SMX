@@ -25,7 +25,7 @@ Workflow:
    base64 data URIs and writes `index.html`.
 3. Commit **both** files together.
 
-`embed_assets.py` does static find/replace of asset paths. The ~70 landmark sprites
+`embed_assets.py` does static find/replace of asset paths. The 78 landmark sprites
 are referenced via a runtime-built path (`assets/${landmark.sprite}`)
 and are **not** inlined, so `index.html` must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
@@ -71,8 +71,11 @@ node --test tests/*.test.mjs
 `Space_Monkey_Elevator.html`, appends a `return { … }` of the pure top-level symbols,
 and evaluates it with no-op DOM/WebGL/audio stubs (the bottom `load` handler only
 *registers* under the stub, so no game boots). [`tests/pure.test.mjs`](../tests/pure.test.mjs)
-holds the assertions. When you add a pure top-level function or class worth testing,
-add its name to `EXPORTED_SYMBOLS` in `extract.mjs`.
+holds the assertions. When you add a pure top-level function or class worth testing you must
+make **three** edits or the new symbol is silently `undefined` in tests: (1) add its name to
+`EXPORTED_SYMBOLS` in `extract.mjs`, (2) destructure it from the loaded module at the top of
+`pure.test.mjs`, and (3) add it to the extraction-sanity object literal (the "core pure
+symbols" test).
 
 ---
 
@@ -110,8 +113,11 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   (`waveEnergyFactor`, Q-P3) and gated by tether material. An ambient trickle makes a
   **brownout** recoverable by coasting. The charge-sustainability curve is the
   difficulty curve; material choice sets how high you can go.
-- **Units chain** (`GameConfig.TETHER`): wave speed `v = √(T/μ)` from tether diameter
-  + density and tension, shown in settings; tension/width scale coupling (clamped).
+- **Units chain** (`GameConfig.TETHER`): the tether carries a **longitudinal** (compression)
+  wave, so its speed is `v = √(E/ρ)` from the material's Young's modulus and density — a
+  material constant, shown in settings. Separately, tension/width scale coupling through a
+  `√(T/μ)`-shaped *coupling-momentum proxy* (`couplingMomentumScale`); that is a tuning curve,
+  **not** the wave speed.
 - **Scoring** (`GameConfig.MISSION`): the Weight slider is cargo; delivering it to the
   Kármán Line scores `cargo_kg × altitude_km`, with a persisted best and a cumulative
   "bootstrap %" meter.

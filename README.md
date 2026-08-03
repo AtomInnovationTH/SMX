@@ -74,7 +74,7 @@ Three ways to play:
 The repo ships two HTML files at the root:
 
 - [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html) — **editable source of truth**. References assets in [`assets/`](assets).
-- [`index.html`](index.html) — **committed build artifact**, auto-generated (do not hand-edit). The statically-referenced assets (clouds, the monkey SVG, noise textures) are inlined as base64 data URIs. The ~70 landmark sprites are referenced through a runtime-built path, so they are **not** inlined and still load from [`assets/`](assets). `index.html` must therefore be served **alongside** that folder (as it is on GitHub Pages); it is not a standalone offline single file.
+- [`index.html`](index.html) — **committed build artifact**, auto-generated (do not hand-edit). The statically-referenced assets (clouds, the monkey SVG, noise textures) are inlined as base64 data URIs. The 78 landmark sprites are referenced through a runtime-built path, so they are **not** inlined and still load from [`assets/`](assets). `index.html` must therefore be served **alongside** that folder (as it is on GitHub Pages); it is not a standalone offline single file.
 
 To rebuild after editing the source:
 

@@ -96,7 +96,7 @@ git push origin main
 python3 embed_assets.py
 
 # This inlines the statically-referenced assets (clouds, the monkey, textures)
-# into index.html as data URIs. The ~70 landmark sprites are referenced through a
+# into index.html as data URIs. The 78 landmark sprites are referenced through a
 # runtime-built path and are NOT inlined, so index.html is not standalone: it must
 # ship alongside the assets/ folder (as it does on GitHub Pages).
 ```
@@ -105,7 +105,8 @@ python3 embed_assets.py
 
 ## 🏷️ Step 7: Create Version Tags
 
-**Action Required** (move the `v1.0.0` tag onto the final tree):
+**Status:** ✅ Done — `v1.0.0` was moved onto the final tree (2026-08-04). The commands below
+are kept as reference; the first `git tag -f` line is what re-moves it onto any future HEAD.
 
 ```bash
 # Tag the current version (force-move the existing v1.0.0 onto HEAD)
@@ -164,7 +165,7 @@ Once you complete the action-required steps above:
 - [x] Step 4: GitHub Pages ✅ Done — Source: GitHub Actions (see Step 4 above)
 - [x] Step 5: Add repository metadata ✅ Done (applied at repo recreation, 2026-08-03)
 - [x] Step 6: Upload asset files ✅ Done (assets are committed; check `git status` clean)
-- [x] Step 7: Create version tags ✅ Done (moved `v1.0.0` onto HEAD, 2026-08-03)
+- [x] Step 7: Create version tags ✅ Done (moved `v1.0.0` onto HEAD, 2026-08-04)
 - [ ] Step 8: Cross-link GMX repo (update GMX README) — external/owner-only, cannot be done from this repo
 
 ---

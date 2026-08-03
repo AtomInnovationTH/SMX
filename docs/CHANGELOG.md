@@ -11,18 +11,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Docs contradicting the tree** — corrected the stale "godwit 404s today" note in
   `art-gen/manifest.py`, the standalone-asset claim in `docs/GITHUB_SETUP.md`
-  (Option B), and the roadmap/godwit-linked acceptance items, so no doc describes a
-  fixed bug as open.
+  (Option B), the wrong `√(T/μ)` wave-speed formula in `docs/DEVELOPERS.md` (the
+  tether carries a longitudinal wave, so the speed is `√(E/ρ)`; `√(T/μ)` is only a
+  coupling proxy), and the stale "~70 landmark sprites" counts (they are **78**).
 - **`docs/GITHUB_SETUP.md`** — replaced the `v0.3.0` example with the real `v1.0.0`
-  tag command, ticked Steps 6 & 7 in the checklist, and re-labelled Step 8
-  (GMX cross-link) as external/owner-only rather than discoverable from this repo.
+  tag command, ticked Steps 6 & 7 in the checklist, flipped Step 7's header from
+  "Action Required" to done (the tag is moved), fixed a wrong work-date, and
+  re-labelled Step 8 (GMX cross-link) as external/owner-only rather than
+  discoverable from this repo.
+- **`docs/v1.0-roadmap.md`** — ticked the final acceptance item (CHANGELOG, tag on
+  HEAD, green CI), fixed wrong work-dates, and corrected two stale work-annotations.
 
 ### Added
 
 - **`art-gen/manifest.py` / developer docs** — documented the whole `art-gen/`
   pipeline (manifest → `gen.py` → `post.py` → `tools/check_refs.py`) in
-  `docs/DEVELOPERS.md`, and added `.env.example` so the OpenRouter key contract is
-  discoverable without committing the real `.env`.
+  `docs/DEVELOPERS.md`, added `.env.example` so the OpenRouter key contract is
+  discoverable without committing the real `.env`, and documented that adding a
+  testable pure symbol now requires a **three-edit** export ritual.
+
+### Changed
+
+- **Legacy grab model (`K`)** — removed the unreachable `GRAB.POOR_QUALITY` tier.
+  `phaseDiff` is bounded by 0.25, always below `GOOD_WINDOW` (0.30), so the "poor"
+  branch could never execute and a mistimed legacy grab floors at ~0.639. The dead
+  constant and branch are gone and the invariant is now pinned by a test, so a
+  future config change that would resurrect the tier fails loudly. No change to
+  shipped behaviour.
 
 ### Tests
 
@@ -33,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fieldFactor 0` coasting, frame-rate independence), `calculateGrabMomentum`
   (quality bands, weight factor, signed momentum), and
   `updatePosition`/`updateHorizontalVelocity` (clamps and drift decay).
+- **Reachability guard** — asserts the legacy grab `max phaseDiff` (0.25) stays below
+  `GRAB.GOOD_WINDOW`, keeping the removed poor tier unreachable by construction.
 
 ## [1.0.0] - 2026-08-03
 
