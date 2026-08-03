@@ -1570,7 +1570,6 @@
             static GRAB = {
                 PERFECT_WINDOW: 0.12,
                 GOOD_WINDOW: 0.30,
-                POOR_QUALITY: 0.3,
                 FLASH_DURATION: 0.15,
                 PERFECT_COLOR: COLOR_PALETTE.GRAB_PERFECT,
                 GOOD_COLOR: COLOR_PALETTE.GRAB_GOOD,
@@ -1835,13 +1834,16 @@
                 if (phaseDiff < GameConfig.GRAB.PERFECT_WINDOW) {
                     quality = 1.0;
                     flashColor = GameConfig.GRAB.PERFECT_COLOR;
-                } else if (phaseDiff < GameConfig.GRAB.GOOD_WINDOW) {
+                } else {
+                    // The two optimal phases (0.25 and 0.75) are antipodal on the unit
+                    // cycle, so phaseDiff can never exceed 0.25 — which is strictly below
+                    // GRAB.GOOD_WINDOW (0.30). There is deliberately NO "poor" tier: a
+                    // mistimed legacy grab floors at the good-band edge (~0.639) instead of
+                    // at a POOR_QUALITY constant, and the else-branch that used to hold one
+                    // was unreachable dead code (guarded by a test that pins this invariant).
                     quality = 0.5 + 0.5 * (1 - (phaseDiff - GameConfig.GRAB.PERFECT_WINDOW) /
                               (GameConfig.GRAB.GOOD_WINDOW - GameConfig.GRAB.PERFECT_WINDOW));
                     flashColor = GameConfig.GRAB.GOOD_COLOR;
-                } else {
-                    quality = GameConfig.GRAB.POOR_QUALITY;
-                    flashColor = GameConfig.GRAB.POOR_COLOR;
                 }
                 
                 const momentum = waveVelocity * quality * tetherMult * gripMult;

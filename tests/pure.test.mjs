@@ -484,6 +484,24 @@ test('calculateGrabMomentum: momentum is signed and follows waveVelocity (legacy
   assert.equal(Math.sign(up.g.momentum), Math.sign(up.ws.calculateVelocity(up.ws.time)));
 });
 
+test('legacy grab has no poor tier: max phaseDiff is 0.25 and stays below GOOD_WINDOW', () => {
+  const { GOOD_WINDOW } = GameConfig.GRAB;
+  // phaseDiff = distance to the nearer of the two optimal phases (0.25 / 0.75).
+  // They are antipodal on a unit cycle, so the maximum is exactly 0.25. The shipped
+  // code relies on this staying below GOOD_WINDOW (0.30) to keep the (removed)
+  // POOR_QUALITY tier unreachable — a mistimed legacy grab floors at the good-band
+  // edge (~0.639). If a future change makes GOOD_WINDOW <= 0.25, this fails loudly.
+  let maxDiff = 0;
+  const STEPS = 100000;
+  for (let i = 0; i < STEPS; i++) {
+    const p = i / STEPS;
+    maxDiff = Math.max(maxDiff, Math.min(Math.abs(p - 0.25), Math.abs(p - 0.75)));
+  }
+  approx(maxDiff, 0.25, 1e-4);
+  assert.ok(maxDiff < GOOD_WINDOW,
+    `GOOD_WINDOW (${GOOD_WINDOW}) must stay above max phaseDiff (${maxDiff.toFixed(4)})`);
+});
+
 test('updatePosition: clamps x to vine ±150 (minus width), y/altitude to ground', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   const MAX_H = 150;   // hardcoded as `maxDistance` at Space_Monkey_Elevator.html:1900
