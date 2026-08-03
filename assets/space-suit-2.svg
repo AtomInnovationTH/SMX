@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original art: pressure-suit overlay (thermal tier 1, donned at 19000m).
+     Hand-drawn replacement for space-suit-2-120.webp. Same 120x260 box the
+     game hardcodes; the open collar ring seats over the climber's face. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="260" viewBox="0 0 120 260">
+    <!-- The collar opening must stay genuinely transparent: SVG cannot "erase"
+         an earlier opaque shape with a later hollow ring, so anything that
+         reaches into the hole (the backpack, the hoses) is masked instead. -->
+    <defs>
+        <mask id="collar-hole-2">
+            <rect width="120" height="260" fill="white"/>
+            <circle cx="60" cy="87" r="33" fill="black"/>
+        </mask>
+    </defs>
+    <!-- Backpack (peeks out behind the shoulders) -->
+    <rect x="26" y="74" width="68" height="84" rx="12" fill="#B9C1C7" stroke="#1a1a1a" stroke-width="3.5" mask="url(#collar-hole-2)"/>
+    <g stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round">
+        <!-- Left arm -->
+        <path d="M 20 114 C 6 120, -1 146, 5 172 C 9 186, 19 191, 28 184 L 31 156 C 27 140, 29 126, 36 118 Z" fill="#D9DEE2"/>
+        <!-- Right arm -->
+        <path d="M 100 114 C 114 120, 121 146, 115 172 C 111 186, 101 191, 92 184 L 89 156 C 93 140, 91 126, 84 118 Z" fill="#D9DEE2"/>
+        <!-- Legs -->
+        <rect x="25" y="182" width="29" height="62" rx="9" fill="#D9DEE2"/>
+        <rect x="66" y="182" width="29" height="62" rx="9" fill="#D9DEE2"/>
+        <!-- Torso -->
+        <path d="M 20 106 C 6 112, 3 132, 9 152 L 17 180 C 21 200, 30 210, 41 210 L 79 210 C 90 210, 99 200, 103 180 L 111 152 C 117 132, 114 112, 100 106 C 86 98, 74 112, 60 112 C 46 112, 34 98, 20 106 Z" fill="#D9DEE2"/>
+        <!-- Boots -->
+        <rect x="22" y="234" width="34" height="21" rx="8" fill="#3C4348"/>
+        <rect x="64" y="234" width="34" height="21" rx="8" fill="#3C4348"/>
+        <!-- Mitts -->
+        <circle cx="16" cy="183" r="13" fill="#3C4348"/>
+        <circle cx="104" cy="183" r="13" fill="#3C4348"/>
+    </g>
+    <!-- Ribbed pressure joints: shoulders, elbows, knees -->
+    <g fill="none" stroke="#9AA4AB" stroke-width="5" stroke-linecap="round">
+        <path d="M 22 122 L 34 130 M 20 130 L 32 138"/>
+        <path d="M 98 122 L 86 130 M 100 130 L 88 138"/>
+        <path d="M 14 160 L 30 164 M 106 160 L 90 164"/>
+        <path d="M 27 216 L 52 216 M 27 224 L 52 224"/>
+        <path d="M 68 216 L 93 216 M 68 224 L 93 224"/>
+    </g>
+    <!-- Chest control box -->
+    <rect x="42" y="140" width="36" height="26" rx="5" fill="#7A868E" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="52" cy="150" r="3" fill="#E25B4B"/>
+    <circle cx="62" cy="150" r="3" fill="#7FB84E"/>
+    <path d="M 47 159 L 73 159" stroke="#1a1a1a" stroke-width="2.5"/>
+    <!-- Suit hoses: chest box to collar -->
+    <path d="M 48 140 C 44 128, 46 120, 52 114" fill="none" stroke="#9AA4AB" stroke-width="4" mask="url(#collar-hole-2)"/>
+    <!-- Collar ring: hollow band — the climber's face shows through -->
+    <circle cx="60" cy="87" r="38" fill="none" stroke="#C4CCD1" stroke-width="12"/>
+    <circle cx="60" cy="87" r="44" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="60" cy="87" r="32" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+</svg>

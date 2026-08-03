@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original art: full space-suit overlay (thermal tier 2, donned at 50000m).
+     Hand-drawn replacement for space-suit-3-120.webp. Same 120x260 box the
+     game hardcodes; the open helmet ring seats over the climber's face. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="260" viewBox="0 0 120 260">
+    <!-- The helmet opening must stay genuinely transparent: SVG cannot "erase"
+         an earlier opaque shape with a later hollow ring, so the PLSS box and
+         its straps are masked out of the hole rather than relying on z-order. -->
+    <defs>
+        <mask id="collar-hole-3">
+            <rect width="120" height="260" fill="white"/>
+            <circle cx="60" cy="87" r="33" fill="black"/>
+        </mask>
+    </defs>
+    <!-- PLSS backpack (big box behind the shoulders) -->
+    <g mask="url(#collar-hole-3)">
+        <rect x="20" y="66" width="80" height="94" rx="12" fill="#E4EAEE" stroke="#1a1a1a" stroke-width="3.5"/>
+        <path d="M 20 84 L 4 96 M 100 84 L 116 96" stroke="#1a1a1a" stroke-width="3" fill="none"/>
+    </g>
+    <g stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round">
+        <!-- Left arm (puffy) -->
+        <path d="M 22 112 C 5 118, -3 146, 3 174 C 7 189, 18 195, 29 187 L 33 156 C 28 140, 30 126, 38 118 Z" fill="#F0F3F5"/>
+        <!-- Right arm (puffy) -->
+        <path d="M 98 112 C 115 118, 123 146, 117 174 C 113 189, 102 195, 91 187 L 87 156 C 92 140, 90 126, 82 118 Z" fill="#F0F3F5"/>
+        <!-- Legs (puffy) -->
+        <rect x="23" y="182" width="31" height="62" rx="10" fill="#F0F3F5"/>
+        <rect x="66" y="182" width="31" height="62" rx="10" fill="#F0F3F5"/>
+        <!-- Torso (puffy) -->
+        <path d="M 20 106 C 5 112, 1 132, 7 154 L 15 182 C 19 202, 29 212, 41 212 L 79 212 C 91 212, 101 202, 105 182 L 113 154 C 119 132, 115 112, 100 106 C 86 98, 74 112, 60 112 C 46 112, 34 98, 20 106 Z" fill="#F0F3F5"/>
+        <!-- Boots -->
+        <rect x="21" y="234" width="35" height="21" rx="8" fill="#26282B"/>
+        <rect x="64" y="234" width="35" height="21" rx="8" fill="#26282B"/>
+        <!-- Mitts -->
+        <circle cx="15" cy="185" r="14" fill="#26282B"/>
+        <circle cx="105" cy="185" r="14" fill="#26282B"/>
+    </g>
+    <!-- Puffy segment bands: pale blue pressure lines -->
+    <g fill="none" stroke="#A9C9E8" stroke-width="6" stroke-linecap="round">
+        <path d="M 12 146 C 30 154, 90 154, 108 146"/>
+        <path d="M 16 172 C 34 180, 86 180, 104 172"/>
+        <path d="M 14 138 L 30 142"/>
+        <path d="M 106 138 L 90 142"/>
+        <path d="M 26 210 L 52 210"/>
+        <path d="M 68 210 L 94 210"/>
+    </g>
+    <!-- Chest control panel -->
+    <rect x="40" y="138" width="40" height="30" rx="5" fill="#DDE6EC" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="50" cy="148" r="3.2" fill="#E25B4B"/>
+    <circle cx="60" cy="148" r="3.2" fill="#7FB84E"/>
+    <circle cx="70" cy="148" r="3.2" fill="#4B8FD6"/>
+    <path d="M 46 159 L 74 159" stroke="#1a1a1a" stroke-width="2.5"/>
+    <!-- Helmet collar ring: metallic band — the climber's face shows through -->
+    <circle cx="60" cy="87" r="38" fill="none" stroke="#B8C4CB" stroke-width="12"/>
+    <circle cx="60" cy="87" r="38" fill="none" stroke="#E8EEF2" stroke-width="4"/>
+    <circle cx="60" cy="87" r="44" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="60" cy="87" r="32" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+</svg>

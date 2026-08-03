@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original art: thermometer gauge icon, hand-drawn replacement for the
+     previous third-party thermometer.svg. Same 170x498 viewBox — the game
+     hardcodes that aspect (iconW = iconH * 170/498), so layout is unchanged. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="170" height="498" viewBox="0 0 170 498">
+    <!-- Silhouette: tube with rounded top flaring into the bulb -->
+    <path d="M 85 20
+             C 58 20, 42 40, 42 66
+             L 42 352
+             C 24 370, 14 392, 14 414
+             C 14 458, 46 488, 85 488
+             C 124 488, 156 458, 156 414
+             C 156 392, 146 370, 128 352
+             L 128 66
+             C 128 40, 112 20, 85 20 Z"
+          fill="#000"/>
+    <!-- Tube interior (cut out to white, leaving a ~13px black outline) -->
+    <path d="M 85 36
+             C 67 36, 57 49, 57 68
+             L 57 360
+             C 43 374, 30 392, 30 414
+             L 140 414
+             C 140 392, 127 374, 113 360
+             L 113 68
+             C 113 49, 103 36, 85 36 Z"
+          fill="#fff"/>
+    <!-- Bulb (solid) -->
+    <circle cx="85" cy="414" r="56" fill="#000"/>
+    <!-- Scale ticks across the tube -->
+    <path d="M 57 108 L 113 108" stroke="#000" stroke-width="14"/>
+    <path d="M 57 208 L 113 208" stroke="#000" stroke-width="14"/>
+    <path d="M 57 308 L 113 308" stroke="#000" stroke-width="14"/>
+</svg>

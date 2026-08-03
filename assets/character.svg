@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original art: the game's climber, exported verbatim from the code-drawn
+     grabbing pose in Space_Monkey_Elevator.html (loadMonkeySvg). Used as the
+     favicon. Replaces the previous third-party character.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="270" viewBox="0 -30 160 270">
+    <!-- Left Leg (angled outward) -->
+    <rect x="58" y="165" width="18" height="60" rx="9" fill="#8B4513" transform="rotate(-8 67 195)"/>
+
+    <!-- Right Leg (angled outward) -->
+    <rect x="84" y="165" width="18" height="60" rx="9" fill="#8B4513" transform="rotate(8 93 195)"/>
+
+    <!-- Left Foot (wrapped around vine) -->
+    <ellipse cx="70" cy="230" rx="16" ry="9" fill="#654321" transform="rotate(-15 70 230)"/>
+
+    <!-- Right Foot (wrapped around vine) -->
+    <ellipse cx="90" cy="230" rx="16" ry="9" fill="#654321" transform="rotate(15 90 230)"/>
+
+    <!-- Torso/Body (proportioned to nicely frame badge) -->
+    <ellipse cx="80" cy="125" rx="54" ry="78" fill="#8B4513"/>
+
+    <!-- White chest patch (like real monkeys) -->
+    <ellipse cx="80" cy="125" rx="42" ry="60" fill="#F5F5DC"/>
+
+    <!-- Left Arm (reaching to vine, aligned with tether) -->
+    <path d="M 50 110 Q 40 75, 50 40 Q 60 15, 70 0 Q 75 -10, 78 -18"
+          fill="none" stroke="#8B4513" stroke-width="26" stroke-linecap="round"/>
+
+    <!-- Left Hand - FIST gripping vine (aligned with tether center ~80) -->
+    <!-- Palm -->
+    <ellipse cx="78" cy="-20" rx="18" ry="20" fill="#A0522D" transform="rotate(-8 78 -20)"/>
+
+    <!-- Thumb (wrapping around) -->
+    <ellipse cx="86" cy="-24" rx="8" ry="13" fill="#A0522D" transform="rotate(25 86 -24)"/>
+
+    <!-- Index finger -->
+    <rect x="70" y="-32" width="11" height="15" rx="5" fill="#8B4513"/>
+    <circle cx="75" cy="-18" r="5" fill="#654321"/>
+
+    <!-- Middle finger -->
+    <rect x="62" y="-30" width="11" height="14" rx="5" fill="#8B4513"/>
+    <circle cx="67" cy="-17" r="5" fill="#654321"/>
+
+    <!-- Ring finger -->
+    <rect x="54" y="-28" width="10" height="13" rx="4" fill="#8B4513"/>
+    <circle cx="59" cy="-16" r="4.5" fill="#654321"/>
+
+    <!-- Pinky -->
+    <rect x="47" y="-26" width="9" height="12" rx="4" fill="#8B4513"/>
+    <circle cx="51" cy="-15" r="4" fill="#654321"/>
+
+    <!-- Knuckles -->
+    <ellipse cx="75" cy="-31" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+    <ellipse cx="67" cy="-29" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+    <ellipse cx="59" cy="-27" rx="3" ry="2" fill="#654321" opacity="0.4"/>
+
+    <!-- Right Arm (reaching to vine, aligned with tether) -->
+    <path d="M 110 110 Q 115 75, 105 40 Q 95 15, 85 0 Q 82 -8, 80 -14"
+          fill="none" stroke="#8B4513" stroke-width="26" stroke-linecap="round"/>
+
+    <!-- Right Hand - FIST gripping vine (aligned with tether center ~80) -->
+    <!-- Palm base -->
+    <ellipse cx="80" cy="-16" rx="18" ry="20" fill="#A0522D" transform="rotate(8 80 -16)"/>
+
+    <!-- Thumb (wrapped around from other side) -->
+    <ellipse cx="72" cy="-20" rx="8" ry="13" fill="#A0522D" transform="rotate(-25 72 -20)"/>
+
+    <!-- Index finger -->
+    <rect x="77" y="-28" width="11" height="15" rx="5" fill="#8B4513"/>
+    <circle cx="82" cy="-14" r="5" fill="#654321"/>
+
+    <!-- Middle finger -->
+    <rect x="85" y="-26" width="11" height="14" rx="5" fill="#8B4513"/>
+    <circle cx="90" cy="-13" r="5" fill="#654321"/>
+
+    <!-- Ring finger -->
+    <rect x="93" y="-24" width="10" height="13" rx="4" fill="#8B4513"/>
+    <circle cx="98" cy="-12" r="4.5" fill="#654321"/>
+
+    <!-- Pinky -->
+    <rect x="100" y="-22" width="9" height="12" rx="4" fill="#8B4513"/>
+    <circle cx="104" cy="-11" r="4" fill="#654321"/>
+
+    <!-- Knuckles -->
+    <ellipse cx="82" cy="-27" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+    <ellipse cx="90" cy="-25" rx="3.5" ry="2.5" fill="#654321" opacity="0.4"/>
+    <ellipse cx="98" cy="-23" rx="3" ry="2" fill="#654321" opacity="0.4"/>
+
+    <!-- Wrist -->
+    <rect x="73" y="-2" width="16" height="12" rx="6" fill="#8B4513"/>
+
+    <!-- Head -->
+    <ellipse cx="80" cy="50" rx="38" ry="42" fill="#A0522D"/>
+
+    <!-- Left Ear -->
+    <ellipse cx="52" cy="37" rx="14" ry="17" fill="#8B4513"/>
+
+    <!-- Right Ear -->
+    <ellipse cx="108" cy="37" rx="14" ry="17" fill="#8B4513"/>
+
+    <!-- Face -->
+    <ellipse cx="80" cy="55" rx="28" ry="30" fill="#D2B48C"/>
+
+    <!-- Left Eye (determined look) -->
+    <ellipse cx="68" cy="47" rx="6" ry="7" fill="#000"/>
+    <circle cx="70" cy="45" r="2" fill="#FFF"/>
+
+    <!-- Right Eye (determined look) -->
+    <ellipse cx="92" cy="47" rx="6" ry="7" fill="#000"/>
+    <circle cx="94" cy="45" r="2" fill="#FFF"/>
+
+    <!-- Nose -->
+    <ellipse cx="80" cy="60" rx="5" ry="4" fill="#654321"/>
+
+    <!-- Determined smile -->
+    <path d="M 68 67 Q 80 72, 92 67" fill="none" stroke="#654321" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

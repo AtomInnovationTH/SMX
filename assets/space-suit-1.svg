@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original art: flight-suit overlay (thermal tier 0, donned at 8000m).
+     Hand-drawn replacement for space-suit-1-120.webp. Same 120x260 box the
+     game hardcodes; the open collar ring seats over the climber's face
+     (face centre maps to 60,87 in this box by the game's own draw math). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="260" viewBox="0 0 120 260">
+    <g stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round">
+        <!-- Left arm -->
+        <path d="M 20 114 C 6 120, -1 146, 5 172 C 9 186, 19 191, 28 184 L 31 156 C 27 140, 29 126, 36 118 Z" fill="#ED7D31"/>
+        <!-- Right arm -->
+        <path d="M 100 114 C 114 120, 121 146, 115 172 C 111 186, 101 191, 92 184 L 89 156 C 93 140, 91 126, 84 118 Z" fill="#ED7D31"/>
+        <!-- Legs -->
+        <rect x="25" y="182" width="29" height="62" rx="9" fill="#ED7D31"/>
+        <rect x="66" y="182" width="29" height="62" rx="9" fill="#ED7D31"/>
+        <!-- Torso -->
+        <path d="M 20 106 C 6 112, 3 132, 9 152 L 17 180 C 21 200, 30 210, 41 210 L 79 210 C 90 210, 99 200, 103 180 L 111 152 C 117 132, 114 112, 100 106 C 86 98, 74 112, 60 112 C 46 112, 34 98, 20 106 Z" fill="#ED7D31"/>
+        <!-- Boots -->
+        <rect x="22" y="234" width="34" height="21" rx="8" fill="#2B2B2B"/>
+        <rect x="64" y="234" width="34" height="21" rx="8" fill="#2B2B2B"/>
+        <!-- Mitts -->
+        <circle cx="16" cy="183" r="13" fill="#2B2B2B"/>
+        <circle cx="104" cy="183" r="13" fill="#2B2B2B"/>
+    </g>
+    <!-- Navy flight-suit accents: chest V, bicep bands, thigh bands -->
+    <g fill="none" stroke="#274C77" stroke-width="7" stroke-linecap="round">
+        <path d="M 38 132 L 60 154 L 82 132"/>
+        <path d="M 12 142 L 30 146"/>
+        <path d="M 108 142 L 90 146"/>
+        <path d="M 28 208 L 52 208"/>
+        <path d="M 68 208 L 92 208"/>
+    </g>
+    <!-- Zipper -->
+    <path d="M 60 154 L 60 190" stroke="#1a1a1a" stroke-width="2.5" fill="none"/>
+    <!-- Collar ring: a hollow band — the climber's face shows through.
+         Face maps to (60,87) r~30 in this box; the r32 opening clears it. -->
+    <circle cx="60" cy="87" r="38" fill="none" stroke="#D96F28" stroke-width="12"/>
+    <circle cx="60" cy="87" r="44" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="60" cy="87" r="32" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+</svg>
