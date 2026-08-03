@@ -12,9 +12,10 @@ Imported by gen.py (generation) and post.py (keying / resizing / verification).
 Notes on the data:
   * 79 LANDMARKS_DATA entries -> 78 unique sprites (falcon-9-sm.webp is reused
     for both the "staging" and "orbit" landmarks, so it is generated once).
-  * `godwit-sm.webp` is spelled correctly here. The file currently on disk is
-    `godwid-sm.webp`, which is why that landmark 404s today. The replacement
-    must be written as `godwit-sm.webp`.
+  * `godwit-sm.webp` is spelled correctly here and on disk. A past typo
+    (`godwid-sm.webp`) caused that landmark to 404; it was fixed when the asset
+    set was renamed `Space Elevator_files/` -> `assets/` (see `tools/check_refs.py`,
+    which reports 0 missing).
   * De-branding is deliberate: no person's name, no company, no model badge, no
     roundel, no flag, no livery text. Where a real airframe is recognisable we
     describe the *shape*, not the brand.

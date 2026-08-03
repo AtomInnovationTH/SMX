@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- _Nothing yet._
+### Fixed
+
+- **Docs contradicting the tree** — corrected the stale "godwit 404s today" note in
+  `art-gen/manifest.py`, the standalone-asset claim in `docs/GITHUB_SETUP.md`
+  (Option B), and the roadmap/godwit-linked acceptance items, so no doc describes a
+  fixed bug as open.
+- **`docs/GITHUB_SETUP.md`** — replaced the `v0.3.0` example with the real `v1.0.0`
+  tag command, ticked Steps 6 & 7 in the checklist, and re-labelled Step 8
+  (GMX cross-link) as external/owner-only rather than discoverable from this repo.
+
+### Added
+
+- **`art-gen/manifest.py` / developer docs** — documented the whole `art-gen/`
+  pipeline (manifest → `gen.py` → `post.py` → `tools/check_refs.py`) in
+  `docs/DEVELOPERS.md`, and added `.env.example` so the OpenRouter key contract is
+  discoverable without committing the real `.env`.
+
+### Tests
+
+- **Exercise shipped code, not reimplementations** — the B.14 drag test and the
+  altimeter boundary test now drive the real `applyGravityAndDrag` /
+  `applyEddyDrag` and the extracted `altimeterLandmarkAt` function.
+- **New coverage for previously untested paths** — `applyEddyDrag` (no-air braking,
+  `fieldFactor 0` coasting, frame-rate independence), `calculateGrabMomentum`
+  (quality bands, weight factor, signed momentum), and
+  `updatePosition`/`updateHorizontalVelocity` (clamps and drift decay).
 
 ## [1.0.0] - 2026-08-03
 

@@ -80,9 +80,8 @@ If you are setting up a **fork**, the manual route is: repo → ⚙️ gear icon
 
 ## 📦 Step 6: Upload Asset Files
 
-**Action Required:**
-
-Your [`assets/`](../assets/) folder has 100+ assets but may not be on GitHub yet.
+**Status:** ✅ Done — the 98 assets in [`assets/`](../assets/) are committed to the repo
+(see `tools/check_refs.py`: 98 referenced, 0 missing, 0 orphans).
 
 **Option A: Push assets directly (Recommended)**
 ```bash
@@ -91,42 +90,42 @@ git commit -m "Add game assets (images and icons)"
 git push origin main
 ```
 
-**Option B: Create single-file version**
+**Option B: Regenerate `index.html` (not a single-file build)**
 ```bash
 # Use the embed_assets.py script
 python3 embed_assets.py
 
-# This creates a standalone HTML file with embedded assets
-# Better for distribution/sharing
+# This inlines the statically-referenced assets (clouds, the monkey, textures)
+# into index.html as data URIs. The ~70 landmark sprites are referenced through a
+# runtime-built path and are NOT inlined, so index.html is not standalone: it must
+# ship alongside the assets/ folder (as it does on GitHub Pages).
 ```
 
 ---
 
 ## 🏷️ Step 7: Create Version Tags
 
-**Action Required:**
-
-Since you're at "Phase 3a Complete", create a release:
+**Action Required** (move the `v1.0.0` tag onto the final tree):
 
 ```bash
-# Tag the current version
-git tag -a v0.3.0 -m "Phase 3a: WebGL Visual Enhancement Complete"
-git push origin v0.3.0
+# Tag the current version (force-move the existing v1.0.0 onto HEAD)
+git tag -f -a v1.0.0 -m "v1.0.0 — the legally-clean release (all artwork original)"
+git push --force origin refs/tags/v1.0.0
 ```
 
 Then on GitHub:
 1. Go to **Releases** (right sidebar)
 2. Click **Create a new release**
-3. Select tag: `v0.3.0`
-4. Release title: `v0.3.0 - Phase 3a Complete`
+3. Select tag: `v1.0.0`
+4. Release title: `v1.0.0 - legally-clean release (original artwork)`
 5. Description:
    ```markdown
-   ## 🎮 Phase 3a: WebGL Visual Enhancement
+   ## 🎮 v1.0.0 — legally-clean release
    
-   - WebGL atmospheric backgrounds
-   - 16 educational landmarks
-   - Smooth 120 FPS gameplay
-   - Complete physics simulation
+   - All artwork original (third-party imagery + history rewritten out)
+   - Original-asset generation pipeline (`art-gen/`)
+   - 78 educational landmark sprites
+   - Continuous-coupling climb + EPM energy loop
    - Browser-ready (no install needed)
    
    **[▶️ Play Now](https://atominnovationth.github.io/SMX/)**
@@ -137,7 +136,9 @@ Then on GitHub:
 
 ## 🔗 Step 8: Cross-Link with GMX Repository
 
-**Action Required:**
+**Action Required — external / owner-only.** This step edits a different repository
+(`AtomInnovationTH/GMX`) and *cannot* be completed from this repo, so the checklist
+item below is intentionally left unchecked.
 
 1. **In SMX Repository:**
    - Already added to new [`README.md`](../README.md) under "For Developers"
@@ -162,9 +163,9 @@ Once you complete the action-required steps above:
 - [x] Step 3: Add LICENSE ✅ Done
 - [x] Step 4: GitHub Pages ✅ Done — Source: GitHub Actions (see Step 4 above)
 - [x] Step 5: Add repository metadata ✅ Done (applied at repo recreation, 2026-08-03)
-- [ ] Step 6: Upload asset files (requires git push)
-- [ ] Step 7: Create version tags (requires git commands)
-- [ ] Step 8: Cross-link GMX repo (update GMX README)
+- [x] Step 6: Upload asset files ✅ Done (assets are committed; check `git status` clean)
+- [x] Step 7: Create version tags ✅ Done (moved `v1.0.0` onto HEAD, 2026-08-03)
+- [ ] Step 8: Cross-link GMX repo (update GMX README) — external/owner-only, cannot be done from this repo
 
 ---
 
