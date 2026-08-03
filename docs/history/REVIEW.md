@@ -5,6 +5,16 @@
 > §3 perf list (those perf items are now implemented). For current status see the
 > repo root [`README.md`](../../README.md) and [`DEVELOPERS.md`](../../DEVELOPERS.md).
 > Links below are relative to the original repo root.
+>
+> ✅ **§6 resolved at v1.0 (2026-08-03).** The asset-licensing audit below is a
+> dated record. Its open questions are now all answered: every third-party image
+> it flags — including the §6.2 "verify whether the cloud webps and SVGs are
+> original" items — was **replaced** with original art (AI-generated from the
+> tracked prompts in `art-gen/manifest.py`, or drawn procedurally), and the git
+> history that contained the old files was rewritten and the repo recreated.
+> §6.3's draft `ATTRIBUTIONS.md` skeleton (built around third-party sourcing) is
+> superseded by the shipped [`ATTRIBUTIONS.md`](../../ATTRIBUTIONS.md), which
+> documents the all-original set.
 
 # Space Monkey Elevator — Pre-Publish Project Review
 

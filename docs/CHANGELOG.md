@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- _Nothing yet._
+
+## [1.0.0] - 2026-08-03
+
+The legally-clean release. **All artwork is now original to this project** —
+78 landmark sprites, 12 atmosphere clouds and the ground strip AI-generated from
+the tracked, hand-written prompts in `art-gen/manifest.py`, plus procedurally
+drawn grid/noise/monkey/suit/thermometer art — with provenance recorded in
+[`ATTRIBUTIONS.md`](../ATTRIBUTIONS.md). The git history that contained the
+retired third-party art (© Neal Agarwal) was **rewritten** (`git filter-repo`)
+and the GitHub repository was **deleted and recreated** on this date, so
+pre-1.0 clones and commit SHAs are incompatible. Deployment to GitHub Pages is
+restored (Source: GitHub Actions), and the MIT licence now covers the **whole
+repo, code and art alike**.
+
 ### Added
 
+- **Original art pipeline** (`art-gen/`) — prompt manifest, generator
+  (`gen.py`) and post-processor (`post.py`: chroma-key/luma-alpha, despill,
+  trim, 2× resize, alpha verification gates) that produced the full replacement
+  asset set. Only `*.py` is tracked; raws and sheets are gitignored.
+- **`tools/check_refs.py`** — static gate covering all five asset reference
+  forms (CSS `url()`, favicon link, `ASSET_BASE_PATH` clouds, runtime landmark
+  sprites, thermal suit/gauge paths); asserts 98 distinct referenced == 98
+  files on disk with 0 orphans / 0 missing, and checks `index.html` separately.
+  Runs in CI.
 - **Thermal layer** — a Standard-Atmosphere temperature readout (with the thermometer
   gauge) and a protective-suit progression: the climber auto-dons a flight suit, then a
   pressure suit at the **Armstrong Limit (~19 km)**, then a full space suit, with a
@@ -29,6 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Licence coverage** — the MIT grant now applies to code **and** art (it
+  previously covered code only, while third-party imagery shipped unlicensed).
+  For AI-generated images the grant operates to the extent rights exist.
+- **Hero sprite provenance** — `mount-everest-s-800`, `saturn-v-sm` and
+  `space-shuttle-sm` were re-generated from words alone, removing the set's only
+  reference-assisted lineage (`HERO_REFS` is permanently empty).
+- **`screenshots/falling.png`** retaken — the old shot had an empty sky; the new
+  one shows the falling monkey, the USSR-1 balloon landmark and the nimbostratus
+  layer at 2.4 km.
 - **Frame-rate-independent physics.** Air drag, horizontal drift decay, and camera
   smoothing are now normalized per-second via `frameDecay(base, dt) = base^(dt·60)`,
   so behaviour no longer depends on display refresh rate. **60 Hz is the reference
@@ -48,10 +81,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`cumulonimbus-850` aspect regression** — re-rolled as a tall portrait tower
+  (840×925); the landscape interim file rendered only ~993 px tall at its
+  `maxWidth: 1600px` display size.
+- **`post.py` fringe metric** — residual near-key colour is now measured over
+  visible pixels only (alpha-weighted); the whole-image version printed inflated
+  benign warnings (grass 22%, `bell-x-1` 11%).
 - Persisted scores/altitudes are now defensively parsed (`NaN`/`Infinity`/negative
   values are rejected) so a corrupted `localStorage` entry can't poison scoring state.
 
-## [1.0.0] - 2026-06-16
+## [0.2.0] - 2026-06-16
 
 Reframe from "climbing game" to a **cartoon-wrapped simulation of contactless
 climbing of a space-elevator seed tether**, plus a polish and documentation pass.
@@ -132,5 +171,6 @@ full pre-publish engineering review.
 - _Nothing else this release._
 
 [Unreleased]: https://github.com/AtomInnovationTH/SMX/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.1.0...v1.0.0
+[1.0.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.2.0...v1.0.0
+[0.2.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AtomInnovationTH/SMX/releases/tag/v0.1.0

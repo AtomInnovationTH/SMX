@@ -40,60 +40,41 @@ All technical documentation moved to [`DEVELOPERS.md`](DEVELOPERS.md) including:
 
 ---
 
-## 🚫 Step 4: GitHub Pages — DO NOT enable
+## ✅ Step 4: GitHub Pages — enabled (Source: GitHub Actions)
 
-**Deployment is disabled on purpose.**
+**Status:** ✅ Done (2026-08-03)
 
-Much of the imagery in [`assets/`](../assets/) is third-party (© Neal Agarwal) and is **not licensed
-for redistribution**. Publishing it — including via GitHub Pages — is a DMCA / repo-strike risk.
-The GitHub Pages site for this repo has been deleted, and the `deploy` job has been removed from
-`.github/workflows/deploy.yml` so that nothing can republish it.
+Deployment was disabled for a period while third-party imagery was being replaced.
+That work finished at v1.0: all art in [`assets/`](../assets/) is original (see
+[`ATTRIBUTIONS.md`](../ATTRIBUTIONS.md)), so the site is live again.
 
-Do **not** follow older instructions to enable Pages with **Source: Branch `main`, Folder `/ (root)`**.
-That "Deploy from a branch" mode serves the repo contents (including the unlicensed files) directly
-and never went through the workflow at all, so it would bypass every safeguard.
+The current, correct configuration — already applied to this repo:
 
-Deployment may be restored only after the original-art greenfield finishes replacing **all** of the
-third-party imagery (tracking: [`docs/v1.0-roadmap.md`](v1.0-roadmap.md) Phase 0). When that is done:
-
-1. Restore the `deploy` job in `.github/workflows/deploy.yml`.
-2. Re-create the Pages site with **Source: GitHub Actions** (Settings → Pages → Build and
-   deployment). Do **not** choose "Deploy from a branch" — the workflow's `deploy-pages` action
-   only works with the Actions source.
-
-7. Test it by visiting the URL!
+1. The `deploy` job is restored in `.github/workflows/deploy.yml` (it assembles
+   `_site/` from `index.html` + `assets/` and publishes via `deploy-pages`).
+2. The Pages site is configured with **Source: GitHub Actions** (Settings → Pages →
+   Build and deployment). Do **not** choose "Deploy from a branch" — the
+   workflow's `deploy-pages` action only works with the Actions source, and branch
+   mode would serve the whole repo (source, tests, docs) instead of the assembled
+   `_site/`.
+3. Test it by visiting the URL: `https://atominnovationth.github.io/SMX/`
 
 ---
 
 ## 🏷️ Step 5: Add Repository Metadata
 
-**Action Required:**
+**Status:** ✅ Done (2026-08-03 — applied when the repo was recreated; the original
+repo never actually had these set)
 
-1. Go to your repository: `https://github.com/AtomInnovationTH/SMX`
+Applied values:
 
-2. Click the **⚙️ gear icon** next to "About" (top right)
+- **Description:** `🚀🐵 Contactless space-elevator-climber simulation — climb to the Kármán line`
+- **Website:** `https://atominnovationth.github.io/SMX/`
 
-3. Fill in:
-   - **Description:** `🚀🐵 Physics-based vertical climbing game | Browser-first | 120 FPS | Climb to space!`
-   
-   - **Website:** `https://atominnovationth.github.io/SMX/` (after Step 4)
-   
-   - **Topics:** Add these tags (press Enter after each):
-     - `game`
-     - `html5-game`
-     - `physics-game`
-     - `browser-game`
-     - `javascript-game`
-     - `canvas`
-     - `space`
-     - `educational`
-     - `webgl`
-
-4. Check boxes:
-   - ✅ Releases
-   - ✅ Packages (if applicable)
-
-5. Click **Save changes**
+If you are setting up a **fork**, the manual route is: repo → ⚙️ gear icon next to
+"About" → fill in Description and Website. Optional topics: `game`, `html5-game`,
+`physics-game`, `browser-game`, `javascript-game`, `canvas`, `space`,
+`educational`, `webgl`.
 
 ---
 
@@ -179,8 +160,8 @@ Once you complete the action-required steps above:
 - [x] Step 1: Update README.md ✅ Done
 - [x] Step 2: Move technical docs to DEVELOPERS.md ✅ Done  
 - [x] Step 3: Add LICENSE ✅ Done
-- [ ] Step 4: GitHub Pages — **skipped** (deployment is disabled until the art greenfield lands; see Step 4 above)
-- [ ] Step 5: Add repository metadata (requires GitHub settings)
+- [x] Step 4: GitHub Pages ✅ Done — Source: GitHub Actions (see Step 4 above)
+- [x] Step 5: Add repository metadata ✅ Done (applied at repo recreation, 2026-08-03)
 - [ ] Step 6: Upload asset files (requires git push)
 - [ ] Step 7: Create version tags (requires git commands)
 - [ ] Step 8: Cross-link GMX repo (update GMX README)
@@ -213,9 +194,11 @@ Capture gameplay at different altitudes and add to README:
 ## 🆘 Troubleshooting
 
 ### GitHub Pages not working?
-- Deployment is **disabled by design** — the site is intentionally offline while unlicensed
-  imagery remains in the repo. See Step 4 above. It will only be re-enabled (as
-  Source: GitHub Actions) once the original-art replacement is complete.
+- Check **Settings → Pages**: Source must be **GitHub Actions** (not "Deploy from a
+  branch" — the `deploy-pages` action only works with the Actions source).
+- Check the latest **Build & Deploy** workflow run under Actions — the `deploy`
+  job only runs on pushes to `main`, and the very first run after Pages is
+  (re)created may need a re-run once Pages exists.
 
 ### Assets not loading?
 - Check file paths are correct (case-sensitive!)

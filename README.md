@@ -108,15 +108,17 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 
 - Original concept: Space Monkey climbing game.
 - Technologies: vanilla JavaScript, Canvas 2D, WebGL atmosphere shader.
-- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). The *concept* — climbing past real-world landmarks toward the Kármán Line — is a tribute to that page. The **code in this repo is original and independently written** and does not reuse neal.fun's source. The original *Space Elevator* concept and its artwork are **© Neal Agarwal**. (Game mechanics and concepts are not themselves copyrightable; Neal's specific assets are.)
+- Inspiration: ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/). The *concept* — climbing past real-world landmarks toward the Kármán Line — is a tribute to that page. All code and artwork in this repo are original (see [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md)). On the specific question of neal.fun's source, what this repository can prove: no `.js`, `.css` or GLSL from neal.fun was ever tracked here, and all 10 WebGL sky textures are original procedural work generated in-repo (no texture image files exist). The sky's *layer structure* parallels the reference page, and the GLSL has not been line-by-line audited against it — [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md) discloses the details rather than asserting more than the evidence shows. The original *Space Elevator* concept and its artwork remain **© Neal Agarwal**. (Game mechanics and concepts are not themselves copyrightable; Neal's specific assets are — and none are used here.)
 
-> ⚠️ **Artwork status — action required before redistribution.** The imagery currently in [`assets/`](assets) originates from neal.fun's *Space Elevator* and is **© Neal Agarwal**. It is **not licensed for redistribution** and is **not** covered by this repository's MIT license. These assets are being replaced with original and CC-licensed art; until that work is complete, this repo should not be redistributed or deployed. Tracking: [`docs/v1.0-roadmap.md`](docs/v1.0-roadmap.md) Phase 0; audit in [`docs/history/REVIEW.md`](docs/history/REVIEW.md) §6.
+> ✅ **Artwork status — resolved at v1.0 (2026-08-03).** All imagery in [`assets/`](assets) is original to this project — AI-generated from tracked hand-written prompts or drawn procedurally — and is covered by this repo's MIT license. Earlier revisions bundled third-party art (© Neal Agarwal); that art was removed, and the git history that contained it was rewritten out of the repository on 2026-08-03. Full provenance: [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
+
+> 📜 **History note.** On 2026-08-03 the git history was rewritten to remove the retired third-party artwork, and the GitHub repository was deleted and recreated. Clones, forks and commit SHAs from before that date are incompatible with this repository — please re-clone.
 
 ---
 
 ## License
 
-[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. **The MIT grant covers this project's original code only.** It does **not** cover the imagery currently in [`assets/`](assets), which remains **© Neal Agarwal** and is not licensed for redistribution (see the artwork note above).
+[MIT License](LICENSE) — see [`LICENSE`](LICENSE) for the full text. The grant covers the **whole repository, code and art alike**; for the AI-generated images it operates to the extent any rights exist (they may not attract copyright in some jurisdictions). Provenance per file: [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
 
 ---
 

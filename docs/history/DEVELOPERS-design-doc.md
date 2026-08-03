@@ -4,6 +4,8 @@
 > **stale** (e.g. the phased roadmap, "grab" terminology, and the discrete momentum
 > model — the game now uses the contactless EPM pulse/couple simulation). For the
 > current, accurate architecture overview see the repo-root [`DEVELOPERS.md`](../../DEVELOPERS.md).
+> Dated record: its attribution claims (including the neal.fun shader credit) were
+> superseded at v1.0 — see [`ATTRIBUTIONS.md`](../../ATTRIBUTIONS.md) (2026-08-03).
 
 # Space Monkey - Developer Documentation 🛠️
 
