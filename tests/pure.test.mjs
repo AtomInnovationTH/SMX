@@ -345,10 +345,15 @@ test('densityRatio: 1.0 at sea level, ~2.2e6x lower at the Karman line', () => {
 });
 
 test('B.14 split: aero x eddy == AIR_DRAG at sea level, reference field', () => {
-  const ef = GameConfig.PHYSICS.EDDY_FRACTION;
-  const aero = 1 - (1 - Math.pow(GameConfig.PHYSICS.AIR_DRAG, 1 - ef)) * densityRatio(0);
-  const eddy = Math.pow(Math.pow(GameConfig.PHYSICS.AIR_DRAG, ef), 1.0);
-  approx(aero * eddy, GameConfig.PHYSICS.AIR_DRAG, 1e-12);
+  // Drive both shipped methods and require the combined damping to collapse to
+  // exactly AIR_DRAG per 60 Hz frame at sea level with the EPM at reference field
+  // — the constraint AIR_DRAG = 0.985 / EDDY_FRACTION = 0.08 were split under.
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const dt = 1 / 60;
+  const m = { velocityY: -1000, altitude: 0 };
+  p.applyGravityAndDrag(m, dt, false, 0, 1);   // gravityMult 0: isolate drag
+  p.applyEddyDrag(m, dt, 1.0);                  // fieldFactor 1 = reference field
+  approx(m.velocityY, -1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt), 1e-9);
 });
 
 test('B.15: an aero kit REDUCES drag, and drag vanishes with altitude', () => {
@@ -362,6 +367,171 @@ test('B.15: an aero kit REDUCES drag, and drag vanishes with altitude', () => {
   assert.ok(run(0.855, 0) > run(1.0, 0), 'aero kits must reduce drag, not increase it');
   // and aerodynamic drag must be negligible at 100 km
   approx(run(1.0, 100000), 1000, 1e-3);
+});
+
+test('applyEddyDrag brakes with no air at 100 km (the whole point of the B.14 split)', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const dt = 1 / 60;
+  // Gravity off, aero ~ a no-op at 100 km (densityRatio ~ 4.6e-7): any residual
+  // damping has to be the eddy term braking against the tether's field.
+  const m = { velocityY: -1000, altitude: 100000 };
+  p.applyGravityAndDrag(m, dt, false, 0, 1);
+  const afterAero = m.velocityY;
+  p.applyEddyDrag(m, dt, 1.0);
+  assert.ok(Math.abs(m.velocityY) < Math.abs(afterAero),
+    `eddy braking must slow the climber with no air, ${afterAero} -> ${m.velocityY}`);
+  assert.ok(Math.abs(m.velocityY) < 1000);
+});
+
+test('applyEddyDrag at fieldFactor 0 is a true frictionless coaster', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const dt = 1 / 60;
+  // Run at 100 km so aero drag is a no-op; the eddy term is the only damping left.
+  const m = { velocityY: -1000, altitude: 100000 };
+  p.applyGravityAndDrag(m, dt, false, 0, 1);
+  const beforeEddy = m.velocityY;
+  p.applyEddyDrag(m, dt, 0);   // EPMs latch OFF at zero power: eddyRef ** 0 === 1
+  approx(m.velocityY, beforeEddy, 1e-9);   // eddy leaves it exactly unchanged
+});
+
+test('applyEddyDrag is frame-rate independent (one 1/60 step ~ four 1/240 steps)', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const oneShot = () => {
+    const m = { velocityY: -1000, altitude: 100000 };
+    p.applyGravityAndDrag(m, 1 / 60, false, 0, 1);
+    p.applyEddyDrag(m, 1 / 60, 1.0);
+    return m.velocityY;
+  };
+  let v = -1000;
+  for (let i = 0; i < 4; i++) {
+    const m = { velocityY: v, altitude: 100000 };
+    p.applyGravityAndDrag(m, 1 / 240, false, 0, 1);
+    p.applyEddyDrag(m, 1 / 240, 1.0);
+    v = m.velocityY;
+  }
+  approx(v, oneShot(), 1e-6);
+});
+
+test('calculateGrabMomentum: perfect quality at both optimal phases (0.25 and 0.75)', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const mk = () => {
+    const ws = new WaveSystem('sine');
+    ws.frequency = 1;
+    ws.amplitude = 70;
+    return ws;
+  };
+  for (const phase of [0.25, 0.75]) { // optimalPhase, and the optimalPhase + 0.5 alias
+    const ws = mk();
+    ws.time = phase; // (time * frequency) % 1 === phase
+    const g = p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1);
+    assert.equal(g.quality, 1.0, `quality at phase ${phase}`);
+  }
+});
+
+test('calculateGrabMomentum: good band quality is strictly in (0.5,1) and decreases with phaseDiff', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const qualityAt = (phase) => {
+    const ws = new WaveSystem('sine');
+    ws.frequency = 1;
+    ws.amplitude = 70;
+    ws.time = phase;
+    return p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1).quality;
+  };
+  // Phases just inside GOOD_WINDOW on the same side of the optimum (monotonic phaseDiff).
+  const phases = [0.40, 0.45, 0.50];
+  const qs = phases.map(qualityAt);
+  for (const q of qs) {
+    assert.ok(q > 0.5 && q < 1.0, `expected quality in (0.5,1), got ${q}`);
+  }
+  // As phaseDiff grows across the good band, quality decreases monotonically.
+  assert.ok(qs[0] > qs[1] && qs[1] > qs[2]);
+});
+
+test('calculateGrabMomentum: momentum falls when the climber gets heavier', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const momentum = (weight) => {
+    const ws = new WaveSystem('sine');
+    ws.frequency = 1;
+    ws.amplitude = 70;
+    ws.time = 0.5; // nonzero |velocity| so momentum is non-degenerate
+    return p.calculateGrabMomentum(ws, { weight }, 1, 1).momentum;
+  };
+  assert.ok(Math.abs(momentum(100)) < Math.abs(momentum(50)),
+    'a heavier climber must receive less grab momentum (shared weightFactor)');
+});
+
+test('calculateGrabMomentum: momentum is signed and follows waveVelocity (legacy can push down)', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const grabAt = (phase) => {
+    const ws = new WaveSystem('sine');
+    ws.frequency = 1;
+    ws.amplitude = 70;
+    ws.time = phase;
+    return { ws, g: p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1) };
+  };
+  // velocityY is positive = DOWN. The legacy model's momentum = waveVelocity * quality
+  // keeps waveVelocity's sign, so a positive wave velocity pushes the climber DOWN:
+  // phase 0.125 (sine velocity positive) -> momentum > 0. This is the exact contrast
+  // to the rectified continuous model, which always imparts UP (impulse < 0).
+  const down = grabAt(0.125);
+  assert.ok(down.g.momentum > 0, 'positive wave velocity must push the climber down (legacy model)');
+  // Phase 0.5: sine velocity negative -> upward momentum (< 0).
+  const up = grabAt(0.5);
+  assert.ok(up.g.momentum < 0, 'negative wave velocity must yield upward momentum');
+  // momentum sign is exactly waveVelocity's sign in both cases (quality is always >= 0).
+  assert.equal(Math.sign(down.g.momentum), Math.sign(down.ws.calculateVelocity(down.ws.time)));
+  assert.equal(Math.sign(up.g.momentum), Math.sign(up.ws.calculateVelocity(up.ws.time)));
+});
+
+test('updatePosition: clamps x to vine ±150 (minus width), y/altitude to ground', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const MAX_H = 150;   // hardcoded as `maxDistance` at Space_Monkey_Elevator.html:1900
+  const vineX = 400;
+
+  const m = { x: 10000, y: 500, velocityX: 0, velocityY: 0, width: 40 };
+  p.updatePosition(m, 1 / 60, 800, vineX);
+  assert.equal(m.x, vineX + MAX_H - m.width); // maxX subtracts monkey.width
+  assert.equal(m.y, 0);                        // clamped below ground
+  assert.equal(m.altitude, 0);
+
+  m.x = -10000; m.y = -500;                    // left edge, above ground
+  p.updatePosition(m, 1 / 60, 800, vineX);
+  assert.equal(m.x, vineX - MAX_H);
+  assert.equal(m.altitude, 50);                // altitude = -y / ALTITUDE_CONVERSION
+  assert.equal(m.altitude, -m.y / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+  assert.ok(m.altitude >= 0, 'altitude must never be negative');
+});
+
+test('updateHorizontalVelocity: left beats right; idle drift decays frame-rate-independently', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const HL = -GameConfig.PHYSICS.HORIZONTAL_SPEED;
+  const HR = GameConfig.PHYSICS.HORIZONTAL_SPEED;
+
+  const left = { velocityX: 0 };
+  p.updateHorizontalVelocity(left, 1 / 60, true, false);
+  assert.equal(left.velocityX, HL);
+
+  const right = { velocityX: 0 };
+  p.updateHorizontalVelocity(right, 1 / 60, false, true);
+  assert.equal(right.velocityX, HR);
+
+  const both = { velocityX: 0 };
+  p.updateHorizontalVelocity(both, 1 / 60, true, true);
+  assert.equal(both.velocityX, HL, 'left wins when both held (if/else if order)');
+
+  // Idle decay: one 1/60 step ~ four 1/240 steps of DRIFT_DECAY.
+  const oneShot = () => {
+    const m = { velocityX: 500 };
+    p.updateHorizontalVelocity(m, 1 / 60, false, false);
+    return m.velocityX;
+  };
+  let v = 500;
+  for (let i = 0; i < 4; i++) {
+    const m = { velocityX: v };
+    p.updateHorizontalVelocity(m, 1 / 240, false, false);
+    v = m.velocityX;
+  }
+  approx(v, oneShot(), 1e-6);
 });
 
 // ---------------------------------------------------------------------------
