@@ -4,11 +4,13 @@ art-gen/gen.py -- generate original game sprites via OpenRouter image models.
 
 Subjects, chroma keys and reference policy live in art-gen/manifest.py.
 
-Reference handling: references are OFF by default. Words alone define a condor
-or a Cessna, and every attachment weakens the "not derivative" position, so only
-a few wide hero pieces (Everest, Saturn V, Space Shuttle) still attach one to
-match in-game framing. When a reference IS attached the prompt explicitly
-forbids copying its colours, textures and details.
+Reference handling: references are OFF, unconditionally. Words alone define a
+condor or a Cessna, and every attachment weakens the "not derivative" position.
+The three wide hero pieces (Everest, Saturn V, Space Shuttle) were the last to
+attach one; they were re-rolled from words alone before v1.0 and HERO_REFS is
+now permanently empty. The attachment code path remains in case a future piece
+ever justifies it; when a reference IS attached the prompt explicitly forbids
+copying its colours, textures and details.
 
 Key: read from env OPENROUTER_API_KEY or a local (gitignored) .env file.
 

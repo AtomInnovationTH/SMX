@@ -83,7 +83,7 @@ MIN_BG_SATURATION = 0.25     # below this a sample is grey -> checkerboard, not 
 MIN_BG_INLIERS = 6           # of 8 border samples that must look like background
 MIN_TRANSPARENT = 0.04       # below this, keying almost certainly did not happen
 MAX_TRANSPARENT = 0.97       # above this, we trimmed away the subject
-MAX_KEY_FRINGE = 0.01        # residual near-key pixels, as a fraction of the image
+MAX_KEY_FRINGE = 0.01        # residual near-key pixels, as a fraction of VISIBLE pixels
 
 # Despill pushes residual key-colour pixels toward a colour that hides against
 # the subject: WHITE for the sticker style (invisible against its white
@@ -290,15 +290,25 @@ def check_output(png_path, key_hex, target_width,
                         f"the subject was keyed or trimmed away")
 
     if key_hex is not None:
-        fringe = 1.0 - float(sh([
-            "magick", str(png_path), "-alpha", "off", "-fuzz", "25%",
+        # Residual fringe over VISIBLE pixels only. Keyed-away pixels keep the
+        # key colour in their RGB, so a plain whole-image map counts the entire
+        # transparent background as "fringe" (grass read 22%, bell-x-1 11%).
+        # Multiplying the near-key map by the alpha channel weights it down to
+        # the visible subject: fringe = (alpha_mean - map_mean) / alpha_mean.
+        map_mean = float(sh([
+            "magick",
+            "(", str(png_path), "-alpha", "off", "-fuzz", "25%",
             "-fill", "white", "+opaque", key_hex,
-            "-fill", "black", "-opaque", key_hex,
+            "-fill", "black", "-opaque", key_hex, ")",
+            "(", str(png_path), "-alpha", "extract", ")",
+            "-compose", "Multiply", "-composite",
             "-format", "%[fx:mean]", "info:",
         ]))
+        fringe = ((opaque_mean - map_mean) / opaque_mean
+                  if opaque_mean > 0 else 0.0)
         if fringe > MAX_KEY_FRINGE:
-            warnings.append(f"{fringe:.2%} of pixels are still near {key_hex} -- "
-                            f"check the edges for a colour fringe")
+            warnings.append(f"{fringe:.2%} of visible pixels are still near "
+                            f"{key_hex} -- check the edges for a colour fringe")
 
     width = int(magick_probe(png_path, "%w"))
     if width < target_width:

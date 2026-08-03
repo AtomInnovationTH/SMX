@@ -44,15 +44,12 @@ class Chroma:
 MAGENTA = Chroma("pure-magenta (#FF00FF)", "#FF00FF")
 GREEN = Chroma("pure-green (#00FF00)", "#00FF00")
 
-# Reference images: OFF by default. Every attachment weakens the "not
+# Reference images: OFF, unconditionally. Every attachment weakens the "not
 # derivative" position, and a condor or a Cessna is fully specified by words.
-# Keep one only for wide hero pieces whose in-game framing genuinely depends on
-# matching the original's crop.
-HERO_REFS = {
-    "mount-everest-s-800.webp": "mount-everest-s-800.webp",
-    "saturn-v-sm.webp": "saturn-v-sm.webp",
-    "space-shuttle-sm.webp": "space-shuttle-sm.webp",
-}
+# The three wide hero pieces (Everest, Saturn V, Space Shuttle) were the only
+# reference-assisted lineage in the set; that lineage was removed before v1.0
+# by re-rolling them from words alone, so the dict is now permanently empty.
+HERO_REFS = {}
 
 # Sprites whose LANDMARKS_DATA width is a CSS string rather than a pixel count.
 # Everest is `width: '100vw', fullWidth: true`; the shipped file is 800px wide,
@@ -481,9 +478,11 @@ ATMOSPHERE = {
         "blue-grey, thin enough to be semi-transparent throughout, featureless "
         "and drawn out horizontally",
     "cumulonimbus-850.webp":
-        "a towering cumulonimbus storm cloud, brilliant white boiling upper "
-        "turrets flattening into a wide anvil top, dark blue-grey heavy base, "
-        "seen from the side",
+        "a towering cumulonimbus storm cloud rising as one narrow very tall "
+        "vertical column, much TALLER than it is wide, filling the full "
+        "height of the frame from bottom edge to top edge, brilliant white "
+        "boiling upper turrets flattening into a small narrow anvil top, "
+        "dark blue-grey heavy base, seen from the side",
     "altocumulus-700.webp":
         "a field of altocumulus cloudlets, many small rounded white puffs in "
         "loose rows with pale grey undersides and clear gaps between them, "
@@ -527,10 +526,11 @@ ATMOS_WIDTH_OVERRIDES = {"grass.webp": 1400}
 
 
 # Members of ATMOSPHERE that are absent from the game's `this.clouds` array by
-# design: the ground strip is a CSS background, not a cloud. check() exempts
-# exactly this set -- keying the exemption on ATMOS_WIDTH_OVERRIDES instead
-# would let any future width-override entry silently escape cloud validation.
-NOT_YET_WIRED = {"grass.webp"}
+# design: the ground strip IS wired in, but as a CSS background, not a cloud.
+# check() exempts exactly this set -- keying the exemption on
+# ATMOS_WIDTH_OVERRIDES instead would let any future width-override entry
+# silently escape cloud validation.
+NOT_CLOUDS = {"grass.webp"}
 
 
 def style_for(sprite):
@@ -665,7 +665,7 @@ def check():
 
     # Atmosphere group: the clouds must match the game's cloud array exactly.
     clouds = cloud_widths()
-    described = set(ATMOSPHERE) - NOT_YET_WIRED
+    described = set(ATMOSPHERE) - NOT_CLOUDS
     for sprite in sorted(set(clouds) - described):
         problems.append(f"cloud in the game but missing from ATMOSPHERE: {sprite}")
     for sprite in sorted(described - set(clouds)):
