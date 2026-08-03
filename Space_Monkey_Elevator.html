@@ -1818,7 +1818,10 @@
 
             calculateGrabMomentum(waveSystem, monkey, gripMult, tetherMult) {
                 const waveVelocity = this.calculateWaveVelocity(waveSystem);
-                const wavePhase = (waveSystem.time * waveSystem.frequency) % 1;
+                // Normalise into [0,1): JS `%` keeps the operand's sign, so a negative
+                // time/frequency would yield a negative phase and push phaseDiff above
+                // 0.25 — which the single good-band branch below relies on never happening.
+                const wavePhase = (((waveSystem.time * waveSystem.frequency) % 1) + 1) % 1;
                 const optimalPhase = 0.25;
                 const phaseDiff = Math.min(
                     Math.abs(wavePhase - optimalPhase),

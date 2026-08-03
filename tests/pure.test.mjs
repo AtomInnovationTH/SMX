@@ -502,6 +502,24 @@ test('legacy grab has no poor tier: max phaseDiff is 0.25 and stays below GOOD_W
     `GOOD_WINDOW (${GOOD_WINDOW}) must stay above max phaseDiff (${maxDiff.toFixed(4)})`);
 });
 
+test('calculateGrabMomentum: quality stays valid for negative/huge wave time', () => {
+  // JS `%` keeps the operand's sign, so a negative time would yield a negative phase
+  // and (with the single good-band branch) a NEGATIVE quality. The phase is normalised
+  // into [0,1) to make the phaseDiff <= 0.25 bound structural. Guard that here.
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const quality = (time) => {
+    const ws = new WaveSystem('sine');
+    ws.frequency = 1;
+    ws.amplitude = 70;
+    ws.time = time;
+    return p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1).quality;
+  };
+  for (const t of [-0.7, -0.3, -0.05, 0, 1e6, 12345.678]) {
+    const q = quality(t);
+    assert.ok(q > 0.5 && q <= 1.0, `quality ${q} out of the reachable band at time ${t}`);
+  }
+});
+
 test('updatePosition: clamps x to vine ±150 (minus width), y/altitude to ground', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   const MAX_H = 150;   // hardcoded as `maxDistance` at Space_Monkey_Elevator.html:1900

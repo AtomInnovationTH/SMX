@@ -117,7 +117,8 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   wave, so its speed is `v = √(E/ρ)` from the material's Young's modulus and density — a
   material constant, shown in settings. Separately, tension/width scale coupling through a
   `√(T/μ)`-shaped *coupling-momentum proxy* (`couplingMomentumScale`); that is a tuning curve,
-  **not** the wave speed.
+  **not** the wave speed, and it is clamped to
+  `[TETHER.SPEED_FACTOR_MIN, TETHER.SPEED_FACTOR_MAX]`.
 - **Scoring** (`GameConfig.MISSION`): the Weight slider is cargo; delivering it to the
   Kármán Line scores `cargo_kg × altitude_km`, with a persisted best and a cumulative
   "bootstrap %" meter.
