@@ -31,6 +31,7 @@ const {
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
+  altimeterLandmarkAt,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -44,7 +45,7 @@ test('extraction exposes the core pure symbols', () => {
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
-    densityRatio,
+    densityRatio, altimeterLandmarkAt,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -537,24 +538,17 @@ test('updateHorizontalVelocity: left beats right; idle drift decays frame-rate-i
 // ---------------------------------------------------------------------------
 // Altimeter landmark lookup
 // ---------------------------------------------------------------------------
-// Replicate the lookup (it lives as an instance method on the DOM-coupled game class,
-// but the data table is pure and the algorithm is trivial). This guards the table.
-function getAltimeterLandmark(altitude) {
-  let best = ALTIMETER_LANDMARKS[0];
-  for (let i = ALTIMETER_LANDMARKS.length - 1; i >= 0; i--) {
-    if (altitude >= ALTIMETER_LANDMARKS[i].altitude) { best = ALTIMETER_LANDMARKS[i]; break; }
-  }
-  return best;
-}
-
+// The lookup was extracted to the pure module-level `altimeterLandmarkAt` (in the
+// delimited pure-helpers block) and `SpaceMonkeyGame.getAltimeterLandmark` delegates
+// to it, so these tests drive the real shipped code rather than a reimplementation.
 test('altimeter landmark boundary lookups', () => {
-  assert.equal(getAltimeterLandmark(0).name, 'Sea Level');
-  assert.equal(getAltimeterLandmark(-50).name, 'Sea Level'); // below first still clamps to first
-  assert.equal(getAltimeterLandmark(827).name, 'Treetops');
-  assert.equal(getAltimeterLandmark(828).name, 'Burj Khalifa'); // exact boundary inclusive
-  assert.equal(getAltimeterLandmark(8848).name, 'Mt. Everest Summit');
-  assert.equal(getAltimeterLandmark(100000).name, 'Kármán Line (Space!)');
-  assert.equal(getAltimeterLandmark(9e9).name, 'ISS Orbit'); // above last clamps to last
+  assert.equal(altimeterLandmarkAt(0).name, 'Sea Level');
+  assert.equal(altimeterLandmarkAt(-50).name, 'Sea Level'); // below first still clamps to first
+  assert.equal(altimeterLandmarkAt(827).name, 'Treetops');
+  assert.equal(altimeterLandmarkAt(828).name, 'Burj Khalifa'); // exact boundary inclusive
+  assert.equal(altimeterLandmarkAt(8848).name, 'Mt. Everest Summit');
+  assert.equal(altimeterLandmarkAt(100000).name, 'Kármán Line (Space!)');
+  assert.equal(altimeterLandmarkAt(9e9).name, 'ISS Orbit'); // above last clamps to last
 });
 
 test('ALTIMETER_LANDMARKS table is sorted ascending by altitude', () => {

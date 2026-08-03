@@ -620,6 +620,21 @@
             const penalty = Math.min((shiveringAt - tempC) * GameConfig.THERMAL.PENALTY_PER_C, GameConfig.THERMAL.PENALTY_CAP);
             return 1.0 - penalty;
         }
+
+        // UX: highest landmark whose altitude is <= the given altitude (m). The table is
+        // sorted ascending; the first entry acts as the below-first clamp and the last as
+        // the above-last clamp. Pure and DOM-free so the test harness can drive the real
+        // lookup instead of a reimplementation.
+        function altimeterLandmarkAt(altitude) {
+            let best = ALTIMETER_LANDMARKS[0];
+            for (let i = ALTIMETER_LANDMARKS.length - 1; i >= 0; i--) {
+                if (altitude >= ALTIMETER_LANDMARKS[i].altitude) {
+                    best = ALTIMETER_LANDMARKS[i];
+                    break;
+                }
+            }
+            return best;
+        }
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -2906,14 +2921,7 @@
             
             // UX: get current altimeter landmark for a given altitude (2d)
             getAltimeterLandmark(altitude) {
-                let best = ALTIMETER_LANDMARKS[0];
-                for (let i = ALTIMETER_LANDMARKS.length - 1; i >= 0; i--) {
-                    if (altitude >= ALTIMETER_LANDMARKS[i].altitude) {
-                        best = ALTIMETER_LANDMARKS[i];
-                        break;
-                    }
-                }
-                return best;
+                return altimeterLandmarkAt(altitude);
             }
             
             // UX: render ghost best-altitude line on canvas (2c)

@@ -42,6 +42,7 @@ const EXPORTED_SYMBOLS = [
   'temperatureAtAltitude',
   'thermalSuitIndex',
   'coldGripFactor',
+  'altimeterLandmarkAt',
 ];
 
 // Pull out the body of the single largest <script> block.
