@@ -291,6 +291,14 @@ test('tensionSagFactor shrinks with tension using configured factor', () => {
   approx(tensionSagFactor(0), 1.0);
   approx(tensionSagFactor(100), 1.0 - 100 * GameConfig.TETHER.TENSION_SAG_FACTOR);
   assert.ok(tensionSagFactor(200) < tensionSagFactor(100));
+  // Clamp: high tension flattens toward the floor and never inverts (slider reaches 20000).
+  const { TENSION_SAG_MIN } = GameConfig.TETHER;
+  approx(tensionSagFactor(20000), TENSION_SAG_MIN);
+  for (const t of [0, 100, 125, 500, 20000]) {
+    const f = tensionSagFactor(t);
+    assert.ok(f >= TENSION_SAG_MIN, `tensionSagFactor(${t})=${f} must not drop below the floor`);
+    assert.ok(f <= 1.0, `tensionSagFactor(${t})=${f} must not exceed 1`);
+  }
 });
 
 test('safePersistedNumber rejects NaN/Infinity/negatives, passes valid values', () => {
@@ -505,6 +513,22 @@ test('calculateGrabMomentum: momentum is signed and follows waveVelocity (legacy
   // momentum sign is exactly waveVelocity's sign in both cases (quality is always >= 0).
   assert.equal(Math.sign(down.g.momentum), Math.sign(down.ws.calculateVelocity(down.ws.time)));
   assert.equal(Math.sign(up.g.momentum), Math.sign(up.ws.calculateVelocity(up.ws.time)));
+});
+
+test('calculateGrabMomentum: bounds the square/sawtooth velocity spike (no legacy teleport)', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const peak = (ws) => ws.amplitude * ws.frequency * 2 * Math.PI;
+  // Square: the calculators return amp*omega*100 where sin(t)~0 (time ~ 0). The raw
+  // velocity is ~100x a sine peak; the bounded momentum must not exceed amp*omega.
+  const sq = new WaveSystem('square'); sq.frequency = 0.5; sq.amplitude = 70; sq.time = 0;
+  assert.ok(Math.abs(sq.calculateVelocity(sq.time)) > peak(sq) * 10, 'precondition: raw square spike is huge');
+  const gsq = p.calculateGrabMomentum(sq, { weight: 50 }, 1, 1);
+  assert.ok(Math.abs(gsq.momentum) <= peak(sq) + 1e-9, 'square momentum must be bounded by amp*omega');
+  // Sawtooth: amp*omega*50 at the cycle boundary ((time*freq)%1 >= 0.98).
+  const st = new WaveSystem('sawtooth'); st.frequency = 0.5; st.amplitude = 70; st.time = 1.98;
+  assert.ok(Math.abs(st.calculateVelocity(st.time)) > peak(st) * 10, 'precondition: raw sawtooth spike is huge');
+  const gst = p.calculateGrabMomentum(st, { weight: 50 }, 1, 1);
+  assert.ok(Math.abs(gst.momentum) <= peak(st) + 1e-9, 'sawtooth momentum must be bounded by amp*omega');
 });
 
 test('legacy grab has no poor tier: max phaseDiff is 0.25 and stays below GOOD_WINDOW', () => {

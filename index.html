@@ -327,8 +327,8 @@
 
         <h4>Monkey</h4>
         <div class="slider-container">
-            <label>Grip: <span id="gripValue">1%</span></label>
-            <input type="range" id="grip" min="1" max="100" step="1" value="1">
+            <label>Grip: <span id="gripValue">20%</span></label>
+            <input type="range" id="grip" min="1" max="100" step="1" value="20">
             <small class="setting-hint">EPM field strength — stronger coupling per pulse (magnet upgrades raise this: Alnico → Neodymium → Halbach).</small>
         </div>
         <div class="slider-container">
@@ -543,10 +543,15 @@
             return Math.exp(-Math.max(0, altitude) / attenLength);
         }
 
-        // Visual: rendered wave displacement shrinks slightly as tension rises (the
-        // tether sags less). Returns the multiplier applied to the wave position.
+        // Visual: rendered wave displacement shrinks as tension rises (the tether sags
+        // less). Floored at TENSION_SAG_MIN so a high tension flattens the wave toward a
+        // thin line instead of crossing zero and re-growing inverted (the slider reaches
+        // 20000, where the unclamped 1 - t*0.008 would be about -159).
         function tensionSagFactor(vineTension) {
-            return 1.0 - vineTension * GameConfig.TETHER.TENSION_SAG_FACTOR;
+            return Math.max(
+                GameConfig.TETHER.TENSION_SAG_MIN,
+                1.0 - vineTension * GameConfig.TETHER.TENSION_SAG_FACTOR
+            );
         }
 
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
@@ -1695,6 +1700,7 @@
                 SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
                 SPEED_FACTOR_MAX: 2.0,
                 TENSION_SAG_FACTOR: 0.008, // visual: each tension unit shrinks rendered wave displacement
+                TENSION_SAG_MIN: 0.05,     // visual: floor so a high tension flattens (never inverts) the wave
                 DAMPING_BASE: 1.3,      // materialDamping = DAMPING_BASE - gpa * DAMPING_PER_GPA
                 DAMPING_PER_GPA: 0.001  // stiffer material (higher GPa) = lower damping multiplier
             };
@@ -1790,14 +1796,18 @@
             
             release(obj) {
                 const index = this.active.indexOf(obj);
+                // Only reset and return to the pool if the object was actually active.
+                // Guards the method's contract: a stray double-release (or releasing an
+                // object that was never acquired) must not push a duplicate into `pool`,
+                // which would later hand the same object to two active slots at once.
                 if (index !== -1) {
                     // Swap with last element for O(1) removal
                     const last = this.active[this.active.length - 1];
                     this.active[index] = last;
                     this.active.length--;
+                    this.resetFn(obj);
+                    this.pool.push(obj);
                 }
-                this.resetFn(obj);
-                this.pool.push(obj);
             }
             
             getActive() { return this.active; }
@@ -1895,6 +1905,17 @@
 
             calculateGrabMomentum(waveSystem, monkey, gripMult, tetherMult) {
                 const waveVelocity = this.calculateWaveVelocity(waveSystem);
+                // Bound the velocity to the sine-equivalent peak (amp*omega). The square /
+                // sawtooth calculators fake their discontinuity impulse with a large spike
+                // (x100 / x50 of a normal peak); the continuous model tolerates it because it
+                // normalises by maxVel and clamps quality, but this legacy discrete path
+                // multiplies the raw velocity straight into momentum. Without this bound a
+                // well-timed square/sawtooth grab launches the climber off the map. Sine is
+                // already within the bound, so its behaviour is unchanged.
+                const peak = waveSystem.amplitude * waveSystem.frequency * 2 * Math.PI;
+                const boundedVel = peak > 0
+                    ? Math.max(-peak, Math.min(peak, waveVelocity))
+                    : waveVelocity;
                 // Normalise into [0,1): JS `%` keeps the operand's sign, so a negative
                 // time/frequency would yield a negative phase and push phaseDiff above
                 // 0.25 — which the single good-band branch below relies on never happening.
@@ -1921,7 +1942,7 @@
                     flashColor = GameConfig.GRAB.GOOD_COLOR;
                 }
                 
-                const momentum = waveVelocity * quality * tetherMult * gripMult;
+                const momentum = boundedVel * quality * tetherMult * gripMult;
                 const weightFactor = this.weightFactor(monkey);
                 return { quality, momentum: momentum * weightFactor, flashColor };
             }
@@ -2073,6 +2094,19 @@
                     this.keys[e.key] = false;
                     if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: false });
                 });
+
+                // Losing focus (alt-tab, devtools, tab switch) suppresses the matching keyup,
+                // which would otherwise leave arrow keys "held" (endless drift) and Space
+                // "pulsing" forever. Clear all key state and release any held grab on blur /
+                // tab-hide so returning to the game is clean.
+                const _releaseAll = () => {
+                    this.keys = {};
+                    this.eventBus.emit('input:grab', { pressed: false });
+                };
+                window.addEventListener('blur', _releaseAll);
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) _releaseAll();
+                });
             }
             
             setupUIHandlers() {
@@ -2092,7 +2126,7 @@
                     materialElement.addEventListener('change', (e) => {
                         const selectedText = e.target.options[e.target.selectedIndex].text;
                         document.getElementById('materialValue').textContent = selectedText;
-                        this.eventBus.emit('settings:material', { value: parseInt(e.target.value) });
+                        this.eventBus.emit('settings:material', { value: parseInt(e.target.value, 10) });
                     });
                 }
                 
@@ -2283,6 +2317,12 @@
                 window.addEventListener('resize', () => this.resizeCanvas());
                 this.lastTime = 0;
                 this._boundUpdate = this.update.bind(this);
+                // Single source of truth for the RAF loop handle. Every (re)start path goes
+                // through _startLoop(), which cancels any still-pending frame first, so two
+                // concurrent update() chains can never run (which would double-step physics
+                // and audio — a 2x-speed bug reachable via a fast pause/unpause double-tap or
+                // overlapping restart inputs).
+                this._rafId = null;
                 this._badgeGradient = null;
                 this._badgeGradientY = null;
                 
@@ -2341,11 +2381,10 @@
                 // Defer game loop until loading completes
                 if (window.loadingManager) {
                     window.loadingManager.onComplete = () => {
-                        this.lastTime = 0;
-                        requestAnimationFrame(this._boundUpdate);
+                        this._startLoop();
                     };
                 } else {
-                    requestAnimationFrame(this._boundUpdate);
+                    this._startLoop();
                 }
             }
             
@@ -2527,12 +2566,16 @@
                 const grabbingUrl = URL.createObjectURL(grabbingBlob);
                 this.monkeyGrabbingImage = new Image();
                 this.monkeyGrabbingImage.onload = () => { URL.revokeObjectURL(grabbingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
+                // Count a failed decode as "loaded" too, so a broken image can never wedge the
+                // loading gate (the RAF loop only starts once loadedAssets reaches the total).
+                this.monkeyGrabbingImage.onerror = () => { URL.revokeObjectURL(grabbingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
                 this.monkeyGrabbingImage.src = grabbingUrl;
                 
                 const fallingBlob = new Blob([fallingSvg], { type: 'image/svg+xml' });
                 const fallingUrl = URL.createObjectURL(fallingBlob);
                 this.monkeyFallingImage = new Image();
                 this.monkeyFallingImage.onload = () => { URL.revokeObjectURL(fallingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
+                this.monkeyFallingImage.onerror = () => { URL.revokeObjectURL(fallingUrl); if (window.loadingManager) window.loadingManager.loaded(); };
                 this.monkeyFallingImage.src = fallingUrl;
 
                 // SIM (thermal layer): protective-suit overlays + a thermometer gauge. Loaded from
@@ -2557,6 +2600,14 @@
                 if (this.monkey) this.monkey.x = (this.canvas.width / 2) - (this.monkey.width / 2);
             }
             
+            // Start (or restart) the single RAF loop. Cancels any pending frame first so we
+            // never end up with two self-scheduling update() chains running at once.
+            _startLoop() {
+                if (this._rafId !== null) cancelAnimationFrame(this._rafId);
+                this.lastTime = 0;
+                this._rafId = requestAnimationFrame(this._boundUpdate);
+            }
+
             initGame() {
                 this.monkey = {
                     x: (this.canvas.width / 2) - (GameConfig.MONKEY.WIDTH / 2),
@@ -2615,6 +2666,16 @@
                 this.lastGrabQuality = 0;
                 this.grabFlashTimer = 0;
                 this.grabFlashColor = '';
+
+                // Snap the camera to the fresh spawn. Without this it keeps the previous
+                // run's y (often tens of km up) and visibly swoops down to the ground on
+                // every restart via the absDiff>500 fast-catchup branch.
+                if (this.camera) {
+                    const target = this.monkey.y - this.canvas.height * GameConfig.CAMERA.VERTICAL_OFFSET;
+                    this.camera.y = target;
+                    this.camera.targetY = target;
+                    this.camera.shakeIntensity = 0;
+                }
                 
                 // UX: reset game-over & milestone state
                 this.previousAltitude = this.maxAltitude > 0 ? this.maxAltitude : this.previousAltitude;
@@ -2643,7 +2704,7 @@
                     amplitude:  { value: 700,    label: '700 mm' },
                     width:      { value: 45,     label: '45 mm' },
                     tension:    { value: 100,    label: '100 kg' },
-                    grip:       { value: 1,      label: '1%' },
+                    grip:       { value: 20,     label: '20%' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
                     weight:     { value: 1,      label: '1 kg' }
                 };
@@ -2668,8 +2729,7 @@
                     if (this.gameOver) {
                         if (data.pressed && performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
                             this.initGame();
-                            this.lastTime = 0;
-                            requestAnimationFrame(this._boundUpdate);
+                            this._startLoop();
                         }
                         return;
                     }
@@ -2697,8 +2757,7 @@
                     if (e.target.classList.contains('go-settings')) return; // skip settings link
                     if (this.gameOver && performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
                         this.initGame();
-                        this.lastTime = 0;
-                        requestAnimationFrame(this._boundUpdate);
+                        this._startLoop();
                     }
                 });
                 
@@ -2708,8 +2767,7 @@
                     if (this.gameOver) {
                         if (performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
                             this.initGame();
-                            this.lastTime = 0;
-                            requestAnimationFrame(this._boundUpdate);
+                            this._startLoop();
                         }
                         return;
                     }
@@ -2791,8 +2849,7 @@
                             if (pauseOverlay) pauseOverlay.style.display = 'flex';
                         } else {
                             if (pauseOverlay) pauseOverlay.style.display = 'none';
-                            this.lastTime = 0;
-                            requestAnimationFrame(this._boundUpdate);
+                            this._startLoop();
                         }
                     }
                 });
@@ -3229,7 +3286,7 @@
                 if (this.grabFlashTimer > 0) this.grabFlashTimer -= dt;
                 
                 this.render();
-                requestAnimationFrame(this._boundUpdate);
+                this._rafId = requestAnimationFrame(this._boundUpdate);
             }
             
             renderVine(ctx, width, height) {

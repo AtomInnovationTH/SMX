@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deep-review bug sweep** — a broad audit of the game loop, systems and settings
+  turned up and fixed several real defects:
+  - **Grip slider difficulty cliff.** The grip slider defaulted to `1` ("1%"), but its
+    handler scales `raw/20`, so touching it dropped `gripMultiplier` from the tuned
+    reference `1.0` to `0.05` — a silent 20× nerf. The default/reset now sits at `20`
+    ("20%"), which is exactly `1.0`, so the slider no longer lies and the cliff is gone.
+  - **Double game-loop (2× spawns / wasted CPU).** Every restart/unpause path called
+    `requestAnimationFrame` blind, so a fast pause/unpause double-tap (or overlapping
+    restart inputs) could leave two self-scheduling `update()` chains running at once.
+    All start paths now route through a single `_startLoop()` that cancels any pending
+    frame first, guaranteeing one chain.
+  - **Stuck keys on focus loss.** Holding an arrow or SPACE and alt-tabbing left the
+    key "held" forever (endless drift / stuck pulse), since the OS suppresses the
+    matching `keyup`. `blur`/`visibilitychange` now clear all key state and release the
+    grab.
+  - **Legacy-grab teleport.** In the hidden classic-grab model (`K`), the square/sawtooth
+    velocity "spike" (×100/×50 of a normal peak) was multiplied straight into momentum,
+    launching the climber off the map on a well-timed grab. `calculateGrabMomentum` now
+    bounds the velocity to the sine-equivalent peak `amp·ω`; sine is unaffected.
+  - **Inverted vine at high tension.** `tensionSagFactor` was unclamped, so tension above
+    ~125 kg (the slider reaches 20000) drove the rendered wave negative and re-growing
+    inverted. It is now floored at `TENSION_SAG_MIN` (render-only; physics reads the wave
+    directly and was never affected).
+  - **Camera swoop on restart.** `initGame` never reset the camera, so a restart from
+    altitude swooped down from the previous run's `y`. The camera now snaps to the spawn.
+  - **Robustness.** `ObjectPool.release` no longer double-inserts an object that was not
+    active; the monkey-pose SVGs count a failed decode as loaded so a broken image can't
+    wedge the loading gate; and the material `parseInt` now passes radix 10.
+  New unit tests pin the `tensionSagFactor` floor and the legacy square/sawtooth momentum
+  bound (65 tests total).
+
 - **Docs contradicting the tree** — corrected the stale "godwit 404s today" note in
   `art-gen/manifest.py`, the standalone-asset claim in `docs/GITHUB_SETUP.md`
   (Option B), the wrong `√(T/μ)` wave-speed formula in `docs/DEVELOPERS.md` (the
