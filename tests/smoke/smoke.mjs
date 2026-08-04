@@ -235,33 +235,54 @@ try {
   });
   record('blur: releases grab + clears keys', blur.before.grab === true && blur.after.grab === false && blur.after.left === false && blur.after.keys === 0, JSON.stringify(blur));
 
-  // 8) Gear button opens Settings; the in-panel colorblind toggle exists and its label
-  //    stays in sync whether toggled by the button or the C key (task 2).
-  const settings = await page.evaluate(async () => {
+  // 8) Gear button opens Settings via a REAL mouse click, drops focus afterwards, and the
+  //    in-panel colorblind label stays in sync via either route (task 2).
+  //    A programmatic element.click() is NOT sufficient here: it bypasses hit-testing (so it
+  //    cannot see the loading overlay still swallowing clicks mid-fade) and it does not move
+  //    focus (so it cannot see a focused <button> gating SPACE/arrows via _isFormTarget).
+  await page.waitForFunction(() => {
+    const o = document.getElementById('loading-overlay');
+    return !o || getComputedStyle(o).display === 'none';
+  }, null, { timeout: 20000 });
+  const gearBox = await page.evaluate(() => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
-    const panel = document.getElementById('settingsPanel');
-    const gear = document.getElementById('ux-settings-btn');
+    document.getElementById('settingsPanel').classList.remove('visible');
+    const r = document.getElementById('ux-settings-btn').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await page.mouse.click(gearBox.x, gearBox.y);
+  await page.waitForTimeout(80);
+  const gearState = await page.evaluate(() => ({
+    panelVisible: document.getElementById('settingsPanel').classList.contains('visible'),
+    activeTag: document.activeElement && document.activeElement.tagName,
+  }));
+  // Gameplay keys must still reach the game after clicking the gear (focus was dropped).
+  await page.keyboard.down(' ');
+  await page.waitForTimeout(120);
+  const pulseAfterGear = await page.evaluate(() => window.__smokeGame.monkey.isGrabbing);
+  await page.keyboard.up(' ');
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(140);
+  const moveAfterGear = await page.evaluate(() => window.__smokeGame.inputManager.isLeft());
+  await page.keyboard.up('ArrowLeft');
+  const labels = await page.evaluate(async () => {
     const btn = document.getElementById('colorblindToggle');
-    const before = panel.classList.contains('visible');
-    gear.click();
-    await new Promise((r) => setTimeout(r, 30));
-    const afterGear = panel.classList.contains('visible');
-    const initialLabel = btn.textContent;
+    const initial = btn.textContent;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' })); // C key route
     await new Promise((r) => setTimeout(r, 30));
     const afterC = btn.textContent;
     btn.click(); // button route
     await new Promise((r) => setTimeout(r, 30));
-    const afterBtn = btn.textContent;
-    return { before, afterGear, initialLabel, afterC, afterBtn };
+    return { initial, afterC, afterBtn: btn.textContent };
   });
-  record('gear opens Settings + colorblind label in sync',
-    settings.before === false && settings.afterGear === true &&
-    settings.initialLabel === 'Colorblind palette: Off' &&
-    settings.afterC === 'Colorblind palette: On' &&
-    settings.afterBtn === 'Colorblind palette: Off',
-    JSON.stringify(settings));
+  record('gear opens Settings (real click), drops focus, colorblind label in sync',
+    gearState.panelVisible === true && gearState.activeTag !== 'BUTTON' &&
+    pulseAfterGear === true && moveAfterGear === true &&
+    labels.initial === 'Colorblind palette: Off' &&
+    labels.afterC === 'Colorblind palette: On' &&
+    labels.afterBtn === 'Colorblind palette: Off',
+    JSON.stringify({ gearState, pulseAfterGear, moveAfterGear, labels }));
 
   // 9) Restart latch (task 10): a single R arms (no restart); a second R within the window
   //    restarts and clears the latch; and initGame clears it (D1) so a fresh run needs a

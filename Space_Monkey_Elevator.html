@@ -2489,11 +2489,18 @@
                 const gearBtn = document.getElementById('ux-settings-btn');
                 if (gearBtn) gearBtn.addEventListener('click', () => {
                     document.getElementById('settingsPanel').classList.toggle('visible');
+                    // Drop focus: a focused <button> is a form target, so _isFormTarget would
+                    // gate SPACE/←/→ away from the game (and SPACE would re-activate this
+                    // button) until the player clicked the canvas again.
+                    gearBtn.blur();
                 });
                 // UX: in-panel colorblind toggle button (2f); label refreshed via the
                 // shared refreshColorblindToggleLabel() so it can never drift from state.
                 const cbtn = document.getElementById('colorblindToggle');
-                if (cbtn) cbtn.addEventListener('click', () => applyColorblindPalette(!_uxColorblind));
+                if (cbtn) cbtn.addEventListener('click', () => {
+                    applyColorblindPalette(!_uxColorblind);
+                    cbtn.blur();   // same focus-gating reason as the gear button above
+                });
                 
                 // UX: game-over settings link (2f)
                 const goSettingsLink = document.getElementById('go-settings-link');
@@ -2902,11 +2909,17 @@
                         paused: this.paused, gameOver: this.gameOver, now: performance.now(),
                         gameOverTime: this.gameOverTime, armedAt: this.restartArmedAt,
                     })) {
-                        case 'restart':
+                        case 'restart': {
                             this.restartArmedAt = 0;
+                            // Hide the confirm affordance immediately: the latch is now
+                            // disarmed, so leaving "Press R again to restart" on screen into
+                            // the fresh run would advertise a latch that no longer exists.
+                            const confirmToast = document.getElementById('restart-toast');
+                            if (confirmToast) confirmToast.classList.remove('visible');
                             this.initGame();
                             if (wasGameOver) this._startLoop();   // in play the loop already runs
                             break;
+                        }
                         case 'arm':
                             this.restartArmedAt = performance.now();
                             this.showToast(RESTART_CONFIRM_MSG, RESTART_CONFIRM_MS);
