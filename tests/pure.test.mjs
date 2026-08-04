@@ -38,6 +38,7 @@ const {
   materialDampingFor,
   scaleSettingValue,
   couplingTier,
+  upgradeCrossed,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -53,7 +54,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
-    couplingTier,
+    couplingTier, upgradeCrossed,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -1018,4 +1019,28 @@ test('couplingTier: glyph, flash colour and badge colour agree by construction',
     assert.notEqual(GameConfig.GRAB[tier.toUpperCase() + '_COLOR'], undefined,
       `flash colour for tier ${tier} at q=${q}`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// upgradeCrossed (shift 7, task 9) — frame-size-independent upgrade collection
+// via a crossing test instead of a fixed 30 m window (which one clamped 0.1 s
+// step could overrun, silently skipping an upgrade band).
+// ---------------------------------------------------------------------------
+test('upgradeCrossed: a jump clean over the altitude still collects it', () => {
+  assert.equal(upgradeCrossed(0, 100000, 5000, false), true);
+  assert.equal(upgradeCrossed(4000, 6000, 5000, false), true); // crosses inside a band
+});
+
+test('upgradeCrossed: landing exactly on it collects it (inclusive >=)', () => {
+  assert.equal(upgradeCrossed(4999, 5000, 5000, false), true);
+  assert.equal(upgradeCrossed(5000, 5000, 5000, false), false); // already at/above, no crossing
+});
+
+test('upgradeCrossed: descending past it never collects; stationary above never fires', () => {
+  assert.equal(upgradeCrossed(6000, 4000, 5000, false), false); // descending
+  assert.equal(upgradeCrossed(5000, 5000, 5000, false), false); // stationary, already above
+});
+
+test('upgradeCrossed: an already-collected upgrade never fires, even on crossing', () => {
+  assert.equal(upgradeCrossed(0, 100000, 5000, true), false);
 });

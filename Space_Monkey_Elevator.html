@@ -739,6 +739,15 @@
             return 'poor';
         }
 
+        // SIM: did the climber cross this upgrade's altitude since the previous frame? A
+        // fixed window is unsafe because one clamped 0.1 s step can advance further than the
+        // window. A crossing test is frame-size independent: the upgrade is collected the
+        // first frame the climber is at/above its altitude, having been below it last frame.
+        function upgradeCrossed(prevAltitude, altitude, upgradeAltitude, collected) {
+            if (collected) return false;
+            return prevAltitude < upgradeAltitude && altitude >= upgradeAltitude;
+        }
+
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -1596,10 +1605,8 @@
                 return configs[this.type] || configs.alnico;
             }
 
-            checkCollision(monkey) {
-                if (this.collected) return false;
-                const altitudeDiff = monkey.altitude - this.altitude;
-                return altitudeDiff >= 0 && altitudeDiff < 30;
+            checkCollision(prevAltitude, altitude) {
+                return upgradeCrossed(prevAltitude, altitude, this.altitude, this.collected);
             }
 
             render(ctx, cameraY, screenWidth, screenHeight) {
@@ -2380,6 +2387,7 @@
                 this.gameOverTime = 0;
                 this.maxAltitude = 0;
                 this.previousAltitude = 0;
+                this._lastFrameAltitude = 0;
                 this.bestAltitude = 0;
                 this.milestonesPassed = new Set();
                 this.landmarksPassed = new Set();
@@ -2739,6 +2747,10 @@
                 this.gameOver = false;
                 this.gameOverTime = 0;
                 this.maxAltitude = 0;
+                // Reset the upgrade-crossing baseline too: without this, the first frame of a
+                // new run compares against the previous run's altitude and can false-fire every
+                // upgrade at once.
+                this._lastFrameAltitude = 0;
                 this.milestonesPassed = new Set();
                 this.landmarksPassed = new Set();
                 // SIM (thermal layer): start each run unsuited at ground temperature.
@@ -3005,7 +3017,7 @@
             
             checkCollisions() {
                 this.upgrades.forEach(upgrade => {
-                    if (upgrade.checkCollision(this.monkey)) {
+                    if (upgrade.checkCollision(this._lastFrameAltitude, this.monkey.altitude)) {
                         this.collectUpgrade(upgrade);
                     }
                 });
@@ -3341,6 +3353,12 @@
                 }
                 
                 if (this.grabFlashTimer > 0) this.grabFlashTimer -= dt;
+                
+                // Record this frame's altitude for the upgrade crossing test on the next
+                // frame. updatePosition refreshed altitude, then checkCollisions ran; saving
+                // here once gives the (previous frame, this frame) pair. Note update()
+                // early-returns on game-over above — that is fine, the run is over.
+                this._lastFrameAltitude = this.monkey.altitude;
                 
                 this.render();
                 this._rafId = requestAnimationFrame(this._boundUpdate);

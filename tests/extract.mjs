@@ -49,6 +49,7 @@ const EXPORTED_SYMBOLS = [
   'materialDampingFor',
   'scaleSettingValue',
   'couplingTier',
+  'upgradeCrossed',
 ];
 
 // Pull out the body of the single largest <script> block.
