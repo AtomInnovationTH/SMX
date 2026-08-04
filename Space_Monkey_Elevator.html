@@ -723,6 +723,17 @@
                 default:          return raw;
             }
         }
+        // UX/SIM: single source of truth for the coupling-quality tier. The flash colour,
+        // the colorblind glyph and the badge bar all derive from this, so they cannot drift
+        // apart. Pure only with respect to a fixed GameConfig (same contract as epmChargeStep).
+        // NOTE: the hidden legacy grab model (K) is deliberately 2-tier and assigns its colour
+        // from phase error, not from quality — it does NOT use this helper. See the plan's §5.
+        function couplingTier(quality) {
+            if (quality >= GameConfig.COUPLING.PERFECT_QUALITY) return 'perfect';
+            if (quality >= GameConfig.COUPLING.GOOD_QUALITY) return 'good';
+            return 'poor';
+        }
+
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -1982,9 +1993,7 @@
                 impulse *= weightFactor;
 
                 let flashColor;
-                if (quality >= GameConfig.COUPLING.PERFECT_QUALITY) flashColor = GameConfig.GRAB.PERFECT_COLOR;
-                else if (quality >= GameConfig.COUPLING.GOOD_QUALITY) flashColor = GameConfig.GRAB.GOOD_COLOR;
-                else flashColor = GameConfig.GRAB.POOR_COLOR;
+                flashColor = GameConfig.GRAB[couplingTier(quality).toUpperCase() + '_COLOR'];
 
                 return { impulse, quality, flashColor };
             }
@@ -3576,7 +3585,7 @@
                     // Polish (Stage 4 / 3.6): colorblind coupling glyph — shape encodes quality,
                     // so it reads without relying on the flash colour. ✓ perfect · ~ good · ✗ poor.
                     const q = this.lastGrabQuality || 0;
-                    const glyph = q > 0.8 ? '\u2713' : q > 0.5 ? '\u223C' : '\u2717';
+                    const glyph = { perfect: '\u2713', good: '\u223C', poor: '\u2717' }[couplingTier(q)];
                     const gx = this.monkey.x + this.monkey.width / 2;
                     const gy = (this.monkey.y - this.camera.getY()) - 16;
                     ctx.fillStyle = this.grabFlashColor;

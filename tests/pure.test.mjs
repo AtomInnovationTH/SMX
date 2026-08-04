@@ -37,6 +37,7 @@ const {
   shouldTriggerGameOver,
   materialDampingFor,
   scaleSettingValue,
+  couplingTier,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -52,6 +53,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
+    couplingTier,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -988,4 +990,32 @@ test('scaleSettingValue: divided scales use SETTINGS_SCALE, others pass through'
   assert.equal(scaleSettingValue('tension', 123), 123);
   assert.equal(scaleSettingValue('gravity', 1.5), 1.5);
   assert.equal(scaleSettingValue('nonsense', 7), 7);
+});
+
+// ---------------------------------------------------------------------------
+// couplingTier (shift 7, task 4) — single source of truth for the coupling-
+// quality tier. The flash colour, the colorblind glyph and the badge bar all
+// derive from it, so glyph/colour can never disagree about the tier.
+// ---------------------------------------------------------------------------
+test('couplingTier: exact inclusive boundaries and tier bands', () => {
+  assert.equal(couplingTier(GameConfig.COUPLING.PERFECT_QUALITY), 'perfect'); // >=
+  assert.equal(couplingTier(GameConfig.COUPLING.GOOD_QUALITY), 'good');       // >=
+  assert.equal(couplingTier(GameConfig.COUPLING.PERFECT_QUALITY - 1e-9), 'good');
+  assert.equal(couplingTier(1), 'perfect');
+  assert.equal(couplingTier(0), 'poor');
+  assert.equal(couplingTier(-1), 'poor');
+  assert.equal(couplingTier(NaN), 'poor'); // NaN >= X is false -> poor
+});
+
+test('couplingTier: glyph, flash colour and badge colour agree by construction', () => {
+  // Every tier maps to a well-defined colour on GameConfig.GRAB; a lookup on the
+  // tier name must never be undefined. (renderEffects keys the glyph by the same
+  // tier and renderMonkey's badge bar by the same helper, so a divergence would fail.)
+  const glyph = { perfect: '\u2713', good: '\u223C', poor: '\u2717' };
+  for (const q of [0, 0.4, 0.45, 0.7, 0.85, 0.95, 1]) {
+    const tier = couplingTier(q);
+    assert.notEqual(glyph[tier], undefined, `glyph for tier ${tier} at q=${q}`);
+    assert.notEqual(GameConfig.GRAB[tier.toUpperCase() + '_COLOR'], undefined,
+      `flash colour for tier ${tier} at q=${q}`);
+  }
 });

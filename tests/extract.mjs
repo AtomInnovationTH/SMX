@@ -48,6 +48,7 @@ const EXPORTED_SYMBOLS = [
   'shouldTriggerGameOver',
   'materialDampingFor',
   'scaleSettingValue',
+  'couplingTier',
 ];
 
 // Pull out the body of the single largest <script> block.
