@@ -2089,6 +2089,17 @@
             getY() { return this.y; }
         }
         
+        // UX (shift 7, task 6): true when a key event originated from a form control
+        // (input/select/button/textarea). While one is focused, native keys like
+        // Left/Right/Enter must drive the control, not the game — but releases are never
+        // gated (they are idempotent; gating stranding a held key is what blur/visibility
+        // handling exists to prevent). Array bucketing matches the plan's helper verbatim.
+        const _isFormTarget = (e) => {
+            const t = e.target;
+            return !!t && (t.tagName === 'INPUT' || t.tagName === 'SELECT'
+                        || t.tagName === 'BUTTON' || t.tagName === 'TEXTAREA');
+        };
+
         class InputManager {
             constructor(eventBus) {
                 this.eventBus = eventBus;
@@ -2099,8 +2110,14 @@
             
             setupKeyboardHandlers() {
                 window.addEventListener('keydown', (e) => {
-                    this.keys[e.key] = true;
-                    if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: true });
+                    // Gate PRESSES (never releases) when a form control is focused, so
+                    // ←/→/Enter tune the slider/select instead of moving the climber or
+                    // firing input:grab. R/S/C stay ungated so the player can't get trapped
+                    // in the panel. With nothing focused e.target is <body>, so play is unaffected.
+                    if (!_isFormTarget(e)) {
+                        this.keys[e.key] = true;
+                        if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: true });
+                    }
                     if (e.key === 'r' || e.key === 'R') this.eventBus.emit('input:restart', {});
                     if (e.key === 's' || e.key === 'S') this.eventBus.emit('input:toggleSettings', {});
                     // UX: colorblind palette toggle (2f)
