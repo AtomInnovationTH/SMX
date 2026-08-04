@@ -1506,7 +1506,7 @@
                     // This keeps clouds visible longer while maintaining proper vertical spacing
                     const parallaxFactor = VISUAL_CONSTANTS.CLOUD_PARALLAX_FACTOR;
                     const parallaxDiff = (cloud.altitude - cameraAltitude) * parallaxFactor;
-                    const screenY = screenHeight / 2 - parallaxDiff * 10;
+                    const screenY = screenHeight / 2 - parallaxDiff * GameConfig.PHYSICS.ALTITUDE_CONVERSION;
                     
                     const actualAltDiff = Math.abs(cameraAltitude - cloud.altitude);
                     const fadeStart = VISUAL_CONSTANTS.CLOUD_FADE_START_DISTANCE;
@@ -1620,7 +1620,7 @@
                     
                     // Apply enhanced parallax to altitude difference
                     const parallaxDiff = (landmark.altitude - cameraAltitude) * parallaxFactor;
-                    const screenY = screenHeight / 2 - parallaxDiff * 10;
+                    const screenY = screenHeight / 2 - parallaxDiff * GameConfig.PHYSICS.ALTITUDE_CONVERSION;
                     
                     // Expanded visibility range - larger buffer for full-width landmarks (like Mount Everest)
                     const bufferSize = landmark.fullWidth ? VISUAL_CONSTANTS.LANDMARK_BUFFER_FULLWIDTH : VISUAL_CONSTANTS.LANDMARK_BUFFER_NORMAL;
@@ -1668,7 +1668,7 @@
             render(ctx, cameraY, screenWidth, screenHeight) {
                 if (this.collected) return;
                 
-                const screenY = -this.altitude * 10 - cameraY;
+                const screenY = -this.altitude * GameConfig.PHYSICS.ALTITUDE_CONVERSION - cameraY;
                 if (screenY < -100 || screenY > screenHeight + 100) return;
                 
                 ctx.save();
