@@ -2280,7 +2280,6 @@
                 this.cloudsContainer = document.getElementById('clouds-container');
                 this.landmarksContainer = document.getElementById('landmarks-container');
                 this.resizeCanvas();
-                this.ctx.imageSmoothingEnabled = false;
                 
                 // Create and load cute monkey SVG
                 this.loadMonkeySvg();
@@ -2625,6 +2624,11 @@
                 this.bgCanvas.height = window.innerHeight;
                 if (this.wave) this.wave.x = this.canvas.width / 2;
                 if (this.monkey) this.monkey.x = (this.canvas.width / 2) - (this.monkey.width / 2);
+                // imageSmoothingEnabled must be re-applied here, not once in the
+                // constructor: assigning canvas.width/height resets ALL 2D context state,
+                // so the flag is silently lost on every resize or rotation. Keep pixel
+                // art crisp by re-asserting it at the end of every resize.
+                this.ctx.imageSmoothingEnabled = false;
             }
             
             // Start (or restart) the single RAF loop. Cancels any pending frame first so we
