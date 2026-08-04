@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Shift 7 defect sweep** — a broad audit of the settings panel, rendering,
+  input and scoring turned up and fixed several player-visible defects:
+  - **Weight slider told a lie.** It defaulted to `1 kg` while every run was
+    actually 50 kg, so the first touch snapped weight up to ~11× and abruptly
+    made the game ~33% easier while slashing the score. The slider now reads
+    50 kg in every representation (the static input, the label span and the
+    initGame reset).
+  - **Gear opened colorblind mode, not Settings.** The only ⚙ on screen toggled
+    the palette while its tooltip claimed "Settings"; the panel was reachable
+    only via `S`. ⚙ now opens the panel and a colorblind toggle button lives
+    inside it, kept in sync with the `C` key through one shared label function.
+  - **Sprites went soft after any resize or rotation.** Assigning canvas
+    width/height resets all 2D context state, so the pixel-art flag set once in
+    the constructor was lost. It is now re-applied at the end of every
+    `resizeCanvas()`.
+  - **Colorblind glyph disagreed with the flash colour.** The glyph's hardcoded
+    thresholds could show ✓ while flashing GOOD (and vice-versa) — wrong exactly
+    for the colourblind players it exists to serve. Both now derive from the new
+    `couplingTier()`.
+  - **Badge quality bar ignored the colourblind palette.** It hardcoded a third
+    divergent green/gold/orange set and never changed under the palette toggle.
+    It now uses the same `couplingTier()` → palette path as the flash.
+  - **Slider-focused keys still pushed the climber.** ←/→ to fine-tune a focused
+    slider also drifted the climber and SPACE double-fired. Gameplay key presses
+    are now gated while a form control is focused (releases and R/S/C are not).
+  - **A broken monkey sprite could freeze the canvas.** `drawImage` on a failed
+    decode throws and, inside the RAF chain, killed the loop with no signal. The
+    sprite draw now also checks `naturalWidth`, matching the suit draw.
+  - **Reduced-motion preference froze over the OS setting.** The first colorblind
+    toggle baked the live value into storage, overriding `prefers-reduced-motion`
+    forever. It is no longer persisted or restored and always follows the OS
+    each load.
+  - **Upgrade bands could be skipped on a slow frame.** A fixed 30 m window vs a
+    clamped 0.1 s step that can advance further meant an upgrade band was
+    silently never collected. Collection is now a crossing test via the new
+    `upgradeCrossed()`.
+  - **A stray R could instantly restart the next run (D1).** The restart latch
+    survived `initGame`, so a leftover armed confirm restarted immediately.
+  - **Two timers fought over one toast (D2).** `showToast`'s timer could clear
+    the confirm affordance while the latch stayed invisibly armed. The latch is
+    now timestamp-based.
+
+### Changed
+
+- **Weight slider default** — now reads 50 kg in the UI to match
+  `GameConfig.MONKEY.WEIGHT` (zero balance or score-scale change).
+- **Gear button** — now opens the settings panel instead of toggling the
+  colorblind palette; the colorblind toggle moved into the panel.
+- **`couplingTier()`** — a single source of truth for coupling-quality tier,
+  now consumed by the flash colour, the colorblind glyph and the badge bar so
+  they cannot drift apart. The hidden legacy `K` grab keeps its 2-tier,
+  phase-derived colouring.
+- **Restart confirmation** — the latch is now a pure `restartPressDecision()`
+  over a timestamp (`restartArmedAt`), and `initGame` clears it.
+- **Pure helpers** — six new exported helpers extracted from orchestration:
+  `couplingTier`, `upgradeCrossed`, `restartPressDecision`, `thermalStep`,
+  `airDensityReadout`, `cargoDeliveryCredit` (the last three behaviour-identical).
+
+### Added
+
+- **`tools/check.sh` + opt-in `pre-commit` hook** — a one-command local mirror of
+  the CI gate (unit tests, source/build in-sync check, asset references, browser
+  smoke), with `SKIP_SMOKE=1` to skip the browser step.
+- **Advisory CI browser-smoke job** — boots the built `index.html` in headless
+  Chromium in CI as a pre-deploy signal that the game actually runs. It is
+  non-blocking (`continue-on-error`, not in `deploy`'s `needs`).
+- **`embed_assets.py` loud-failure guards** — a missing or renamed asset now
+  fails the build (naming the file) instead of silently shipping a stale or
+  erroring artifact.
+- **New tests** — slider-consistency regression, `couplingTier` boundaries,
+  `upgradeCrossed`, `restartPressDecision`, `thermalStep`, `airDensityReadout`,
+  `cargoDeliveryCredit`, and a helper-count guard (24). Browser smoke grew from
+  8/8 to 10/10 (gear/panel wiring + restart latch).
+
 ### Added
 
 - **Optional browser smoke test** (`tests/smoke/smoke.mjs`) — drives the built

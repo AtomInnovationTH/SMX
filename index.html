@@ -2928,7 +2928,7 @@
                 
                 this.eventBus.on('settings:material', (data) => {
                     // Higher GPa = stiffer material = less swing (lower damping multiplier)
-                    // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.3
+                    // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.25
                     const gpa = data.value;
                     this.materialGpa = gpa;                 // feeds waveEnergyFactor attenuation (Q-P3)
                     this.materialDamping = materialDampingFor(gpa);

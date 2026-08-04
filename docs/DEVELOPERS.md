@@ -103,6 +103,29 @@ node tests/smoke/smoke.mjs
 It reads live state via `window.__smokeGame`, a handle the game exposes **only** under
 `?debug`/`#debug` (inert in normal play). See [`tests/smoke/README.md`](../tests/smoke/README.md).
 
+### Local gate
+
+For a single command that reproduces the full CI gate, use `tools/check.sh`:
+
+```sh
+bash tools/check.sh        # or: SKIP_SMOKE=1 bash tools/check.sh
+```
+
+It runs the unit tests, regenerates `index.html` from the source and **fails if it was
+out of sync** (note it mutates the tree, exactly as CI does — if it fails on the in-sync
+check, `git add index.html` and re-run), verifies asset references, then runs the browser
+smoke test. `SKIP_SMOKE=1` skips the browser step for speed.
+
+There is also an **opt-in** `pre-commit` hook (`.githooks/pre-commit`) that runs the gate
+with `SKIP_SMOKE=1`. Enable it once with:
+
+```sh
+git config core.hooksPath .githooks     # disable later: git config --unset core.hooksPath
+```
+
+The hook inspects the **working tree**, not the index, so partial staging can pass it —
+CI remains the authority.
+
 ---
 
 ## Code layout (within the single `<script>`)
