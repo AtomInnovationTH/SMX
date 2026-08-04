@@ -84,6 +84,13 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
+test('the pure-helpers block contains exactly 24 declared helpers (guard against an over-broad regex)', () => {
+  // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
+  // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
+  // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
+  assert.equal(declaredPureHelpers().length, 24);
+});
+
 // ---------------------------------------------------------------------------
 // WAVE_CALCULATORS
 // ---------------------------------------------------------------------------

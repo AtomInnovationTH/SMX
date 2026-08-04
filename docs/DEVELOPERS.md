@@ -77,7 +77,12 @@ make **three** edits or the new symbol is silently `undefined` in tests: (1) add
 `pure.test.mjs`, and (3) add it to the extraction-sanity object literal (the "core pure
 symbols" test). A guard test also scans the delimited pure-helpers block and **fails
 loudly** if a declared helper is missing from `EXPORTED_SYMBOLS`, so a forgotten export
-turns red instead of silently reading `undefined`.
+turns red instead of silently reading `undefined`. **Declare helpers with the `function`
+keyword** — it is the guard-safe, module-convention form. The guard regex matches both
+`function name(` and `const/let name = … =>` arrow forms, but writing a helper as
+`const foo = (x) => …` is still against convention; keep the 24-helper count assertion in
+`pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
+declarations (like array consts).
 
 ### Optional browser smoke test
 

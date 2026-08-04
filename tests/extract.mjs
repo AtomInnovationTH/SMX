@@ -171,9 +171,13 @@ export function declaredPureHelpers() {
   }
   const block = html.slice(start, end);
   const names = [];
-  const re = /^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+  // Matches BOTH `function name(` and `const/let name = (…) =>`/`= x =>` arrow forms,
+  // so the "declared but not exported" guard also catches arrow-form helpers. The `=>`
+  // requirement means array consts (e.g. ATMO_DENSITY_KGM3) never match — a future
+  // over-broad regex is caught by the count assertion in pure.test.mjs.
+  const re = /^\s*(?:function\s+([A-Za-z_$][\w$]*)\s*\(|(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
   let m;
-  while ((m = re.exec(block)) !== null) names.push(m[1]);
+  while ((m = re.exec(block)) !== null) names.push(m[1] || m[2]);
   return names;
 }
 
