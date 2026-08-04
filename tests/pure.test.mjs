@@ -44,6 +44,7 @@ const {
   RESTART_CONFIRM_MS,
   thermalStep,
   airDensityReadout,
+  cargoDeliveryCredit,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -60,6 +61,7 @@ test('extraction exposes the core pure symbols', () => {
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
     couplingTier, upgradeCrossed, restartPressDecision, thermalStep, airDensityReadout,
+    cargoDeliveryCredit,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -1158,4 +1160,40 @@ test('airDensityReadout: the 1% and 0.001% boundaries land on the higher band (>
   assert.ok(isExp(airDensityReadout(a2 - 1)));
   assert.ok(densityRatio(a2 - 1) * 100 >= 0.001);
   assert.equal(airDensityReadout(a2), '~0%');
+});
+
+// ---------------------------------------------------------------------------
+// cargoDeliveryCredit (shift 7, task 13) — cargo credited on the first Kármán
+// crossing in continuous mode. Behaviour identical to the pre-refactor inline
+// block (note the NEGATED >= form that preserves NaN behaviour).
+// ---------------------------------------------------------------------------
+const DELIVER_M = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+const credit = (over) => cargoDeliveryCredit({
+  continuous: true, delivered: false, altitude: DELIVER_M, cargoKg: 100, bootstrapKg: 50, ...over,
+});
+
+test('cargoDeliveryCredit: below Kármán is null; exactly at the line credits', () => {
+  assert.equal(credit({ altitude: DELIVER_M - 1 }), null);
+  assert.deepEqual(credit({ altitude: DELIVER_M }), { deliveredKg: 100, bootstrapKg: 150 });
+});
+
+test('cargoDeliveryCredit: legacy mode never credits (even at 200 km); delivered latches null', () => {
+  assert.equal(credit({ continuous: false, altitude: 200000 }), null);
+  assert.equal(credit({ delivered: true }), null);
+});
+
+test('cargoDeliveryCredit: bootstrap accumulates; NaN altitude is null; input not mutated', () => {
+  assert.equal(credit({ cargoKg: 25, bootstrapKg: 40 }).bootstrapKg, 65);
+  assert.equal(credit({ altitude: NaN }), null);
+  const input = { continuous: true, delivered: false, altitude: DELIVER_M, cargoKg: 100, bootstrapKg: 50 };
+  const before = { ...input };
+  credit(input);
+  assert.deepEqual(input, before);
+});
+
+test('cargoDeliveryCredit composes with missionScore and bootstrapPct', () => {
+  const c = credit({ cargoKg: 250, bootstrapKg: 0 });
+  assert.ok(c);
+  approx(missionScore(c.deliveredKg), 250 * (DELIVER_M / 1000), 1e-9);
+  assert.ok(bootstrapPct(c.bootstrapKg) > 0);
 });

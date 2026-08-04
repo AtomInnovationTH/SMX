@@ -55,6 +55,7 @@ const EXPORTED_SYMBOLS = [
   'RESTART_CONFIRM_MS',
   'thermalStep',
   'airDensityReadout',
+  'cargoDeliveryCredit',
 ];
 
 // Pull out the body of the single largest <script> block.

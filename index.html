@@ -798,6 +798,17 @@
                  : '~0%';
         }
 
+        // SIM (Stage 2 / B.11): the cargo-delivery credit decision. Returns the delivery
+        // (kg) and the new cumulative bootstrap total, or null when nothing is to be
+        // credited. NOTE the NEGATED >= form: for NaN, `NaN >= X` is false (no credit, as
+        // the original code), whereas `NaN < X` is ALSO false (would wrongly credit) — the
+        // negation is required for byte-identical behaviour. Pure w.r.t. GameConfig.
+        function cargoDeliveryCredit({ continuous, delivered, altitude, cargoKg, bootstrapKg }) {
+            if (!continuous || delivered) return null;
+            if (!(altitude >= GameConfig.MISSION.DELIVER_ALTITUDE_M)) return null;
+            return { deliveredKg: cargoKg, bootstrapKg: bootstrapKg + cargoKg };
+        }
+
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -3334,11 +3345,17 @@
 
                 // SIM (Stage 2 / B.11): cargo delivery — credit cargo the first time the climber
                 // reaches Kármán in continuous mode, and add it to the cumulative bootstrap meter.
-                if (this._isContinuous() && !this.cargoDelivered &&
-                    this.monkey.altitude >= GameConfig.MISSION.DELIVER_ALTITUDE_M) {
+                const credit = cargoDeliveryCredit({
+                    continuous: this._isContinuous(),
+                    delivered: this.cargoDelivered,
+                    altitude: this.monkey.altitude,
+                    cargoKg: this.monkey.weight,
+                    bootstrapKg: this.bootstrapKg,
+                });
+                if (credit) {
                     this.cargoDelivered = true;
-                    this.deliveredKg = this.monkey.weight;
-                    this.bootstrapKg += this.deliveredKg;
+                    this.deliveredKg = credit.deliveredKg;
+                    this.bootstrapKg = credit.bootstrapKg;
                     try { localStorage.setItem(BOOTSTRAP_KG_KEY, this.bootstrapKg.toString()); } catch(e) {}
                     this.triggerMilestone('CARGO DELIVERED');
                 }
