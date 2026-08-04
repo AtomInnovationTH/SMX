@@ -251,7 +251,7 @@
     <div id="ux-altimeter-label"></div>
     
     <!-- UX: Settings gear button (2f) -->
-    <button id="ux-settings-btn" title="Settings (C)">⚙</button>
+    <button id="ux-settings-btn" title="Settings (S)">⚙</button>
     
     <!-- Mobile/Touch Notice -->
     <div id="mobile-notice">
@@ -333,6 +333,11 @@
             <label>Weight: <span id="weightValue">50 kg</span></label>
             <input type="range" id="weight" min="0.2" max="200" step="0.2" value="50">
             <small class="setting-hint">Climber + cargo. Heavier needs more momentum per metre, but cargo delivered to 100 km is your score.</small>
+        </div>
+
+        <h4>Accessibility</h4>
+        <div class="slider-container">
+            <button id="colorblindToggle">Colorblind palette: Off</button>
         </div>
 
         <h4>Beyond the Kármán Line 🚀</h4>
@@ -468,8 +473,16 @@
             GameConfig.WAVE.COLORS.sine = COLOR_PALETTE.VINE_SINE;
             GameConfig.WAVE.COLORS.square = COLOR_PALETTE.VINE_SQUARE;
             GameConfig.WAVE.COLORS.sawtooth = COLOR_PALETTE.VINE_SAWTOOTH;
+            // Reflect the toggle in the in-panel button (shared so C and the button can't drift)
+            refreshColorblindToggleLabel();
             // Persist
             _persistSettings();
+        }
+        
+        // UX: keep the in-panel colorblind toggle button label in sync with _uxColorblind.
+        function refreshColorblindToggleLabel() {
+            const btn = document.getElementById('colorblindToggle');
+            if (btn) btn.textContent = 'Colorblind palette: ' + (_uxColorblind ? 'On' : 'Off');
         }
         
         function _persistSettings() {
@@ -2371,12 +2384,15 @@
                 // Polish (Stage 4 / 3.1): audio synth (starts muted; unlocked on first input)
                 this.audio = new AudioManager();
                 
-                // UX: settings gear button handler (2f)
+                // UX: settings gear button opens the settings panel (2f)
                 const gearBtn = document.getElementById('ux-settings-btn');
                 if (gearBtn) gearBtn.addEventListener('click', () => {
-                    applyColorblindPalette(!_uxColorblind);
-                    if (this.waveSystem) this.waveSystem.cachedColor = null;
+                    document.getElementById('settingsPanel').classList.toggle('visible');
                 });
+                // UX: in-panel colorblind toggle button (2f); label refreshed via the
+                // shared refreshColorblindToggleLabel() so it can never drift from state.
+                const cbtn = document.getElementById('colorblindToggle');
+                if (cbtn) cbtn.addEventListener('click', () => applyColorblindPalette(!_uxColorblind));
                 
                 // UX: game-over settings link (2f)
                 const goSettingsLink = document.getElementById('go-settings-link');
@@ -3856,6 +3872,8 @@
             // UX: backup original palette then apply colorblind if saved (2f)
             _initPaletteBackup();
             if (_uxColorblind) applyColorblindPalette(true);
+            // Set the in-panel toggle's initial label (covers the default "Off" case).
+            refreshColorblindToggleLabel();
             
             // UX: apply reduced-motion parallax damping (2f)
             if (_uxReducedMotion) {
