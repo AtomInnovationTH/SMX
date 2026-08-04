@@ -54,6 +54,7 @@ const EXPORTED_SYMBOLS = [
   'GAME_OVER_INPUT_GATE_MS',
   'RESTART_CONFIRM_MS',
   'thermalStep',
+  'airDensityReadout',
 ];
 
 // Pull out the body of the single largest <script> block.

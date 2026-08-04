@@ -783,6 +783,16 @@
                      coldFactor: coldGripFactor(tempC, shiveringAt) };
         }
 
+        // SIM (thermal layer): format the air-density HUD readout for an altitude. Pure and
+        // identical to the pre-refactor inline block; the orchestrator keeps the null-label
+        // guard. Bands are inclusive (pct >= 1 fixed, >= 0.001 exponential, else ~0%).
+        function airDensityReadout(altitude) {
+            const pct = densityRatio(altitude) * 100;
+            return pct >= 1 ? pct.toFixed(1) + '%'
+                 : pct >= 0.001 ? pct.toExponential(1) + '%'
+                 : '~0%';
+        }
+
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -3021,10 +3031,7 @@
             // Element is cached; the guard keeps it safe before/without the DOM.
             updateAirDensityReadout() {
                 if (!this.airDensityLabel) return;
-                const pct = densityRatio(this.monkey.altitude) * 100;
-                this.airDensityLabel.textContent = pct >= 1 ? pct.toFixed(1) + '%'
-                                                 : pct >= 0.001 ? pct.toExponential(1) + '%'
-                                                 : '~0%';
+                this.airDensityLabel.textContent = airDensityReadout(this.monkey.altitude);
             }
 
             attemptGrab() {

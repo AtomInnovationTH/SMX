@@ -43,6 +43,7 @@ const {
   GAME_OVER_INPUT_GATE_MS,
   RESTART_CONFIRM_MS,
   thermalStep,
+  airDensityReadout,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -58,7 +59,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
-    couplingTier, upgradeCrossed, restartPressDecision, thermalStep,
+    couplingTier, upgradeCrossed, restartPressDecision, thermalStep, airDensityReadout,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -1121,4 +1122,40 @@ test('thermalStep: a fresh run starting above the top suit announces only the to
   assert.equal(s.tier, 2);
   assert.equal(s.announce, true);
   assert.equal(s.label, SUIT2.label);
+});
+
+// ---------------------------------------------------------------------------
+// airDensityReadout (shift 7, task 12) — formatted air-density HUD string.
+// Behaviour identical to the pre-refactor inline block; only the guard moved.
+// ---------------------------------------------------------------------------
+test('airDensityReadout: sea level / negative behave as 0 -> 100.0%', () => {
+  assert.equal(airDensityReadout(0), '100.0%');
+  assert.equal(airDensityReadout(-5000), '100.0%'); // densityRatio clamps below ground
+});
+
+test('airDensityReadout: mid-stratosphere uses exponential; >= 100 km is ~0%', () => {
+  const mid = airDensityReadout(40000);
+  assert.match(mid, /^\d\.\de[-+]\d+%$/); // e.g. 1.x e-1 %
+  assert.equal(airDensityReadout(100000), '~0%');
+  assert.equal(airDensityReadout(200000), '~0%');
+});
+
+test('airDensityReadout: the 1% and 0.001% boundaries land on the higher band (>=)', () => {
+  const isFixed = (s) => /%$/.test(s) && !/[eE]/.test(s);
+  const isExp = (s) => /e[-+]\d+%$/.test(s);
+  let a1 = -1, a2 = -1;
+  for (let m = 1; m < 100000; m++) {
+    if (a1 === -1 && !isFixed(airDensityReadout(m))) a1 = m;   // first non-fixed-% (1% crossing)
+    if (a2 === -1 && airDensityReadout(m) === '~0%') a2 = m;    // first ~0% (0.001% crossing)
+    if (a1 !== -1 && a2 !== -1) break;
+  }
+  assert.ok(a1 > 0 && a2 > a1, `expected 1% then 0.001% crossing (a1=${a1}, a2=${a2})`);
+  // Just below the 1% boundary the readout is still fixed-% with pct >= 1 (inclusive >=).
+  assert.ok(isFixed(airDensityReadout(a1 - 1)));
+  assert.ok(densityRatio(a1 - 1) * 100 >= 1);
+  assert.ok(isExp(airDensityReadout(a1)));
+  // Just below the 0.001% boundary the readout is still exponential with pct >= 0.001.
+  assert.ok(isExp(airDensityReadout(a2 - 1)));
+  assert.ok(densityRatio(a2 - 1) * 100 >= 0.001);
+  assert.equal(airDensityReadout(a2), '~0%');
 });
