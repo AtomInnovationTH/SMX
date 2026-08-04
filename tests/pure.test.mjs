@@ -38,6 +38,7 @@ const {
   materialDampingFor,
   scaleSettingValue,
   couplingTier,
+  couplingColor,
   upgradeCrossed,
   restartPressDecision,
   GAME_OVER_INPUT_GATE_MS,
@@ -60,8 +61,8 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
-    couplingTier, upgradeCrossed, restartPressDecision, thermalStep, airDensityReadout,
-    cargoDeliveryCredit,
+    couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
+    airDensityReadout, cargoDeliveryCredit,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -84,11 +85,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 24 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 25 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 24);
+  assert.equal(declaredPureHelpers().length, 25);
 });
 
 // ---------------------------------------------------------------------------
@@ -1033,6 +1034,15 @@ test('couplingTier: glyph, flash colour and badge colour agree by construction',
     assert.notEqual(GameConfig.GRAB[tier.toUpperCase() + '_COLOR'], undefined,
       `flash colour for tier ${tier} at q=${q}`);
   }
+});
+
+test('couplingColor returns the GRAB colour for the correct tier at every boundary', () => {
+  // The badge bar and the continuous flash both call couplingColor, so the tier->colour
+  // map lives in exactly one place.
+  assert.equal(couplingColor(GameConfig.COUPLING.PERFECT_QUALITY), GameConfig.GRAB.PERFECT_COLOR);
+  assert.equal(couplingColor(GameConfig.COUPLING.GOOD_QUALITY), GameConfig.GRAB.GOOD_COLOR);
+  assert.equal(couplingColor(GameConfig.COUPLING.GOOD_QUALITY - 1e-9), GameConfig.GRAB.POOR_COLOR);
+  assert.equal(couplingColor(1), GameConfig.GRAB.PERFECT_COLOR);
 });
 
 // ---------------------------------------------------------------------------

@@ -49,6 +49,7 @@ const EXPORTED_SYMBOLS = [
   'materialDampingFor',
   'scaleSettingValue',
   'couplingTier',
+  'couplingColor',
   'upgradeCrossed',
   'restartPressDecision',
   'GAME_OVER_INPUT_GATE_MS',

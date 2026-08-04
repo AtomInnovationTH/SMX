@@ -80,7 +80,7 @@ loudly** if a declared helper is missing from `EXPORTED_SYMBOLS`, so a forgotten
 turns red instead of silently reading `undefined`. **Declare helpers with the `function`
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, but writing a helper as
-`const foo = (x) => …` is still against convention; keep the 24-helper count assertion in
+`const foo = (x) => …` is still against convention; keep the 25-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 

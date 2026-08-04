@@ -746,6 +746,13 @@
             return 'poor';
         }
 
+        // UX/SIM: the colour for a coupling-quality value, derived from couplingTier so the
+        // flash, the colorblind glyph and the badge bar always share one tier->colour map
+        // (GRAB.PERFECT/GOOD/POOR_COLOR). Pure w.r.t. GameConfig, like couplingTier.
+        function couplingColor(quality) {
+            return GameConfig.GRAB[couplingTier(quality).toUpperCase() + '_COLOR'];
+        }
+
         // SIM: did the climber cross this upgrade's altitude since the previous frame? A
         // fixed window is unsafe because one clamped 0.1 s step can advance further than the
         // window. A crossing test is frame-size independent: the upgrade is collected the
@@ -2061,7 +2068,7 @@
                 impulse *= weightFactor;
 
                 let flashColor;
-                flashColor = GameConfig.GRAB[couplingTier(quality).toUpperCase() + '_COLOR'];
+                flashColor = couplingColor(quality);
 
                 return { impulse, quality, flashColor };
             }
@@ -3620,7 +3627,7 @@
                 // follows the Okabe-Ito colorblind palette and cannot drift.
                 if (this.lastGrabQuality > 0) {
                     const fillWidth = phaseBarWidth * this.lastGrabQuality;
-                    const phaseColor = GameConfig.GRAB[couplingTier(this.lastGrabQuality).toUpperCase() + '_COLOR'];
+                    const phaseColor = couplingColor(this.lastGrabQuality);
                     ctx.fillStyle = phaseColor;
                     ctx.fillRect(phaseBarX, phaseBarY, fillWidth, phaseBarHeight);
                 }
