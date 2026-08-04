@@ -3472,7 +3472,7 @@
                 const monkeyImage = this.monkey.isGrabbing ? this.monkeyGrabbingImage : this.monkeyFallingImage;
                 
                 // Draw the cute monkey SVG behind the badge with dynamic pose
-                if (monkeyImage && monkeyImage.complete) {
+                if (monkeyImage && monkeyImage.complete && monkeyImage.naturalWidth) {
                     ctx.save();
                     ctx.shadowBlur = GameConfig.RENDER.SHADOW_BLUR.MONKEY;
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
