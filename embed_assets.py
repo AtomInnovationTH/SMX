@@ -2,6 +2,7 @@
 import base64
 import re
 import os
+import sys
 
 # The one place the asset folder is named. Every other reference below is
 # derived from this, so a future rename touches a single line.
@@ -21,6 +22,21 @@ referenced = set(re.findall(rf"{re.escape(ASSET_DIR)}/([A-Za-z0-9._-]+)", html))
 # ASSET_BASE_PATH + 'filename' references are inlined by name later, so include
 # those filenames too.
 referenced |= set(re.findall(r"ASSET_BASE_PATH \+ ['\"]([^'\"]+)['\"]", html))
+
+# Guard (shift 7, task 14): every referenced literal filename must exist on disk. The
+# encode loop below only visits on-disk, referenced files, so a typo'd/missing filename
+# would otherwise produce NO output and NO warning while silently stripping the reference.
+# Fail loudly here instead of shipping a broken artifact.
+on_disk = {
+    fname for fname in os.listdir(ASSET_DIR)
+    if os.path.isfile(os.path.join(ASSET_DIR, fname))
+}
+missing_refs = referenced - on_disk
+if missing_refs:
+    print(f"ERROR: assets referenced in source are missing on disk under '{ASSET_DIR}/':")
+    for name in sorted(missing_refs):
+        print(f"  - {name}")
+    sys.exit(1)
 
 assets = {}
 skipped = []
@@ -60,7 +76,9 @@ for filename in sorted(os.listdir(ASSET_DIR)):
 print(f'Skipped {len(skipped)} runtime-loaded files (not inlined by design)')
 
 # Replace all asset references
+replacements = 0
 for path, data_uri in assets.items():
+    prev_len = len(html)
     # Replace in url() references
     html = html.replace(f"url('{path}')", f"url('{data_uri}')")
     html = html.replace(f'url("{path}")', f'url("{data_uri}")')
@@ -73,6 +91,17 @@ for path, data_uri in assets.items():
     # Replace string references (for JavaScript)
     html = html.replace(f"'{path}'", f"'{data_uri}'")
     html = html.replace(f'"{path}"', f'"{data_uri}"')
+
+    if len(html) != prev_len:
+        replacements += 1
+
+# Guard (shift 7, task 14): the literal-path loop must have replaced at least one
+# reference. If it replaced nothing, the source's reference format has changed under
+# this build script — fail loudly rather than silently emit a stale artifact.
+if replacements == 0:
+    print("ERROR: no literal asset references were replaced — the source's reference")
+    print("       format likely changed. Update embed_assets.py before shipping.")
+    sys.exit(1)
 
 # Also handle ASSET_BASE_PATH + filename pattern
 # Find all occurrences like ASSET_BASE_PATH + 'filename.webp'
@@ -87,6 +116,17 @@ for filename in set(matches):
             f"'{assets[full_path]}'",
             html
         )
+
+# Guard (shift 7, task 14): if any ASSET_BASE_PATH reference survives to here, deleting
+# the const below would ship a ReferenceError and CloudSystem would die at boot. Fail
+# loudly and name the offending (likely missing/renamed) cloud files.
+leftover = re.findall(pattern, html)
+if leftover:
+    print("ERROR: ASSET_BASE_PATH references survived inlining; removing the const would")
+    print("       ship a ReferenceError. Missing/renamed ASSET_BASE_PATH-referenced files:")
+    for name in sorted(set(leftover)):
+        print(f"  - {name}")
+    sys.exit(1)
 
 # Remove the ASSET_BASE_PATH constant since it's no longer needed
 html = re.sub(r"const ASSET_BASE_PATH = ['\"][^'\"]*['\"];\s*", '', html)
