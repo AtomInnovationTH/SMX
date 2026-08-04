@@ -173,3 +173,36 @@ export function declaredPureHelpers() {
 export function exportedSymbols() {
   return EXPORTED_SYMBOLS.slice();
 }
+
+// Scrape the settings sliders out of the source HTML (shift 7, task 1). SpaceMonkeyGame
+// cannot be instantiated in tests (no DOM), so this reads, per slider id: the static
+// <input> value/min/max/step, the static <span id="...Value"> label text, and the matching
+// entry from initGame()'s sliderDefaults object literal. A test diffs these for internal
+// consistency and asserts that scaleSettingValue()/logSliderToFreq() map the raw default
+// back onto the simulation default, so the next drifted default fails loudly.
+export function sliderDefaults() {
+  const html = readFileSync(SOURCE_HTML, 'utf8');
+  const ids = ['frequency', 'amplitude', 'width', 'tension', 'grip', 'gravity', 'weight'];
+  const out = {};
+  for (const id of ids) {
+    const inputMatch = html.match(new RegExp(`<input type="range" id="${id}"([^>]*)>`));
+    const attrs = {};
+    if (inputMatch) {
+      const attrRe = /([\w-]+)="([^"]*)"/g;
+      let m;
+      while ((m = attrRe.exec(inputMatch[1])) !== null) attrs[m[1]] = m[2];
+    }
+    const labelMatch = html.match(new RegExp(`<span id="${id}Value">([^<]*)</span>`));
+    const initMatch = html.match(new RegExp(`${id}:\\s*\\{\\s*value:\\s*([^,]+),\\s*label:\\s*'([^']*)'`));
+    out[id] = {
+      inputValue: attrs.value,
+      min: attrs.min,
+      max: attrs.max,
+      step: attrs.step,
+      staticLabel: labelMatch ? labelMatch[1] : null,
+      initValue: initMatch ? Number(initMatch[1]) : null,
+      initLabel: initMatch ? initMatch[2] : null,
+    };
+  }
+  return out;
+}

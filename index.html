@@ -337,8 +337,8 @@
             <small class="setting-hint">Pulls the climber down; you beat it only by coupling to the wave.</small>
         </div>
         <div class="slider-container">
-            <label>Weight: <span id="weightValue">1 kg</span></label>
-            <input type="range" id="weight" min="0.2" max="200" step="0.2" value="1">
+            <label>Weight: <span id="weightValue">50 kg</span></label>
+            <input type="range" id="weight" min="0.2" max="200" step="0.2" value="50">
             <small class="setting-hint">Climber + cargo. Heavier needs more momentum per metre, but cargo delivered to 100 km is your score.</small>
         </div>
 
@@ -2717,7 +2717,7 @@
                     tension:    { value: 100,    label: '100 kg' },
                     grip:       { value: 20,     label: '20%' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
-                    weight:     { value: 1,      label: '1 kg' }
+                    weight:     { value: 50,     label: '50 kg' }
                 };
                 Object.entries(sliderDefaults).forEach(([id, def]) => {
                     const el = document.getElementById(id);
