@@ -71,6 +71,21 @@ jobs:
         with:
           path: '_site'
 
+  smoke:
+    # ADVISORY ONLY. The unit suite cannot boot the game (extract.mjs stubs the DOM), so this
+    # is the only pre-deploy signal that index.html actually runs. It must never block a
+    # deploy: `continue-on-error` is set and `deploy` does not list this job in `needs`.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: npm --prefix tests/smoke i -D playwright-core
+      - run: npx --prefix tests/smoke playwright install --with-deps chromium
+      - run: node tests/smoke/smoke.mjs
+
   deploy:
     # Only deploy on pushes to main, not on PRs.
     if: github.event_name == 'push'
