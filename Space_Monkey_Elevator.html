@@ -3517,11 +3517,12 @@
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.fillRect(phaseBarX, phaseBarY, phaseBarWidth, phaseBarHeight);
                 
-                // Fill bar based on grab quality
+                // Fill bar based on grab quality. Colour comes from the same
+                // couplingTier -> GRAB.*_COLOR path the flash and glyph use, so it
+                // follows the Okabe-Ito colorblind palette and cannot drift.
                 if (this.lastGrabQuality > 0) {
                     const fillWidth = phaseBarWidth * this.lastGrabQuality;
-                    const phaseColor = this.lastGrabQuality > 0.8 ? '#00FF00' :
-                                      this.lastGrabQuality > 0.5 ? '#FFD700' : '#FFA500';
+                    const phaseColor = GameConfig.GRAB[couplingTier(this.lastGrabQuality).toUpperCase() + '_COLOR'];
                     ctx.fillStyle = phaseColor;
                     ctx.fillRect(phaseBarX, phaseBarY, fillWidth, phaseBarHeight);
                 }
