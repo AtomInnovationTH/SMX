@@ -486,7 +486,12 @@
         }
         
         function _persistSettings() {
-            try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ colorblind: _uxColorblind, reducedMotion: _uxReducedMotion })); } catch(e) {}
+            // Only colorblind is user-set and worth persisting. reducedMotion is NOT
+            // persisted here by design: it should always follow the live
+            // prefers-reduced-motion media query each load (there is no in-UI control for
+            // it), and baking a stale value over the OS setting is a bug. If a future
+            // shift adds a reduced-motion control, persistence comes back with it.
+            try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ colorblind: _uxColorblind })); } catch(e) {}
         }
         // ===== END UX CONSTANTS ===== //
         
@@ -3891,7 +3896,6 @@
             try {
                 const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}');
                 if (saved.colorblind !== undefined) _uxColorblind = saved.colorblind;
-                if (saved.reducedMotion !== undefined) _uxReducedMotion = saved.reducedMotion;
             } catch(e) {}
 
             // SIM: restore the coupling-model preference (defaults to the pulse model).
