@@ -105,8 +105,10 @@ python3 embed_assets.py
 
 ## 🏷️ Step 7: Create Version Tags
 
-**Status:** ✅ Done — `v1.0.0` was moved onto the final tree (2026-08-04). The commands below
-are kept as reference; the first `git tag -f` line is what re-moves it onto any future HEAD.
+**Status:** ✅ Done — `v1.0.0` marks the v1.0.0 release commit (2026-08-04). Post-release
+refactors and tests continue to land on `main` ahead of the tag; `v1.0.0` is the fixed
+release marker, not a moving HEAD. The commands below are kept as reference; the first
+`git tag -f` line is what would re-move it onto a chosen future commit.
 
 ```bash
 # Tag the current version (force-move the existing v1.0.0 onto HEAD)
@@ -165,7 +167,7 @@ Once you complete the action-required steps above:
 - [x] Step 4: GitHub Pages ✅ Done — Source: GitHub Actions (see Step 4 above)
 - [x] Step 5: Add repository metadata ✅ Done (applied at repo recreation, 2026-08-03)
 - [x] Step 6: Upload asset files ✅ Done (assets are committed; check `git status` clean)
-- [x] Step 7: Create version tags ✅ Done (moved `v1.0.0` onto HEAD, 2026-08-04)
+- [x] Step 7: Create version tags ✅ Done (`v1.0.0` marks the v1.0.0 release commit, 2026-08-04; `main` has since moved ahead with post-release refactors)
 - [ ] Step 8: Cross-link GMX repo (update GMX README) — external/owner-only, cannot be done from this repo
 
 ---

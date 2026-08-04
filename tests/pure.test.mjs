@@ -7,7 +7,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGameModule } from './extract.mjs';
+import { loadGameModule, declaredPureHelpers, exportedSymbols } from './extract.mjs';
 
 const game = loadGameModule();
 const {
@@ -33,6 +33,10 @@ const {
   coldGripFactor,
   altimeterLandmarkAt,
   epmChargeStep,
+  milestoneMarkerAt,
+  shouldTriggerGameOver,
+  materialDampingFor,
+  scaleSettingValue,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -47,8 +51,26 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
+    milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
+  }
+});
+
+// Fail loudly when a pure helper is declared in the delimited source block but not
+// added to EXPORTED_SYMBOLS — the silent-undefined footgun in the three-edit ritual.
+test('every function in the pure-helpers block is exported for testing', () => {
+  const declared = declaredPureHelpers();
+  const exported = new Set(exportedSymbols());
+  const missing = declared.filter((name) => !exported.has(name));
+  assert.deepEqual(
+    missing,
+    [],
+    `pure helpers declared but not exported (add to EXPORTED_SYMBOLS in extract.mjs): ${missing.join(', ')}`,
+  );
+  // And the reverse: nothing in EXPORTED_SYMBOLS is a phantom that no longer exists.
+  for (const name of exportedSymbols()) {
+    assert.notEqual(game[name], undefined, `EXPORTED_SYMBOLS entry "${name}" resolved to undefined`);
   }
 });
 
@@ -875,4 +897,71 @@ test('camera: shake displacement is bounded by ±intensity/2', () => {
   } finally {
     Math.random = origRandom;
   }
+});
+
+// ---------------------------------------------------------------------------
+// milestoneMarkerAt (2a) — distance-milestone decision
+// ---------------------------------------------------------------------------
+test('milestone: crosses the exact km boundary and only when not yet passed', () => {
+  const none = () => false;
+  // Below the first interval there is no milestone 0.
+  assert.equal(milestoneMarkerAt(999, 1000, none), null);
+  assert.equal(milestoneMarkerAt(0, 1000, none), null);
+  // Exactly at 1000 m -> marker 1.
+  assert.equal(milestoneMarkerAt(1000, 1000, none), 1);
+  assert.equal(milestoneMarkerAt(1999.9, 1000, none), 1);
+  assert.equal(milestoneMarkerAt(2000, 1000, none), 2);
+  // Negative altitude never yields a milestone.
+  assert.equal(milestoneMarkerAt(-5000, 1000, none), null);
+});
+
+test('milestone: an already-passed marker is not re-reported', () => {
+  const passed1 = (km) => km === 1;
+  assert.equal(milestoneMarkerAt(1500, 1000, passed1), null); // 1 already passed
+  assert.equal(milestoneMarkerAt(2500, 1000, passed1), 2);     // 2 is new
+});
+
+// ---------------------------------------------------------------------------
+// shouldTriggerGameOver (2e) — run ends only after a real climb
+// ---------------------------------------------------------------------------
+test('gameover: a fresh spawn on the ground is not a loss', () => {
+  // maxAltitude never exceeded the minimum -> ground contact is harmless.
+  assert.equal(shouldTriggerGameOver(10, 0, false, 50), false);
+  assert.equal(shouldTriggerGameOver(50, 0, false, 50), false);   // must strictly exceed min
+  assert.equal(shouldTriggerGameOver(0, 0, false, 50), false);
+});
+
+test('gameover: climbing above the min then returning to ground ends the run, once', () => {
+  assert.equal(shouldTriggerGameOver(120, 0, false, 50), true);
+  assert.equal(shouldTriggerGameOver(120, -3, false, 50), true);  // below ground counts too
+  // Already over -> do not retrigger.
+  assert.equal(shouldTriggerGameOver(120, 0, true, 50), false);
+  // Still airborne -> not yet.
+  assert.equal(shouldTriggerGameOver(120, 5, false, 50), false);
+});
+
+// ---------------------------------------------------------------------------
+// materialDampingFor (B.8) — stiffness -> swing damping
+// ---------------------------------------------------------------------------
+test('material damping: stiffer material swings less (monotonic in GPa)', () => {
+  const { DAMPING_BASE, DAMPING_PER_GPA } = GameConfig.TETHER;
+  approx(materialDampingFor(0), DAMPING_BASE, 1e-12);
+  approx(materialDampingFor(300), DAMPING_BASE - 300 * DAMPING_PER_GPA, 1e-12);
+  approx(materialDampingFor(300), 1.0, 1e-12);              // CC-CNT default sits at 1.0
+  approx(materialDampingFor(50), 1.3 - 50 * 0.001, 1e-12);  // graphene damps most (loosest)
+  assert.ok(materialDampingFor(300) < materialDampingFor(50));
+});
+
+// ---------------------------------------------------------------------------
+// scaleSettingValue — slider raw -> sim value for the divided scales
+// ---------------------------------------------------------------------------
+test('scaleSettingValue: divided scales use SETTINGS_SCALE, others pass through', () => {
+  const { AMPLITUDE, WIDTH, GRIP } = GameConfig.SETTINGS_SCALE;
+  approx(scaleSettingValue('amplitude', 70), 70 / AMPLITUDE, 1e-12);
+  approx(scaleSettingValue('width', 45), 45 / WIDTH, 1e-12);
+  approx(scaleSettingValue('grip', 20), 20 / GRIP, 1e-12);
+  // Unscaled keys and unknown keys are returned unchanged.
+  assert.equal(scaleSettingValue('tension', 123), 123);
+  assert.equal(scaleSettingValue('gravity', 1.5), 1.5);
+  assert.equal(scaleSettingValue('nonsense', 7), 7);
 });

@@ -122,4 +122,4 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 
 ---
 
-> ⚠️ **Project status: archived / not actively maintained.** Issues and PRs may not receive responses. Forks are welcome — see [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+> ℹ️ **Project status: feature-complete.** The game is done and deploys automatically to GitHub Pages on every green push to `main`. It is not under active feature development, so issues and PRs may not receive responses — forks are welcome (see [CONTRIBUTING.md](.github/CONTRIBUTING.md)).

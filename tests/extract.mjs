@@ -44,6 +44,10 @@ const EXPORTED_SYMBOLS = [
   'coldGripFactor',
   'altimeterLandmarkAt',
   'epmChargeStep',
+  'milestoneMarkerAt',
+  'shouldTriggerGameOver',
+  'materialDampingFor',
+  'scaleSettingValue',
 ];
 
 // Pull out the body of the single largest <script> block.
@@ -140,4 +144,32 @@ export function loadGameModule() {
   }
   _cached = exported;
   return exported;
+}
+
+// The delimited pure-helpers block markers in the source HTML. Everything between
+// them is expected to be a top-level pure function that the harness can export.
+const PURE_BLOCK_START = '===== PURE SIM HELPERS';
+const PURE_BLOCK_END = '===== END PURE SIM HELPERS';
+
+// Scan the delimited pure-helpers block for `function <name>(` declarations and
+// return the declared names. Lets a test fail loudly when a helper is added to the
+// block but forgotten in EXPORTED_SYMBOLS (the three-edit ritual, DEVELOPERS.md).
+export function declaredPureHelpers() {
+  const html = readFileSync(SOURCE_HTML, 'utf8');
+  const start = html.indexOf(PURE_BLOCK_START);
+  const end = html.indexOf(PURE_BLOCK_END);
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('extract.mjs: pure-helpers block markers not found in source HTML');
+  }
+  const block = html.slice(start, end);
+  const names = [];
+  const re = /^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+  let m;
+  while ((m = re.exec(block)) !== null) names.push(m[1]);
+  return names;
+}
+
+// The exported list, exposed so a test can diff it against declaredPureHelpers().
+export function exportedSymbols() {
+  return EXPORTED_SYMBOLS.slice();
 }

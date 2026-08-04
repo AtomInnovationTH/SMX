@@ -41,13 +41,18 @@
         body.webgl-fallback { background: linear-gradient(to top, #1a2a6c 0%, #2c5364 35%, #0f2027 70%, #000010 100%); }
         body.webgl-fallback #bgCanvas { display: none; }
         #clouds-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 11; }
-        .cloud-layer { position: absolute; opacity: 1; pointer-events: none; }
+        .cloud-layer { position: absolute; top: 0; opacity: 1; pointer-events: none; transform: translateX(-50%) translateY(var(--screen-y, 0px)); will-change: transform; }
         #landmarks-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
-        .landmark { position: absolute; font-size: 19px; line-height: 1.3em; text-align: center; transform: translateY(-100%); z-index: 4; pointer-events: none; }
-        
+        /* Vertical position is driven by the --screen-y custom property (updated per frame),
+           folded into transform so only compositing runs — never layout. top stays 0. The
+           horizontal anchor is fixed per landmark and set once via a modifier class, so the
+           per-frame update writes only --screen-y. */
+        .landmark { position: absolute; top: 0; font-size: 19px; line-height: 1.3em; text-align: center; transform: translateY(calc(var(--screen-y, 0px) - 100%)); z-index: 4; pointer-events: none; will-change: transform; }
+        .landmark.anchor-center { transform: translateX(-50%) translateY(calc(var(--screen-y, 0px) - 100%)); }
+
         .landmark.full-width {
             left: 50% !important;
-            transform: translateX(-50vw) translateY(-100%) !important;
+            transform: translateX(-50vw) translateY(calc(var(--screen-y, 0px) - 100%)) !important;
             width: 100vw !important;
         }
         
@@ -665,6 +670,45 @@
             if (brownout && next >= GameConfig.EPM.BROWNOUT_RECOVER) brownout = false;
             const netPerSec = dt > 0 ? (next - charge) / dt : 0;
             return { charge: next, brownout, tripped, netPerSec };
+        }
+
+        // SIM (2a): which distance milestone (if any) this altitude crosses. Pure: the
+        // orchestrator owns the `milestonesPassed` Set mutation and the shake/particle
+        // side effects; this just decides the marker. Returns the integer km marker to
+        // record, or null when there is nothing new to celebrate. Milestone 0 (the
+        // ground) is never a milestone — currentKm must be positive AND not yet passed.
+        function milestoneMarkerAt(altitude, intervalM, alreadyPassed) {
+            const km = Math.floor(altitude / intervalM);
+            if (km > 0 && !alreadyPassed(km)) return km;
+            return null;
+        }
+
+        // SIM (2e): game-over predicate — the run ends only after a real climb, so a
+        // fresh spawn sitting on the ground is not a loss. Fires when the climber has
+        // previously been above the minimum altitude and is now back at/below ground.
+        // The orchestrator owns setting `gameOver`/`gameOverTime` and showing the overlay.
+        function shouldTriggerGameOver(maxAltitude, altitude, alreadyOver, minAltitude) {
+            return maxAltitude > minAltitude && altitude <= 0 && !alreadyOver;
+        }
+
+        // SIM (Stage 2 / B.8): material-stiffness -> swing damping mapping. Stiffer
+        // (higher-GPa) material swings less, so the damping multiplier falls linearly
+        // with GPa. Kept pure so the settings:material handler and tests share the curve.
+        function materialDampingFor(gpa) {
+            return GameConfig.TETHER.DAMPING_BASE - (gpa * GameConfig.TETHER.DAMPING_PER_GPA);
+        }
+
+        // UX (settings): slider raw-value -> simulation-value mapping for the divided
+        // scales (amplitude/width/grip). Frequency, tension, gravity, weight and material
+        // pass through unscaled, so they are handled inline by their handlers. Returns
+        // the scaled value, or the raw value unchanged for an unscaled/unknown key.
+        function scaleSettingValue(name, raw) {
+            switch (name) {
+                case 'amplitude': return raw / GameConfig.SETTINGS_SCALE.AMPLITUDE;
+                case 'width':     return raw / GameConfig.SETTINGS_SCALE.WIDTH;
+                case 'grip':      return raw / GameConfig.SETTINGS_SCALE.GRIP;
+                default:          return raw;
+            }
         }
         // ===== END PURE SIM HELPERS ===== //
 
@@ -1351,7 +1395,6 @@
                         maxWidth: (cloud.maxWidth && !cloud.width.includes('vw')) ? cloud.maxWidth : undefined,
                         minWidth: cloud.minWidth,
                         left: '50%',
-                        transform: 'translateX(-50%)',
                         opacity: cloud.opacity || '1',
                         pointerEvents: 'none'
                     };
@@ -1381,7 +1424,7 @@
                         cloud._wasVisible = visible;
                     }
                     if (!visible) return;
-                    cloud.element.style.top = `${screenY}px`;
+                    cloud.element.style.setProperty('--screen-y', `${screenY}px`);
                     const opacity = actualAltDiff < fadeStart ? 1 :
                                    1 - ((actualAltDiff - fadeStart) / 5000);
                     cloud.element.style.opacity = opacity * (parseFloat(cloud.opacity) || 1);
@@ -1432,6 +1475,22 @@
                         imgEl.onload = () => { if (window.loadingManager) window.loadingManager.loaded(); };
                         imgEl.onerror = () => { if (window.loadingManager) window.loadingManager.loaded(); };
                     }
+                    // Horizontal anchor is fixed per landmark (its side and offset index derive
+                    // only from altitude/width), so set it once here; per-frame update then only
+                    // writes --screen-y. Mirrors the offset math formerly in update().
+                    if (!landmark.fullWidth) {
+                        const w = typeof landmark.width === 'number' ? landmark.width : 200;
+                        const positions = w > 500 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_LARGE : w > 350 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_MEDIUM : w > 200 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_SMALL : VISUAL_CONSTANTS.LANDMARK_POSITIONS_TINY;
+                        const idx = Math.floor(landmark.altitude / 100) % positions.length;
+                        if (landmark.position === 'left') {
+                            div.style.left = positions[idx];
+                        } else if (landmark.position === 'right') {
+                            div.style.right = positions[idx];
+                        } else {
+                            div.style.left = '50%';
+                            div.classList.add('anchor-center');
+                        }
+                    }
                     div.dataset.altitude = landmark.altitude;
                     div.dataset.width = landmark.width;
                     this.container.appendChild(div);
@@ -1474,28 +1533,10 @@
                     if (screenY > -bufferSize && screenY < screenHeight + bufferSize) {
                         landmark.element.style.display = 'block';
                         landmark.element.style.opacity = '1';
-                        landmark.element.style.top = `${screenY}px`;
+                        // Only the vertical position changes per frame; the horizontal anchor was
+                        // fixed at creation. Writing the custom property triggers compositing only.
+                        landmark.element.style.setProperty('--screen-y', `${screenY}px`);
                         landmark.element.style.color = landmark.altitude > 1500 ? 'white' : '#1c1c1c';
-                        
-                        if (!landmark.fullWidth) {
-                            const w = typeof landmark.width === 'number' ? landmark.width : 200;
-                            const positions = w > 500 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_LARGE : w > 350 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_MEDIUM : w > 200 ? VISUAL_CONSTANTS.LANDMARK_POSITIONS_SMALL : VISUAL_CONSTANTS.LANDMARK_POSITIONS_TINY;
-                            const idx = Math.floor(landmark.altitude / 100) % positions.length;
-                            
-                            if (landmark.position === 'left') {
-                                landmark.element.style.left = positions[idx];
-                                landmark.element.style.right = 'auto';
-                            } else if (landmark.position === 'right') {
-                                landmark.element.style.right = positions[idx];
-                                landmark.element.style.left = 'auto';
-                            } else {
-                                landmark.element.style.left = '50%';
-                                landmark.element.style.right = 'auto';
-                                landmark.element.style.transform = 'translate(-50%, -100%)';
-                                return;
-                            }
-                            landmark.element.style.transform = 'translateY(-100%)';
-                        }
                     } else {
                         landmark.element.style.opacity = '0';
                         landmark.element.style.display = 'none';
@@ -2694,10 +2735,10 @@
                     if (this.waveSystem) this.waveSystem.cachedColor = null;
                 });
                 this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) this.waveSystem.frequency = data.value; });
-                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = data.value / GameConfig.SETTINGS_SCALE.AMPLITUDE; });
-                this.eventBus.on('settings:width', (data) => { this.vineWidth = data.value / GameConfig.SETTINGS_SCALE.WIDTH; this.updateDerivedReadouts(); });
+                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = scaleSettingValue('amplitude', data.value); });
+                this.eventBus.on('settings:width', (data) => { this.vineWidth = scaleSettingValue('width', data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
-                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = data.value / GameConfig.SETTINGS_SCALE.GRIP; });
+                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = scaleSettingValue('grip', data.value); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
                 
@@ -2706,7 +2747,7 @@
                     // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.3
                     const gpa = data.value;
                     this.materialGpa = gpa;                 // feeds waveEnergyFactor attenuation (Q-P3)
-                    this.materialDamping = GameConfig.TETHER.DAMPING_BASE - (gpa * GameConfig.TETHER.DAMPING_PER_GPA);
+                    this.materialDamping = materialDampingFor(gpa);
                     this.updateDerivedReadouts();
                 });
                 
@@ -3131,10 +3172,10 @@
                 }
                 
                 // UX: distance milestones every MILESTONE_INTERVAL_M (2a)
-                const currentKm = Math.floor(this.monkey.altitude / MILESTONE_INTERVAL_M);
-                if (currentKm > 0 && !this.milestonesPassed.has(currentKm)) {
-                    this.milestonesPassed.add(currentKm);
-                    this.triggerMilestone(`${currentKm}km`);
+                const milestoneKm = milestoneMarkerAt(this.monkey.altitude, MILESTONE_INTERVAL_M, (km) => this.milestonesPassed.has(km));
+                if (milestoneKm !== null) {
+                    this.milestonesPassed.add(milestoneKm);
+                    this.triggerMilestone(`${milestoneKm}km`);
                 }
                 
                 // UX: altimeter landmark detection + milestone trigger (2d, 2a)
@@ -3155,7 +3196,7 @@
                 }
                 
                 // UX: game-over detection (2e) — fell back to ground after climbing
-                if (this.maxAltitude > GAME_OVER_MIN_ALT && this.monkey.altitude <= 0 && !this.gameOver) {
+                if (shouldTriggerGameOver(this.maxAltitude, this.monkey.altitude, this.gameOver, GAME_OVER_MIN_ALT)) {
                     this.showGameOver();
                     return;
                 }

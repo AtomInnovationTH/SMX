@@ -55,7 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dt`, shake decay/floor/max semantics, and `±intensity/2` displacement bounds.
   (Camera has no look-ahead and no clamping; an earlier plan mislabelled those as
   untested — they do not exist.)
-
 - **Exercise shipped code, not reimplementations** — the B.14 drag test and the
   altimeter boundary test now drive the real `applyGravityAndDrag` /
   `applyEddyDrag` and the extracted `altimeterLandmarkAt` function.
