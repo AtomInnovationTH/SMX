@@ -42,6 +42,7 @@ const {
   restartPressDecision,
   GAME_OVER_INPUT_GATE_MS,
   RESTART_CONFIRM_MS,
+  thermalStep,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -57,7 +58,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
-    couplingTier, upgradeCrossed, restartPressDecision,
+    couplingTier, upgradeCrossed, restartPressDecision, thermalStep,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -1073,4 +1074,51 @@ test('restart: in play and not armed -> arm; armed within the window (inclusive)
   assert.equal(restart({ now: t + RESTART_CONFIRM_MS, armedAt: t }), 'restart');                      // exactly (inclusive <=)
   assert.equal(restart({ now: t + RESTART_CONFIRM_MS + 1, armedAt: t }), 'arm');                      // expiry re-arms
   assert.equal(restart({ now: 1e9, armedAt: 0 }), 'arm');                                             // never armed
+});
+
+// ---------------------------------------------------------------------------
+// thermalStep (shift 7, task 11) — one-frame temperature/suit decision.
+// Behaviour identical to the pre-refactor updateThermal; only the presentation
+// ('🧥 ' prefix) and the _thermalTier read-before-write live in the orchestrator.
+// ---------------------------------------------------------------------------
+const [SUIT0, SUIT1, SUIT2] = GameConfig.THERMAL.SUITS;
+test('thermalStep: a monotonic climb announces exactly once per tier', () => {
+  // Bare -> flight suit at s0; stepping a hair past each tier boundary announces once.
+  let prevTier = -1, announces = 0;
+  for (const alt of [0, SUIT0.altitude, SUIT0.altitude + 1, SUIT1.altitude, SUIT1.altitude + 1, SUIT2.altitude, SUIT2.altitude + 1e5]) {
+    const s = thermalStep(alt, prevTier);
+    prevTier = s.tier;
+    if (s.announce) announces++;
+  }
+  assert.equal(announces, 3); // one per suit tier
+});
+
+test('thermalStep: descent never announces and same-tier never announces', () => {
+  // Descending from full space suit back to ground.
+  let prevTier = 2;
+  for (const alt of [SUIT2.altitude, SUIT1.altitude, SUIT0.altitude, 0]) {
+    const s = thermalStep(alt, prevTier);
+    assert.equal(s.announce, false);
+    prevTier = s.tier;
+  }
+  // Same tier still doesn't announce.
+  assert.equal(thermalStep(SUIT0.altitude, 0).announce, false);
+});
+
+test('thermalStep: below the first suit -> tier -1, no label, bare shivering floor', () => {
+  const s = thermalStep(0, -1);
+  assert.equal(s.tier, -1);
+  assert.equal(s.label, null);
+  assert.equal(s.tempC, temperatureAtAltitude(0)); // 15
+  // coldFactor uses BARE_SHIVERING_AT and sits in [1 - PENALTY_CAP, 1].
+  approx(s.coldFactor, coldGripFactor(temperatureAtAltitude(0), GameConfig.THERMAL.BARE_SHIVERING_AT), 1e-12);
+  assert.ok(s.coldFactor >= 1 - GameConfig.THERMAL.PENALTY_CAP && s.coldFactor <= 1);
+});
+
+test('thermalStep: a fresh run starting above the top suit announces only the top tier', () => {
+  // prevTier === -1 right at/above 50000 m -> only the full space suit tier announces.
+  const s = thermalStep(SUIT2.altitude + 1000, -1);
+  assert.equal(s.tier, 2);
+  assert.equal(s.announce, true);
+  assert.equal(s.label, SUIT2.label);
 });

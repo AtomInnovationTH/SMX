@@ -53,6 +53,7 @@ const EXPORTED_SYMBOLS = [
   'restartPressDecision',
   'GAME_OVER_INPUT_GATE_MS',
   'RESTART_CONFIRM_MS',
+  'thermalStep',
 ];
 
 // Pull out the body of the single largest <script> block.

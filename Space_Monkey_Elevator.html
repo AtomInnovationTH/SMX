@@ -767,6 +767,22 @@
             return 'arm';
         }
 
+        // SIM (thermal layer): the temperature/suit/announce/coldFactor decision for one
+        // frame, given the current altitude and the previous suit tier. Purely derived; the
+        // orchestrator keeps the presentation ('🧥 ' prefix) and the read-before-write of
+        // _thermalTier. Same contract as epmChargeStep (pure w.r.t. GameConfig).
+        function thermalStep(altitude, prevTier) {
+            const tempC = temperatureAtAltitude(altitude);
+            const tier = thermalSuitIndex(altitude);
+            const announce = tier > prevTier && tier >= 0;
+            const shiveringAt = tier < 0
+                ? GameConfig.THERMAL.BARE_SHIVERING_AT
+                : GameConfig.THERMAL.SUITS[tier].shiveringAt;
+            return { tempC, tier, announce,
+                     label: announce ? GameConfig.THERMAL.SUITS[tier].label : null,
+                     coldFactor: coldGripFactor(tempC, shiveringAt) };
+        }
+
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -3175,17 +3191,16 @@
             // altitude, announce a new suit, and cache the cold coupling multiplier for the physics.
             // Runs in both models so the climber visibly suits up regardless of coupling mode.
             updateThermal() {
-                const alt = this.monkey.altitude;
-                this.temperatureC = temperatureAtAltitude(alt);
-                const tier = thermalSuitIndex(alt);
-                if (tier > this._thermalTier && tier >= 0) {
-                    this.showToast('🧥 ' + GameConfig.THERMAL.SUITS[tier].label);
-                }
+                // NOTE (shift 7 §2): this call stays BEFORE updatePosition below. It
+                // intentionally consumes LAST frame's altitude — a one-frame intrinsic
+                // display lag when forces are integrated after position. Do NOT "fix" that
+                // lag by moving thermal later; it would only make updateContinuous's
+                // _coldFactor read staler, not fresher.
+                const { tempC, tier, announce, label, coldFactor } = thermalStep(this.monkey.altitude, this._thermalTier);
+                if (announce) this.showToast('🧥 ' + label);
                 this._thermalTier = tier;
-                const shiver = tier < 0
-                    ? GameConfig.THERMAL.BARE_SHIVERING_AT
-                    : GameConfig.THERMAL.SUITS[tier].shiveringAt;
-                this._coldFactor = coldGripFactor(this.temperatureC, shiver);
+                this.temperatureC = tempC;
+                this._coldFactor = coldFactor;
             }
 
             // SIM (Stage 2 / B.10): continuous "pulse/couple" integrator (the default EPM model).
