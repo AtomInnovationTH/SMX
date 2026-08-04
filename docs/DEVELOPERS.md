@@ -108,11 +108,21 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   (`|waveVelocity| / (amp·ω)`), which peaks at the wave's **peak velocity** (the
   displacement zero-crossing). Sawtooth waves add a timing-independent ratchet assist.
   Gravity always applies, so climbing is an active energy battle.
-- **EPM energy loop** (`GameConfig.EPM`): pulsing **drains** charge (per magnet tier);
-  a well-timed coupling **regenerates** it, attenuated by altitude
-  (`waveEnergyFactor`, Q-P3) and gated by tether material. An ambient trickle makes a
-  **brownout** recoverable by coasting. The charge-sustainability curve is the
-  difficulty curve; material choice sets how high you can go.
+- **EPM energy loop** (`GameConfig.EPM`, extracted to the pure `epmChargeStep` in the
+  delimited pure-helpers block; `updateContinuous` delegates and keeps only the side
+  effects): pulsing **drains** charge (per magnet tier); a well-timed coupling
+  **regenerates** it, attenuated by altitude (`waveEnergyFactor`, Q-P3) and gated by
+  tether material. An ambient trickle makes a **brownout** recoverable by coasting. The
+  charge-sustainability curve is the difficulty curve; material choice sets how high you
+  can go. The two governing quantities (both pinned by tests):
+  - **Break-even quality** per tier = `DRAIN/REGEN` — at ground, the coupling quality
+    needed to sustain. base `3/7 ≈ 0.43`, alnico `0.50`, neodymium `≈ 0.67`, hallbach
+    `≈ 0.83`, strictly rising: stronger magnets demand better timing (S11).
+  - **Perfect-timing altitude ceiling** per tier+material =
+    `(ATTEN_BASE_M · gpa/100) · ln(REGEN / (DRAIN − TRICKLE))` — the altitude at which even
+    a `quality = 1` pulse can no longer keep charge up. Rises with material stiffness, so
+    the material slider sets reach. E.g. base on 300 GPa sustains the whole climb
+    (~185 km), while hallbach on 50 GPa tops out at ~5.8 km and is a burst-only tool there.
 - **Units chain** (`GameConfig.TETHER`): the tether carries a **longitudinal** (compression)
   wave, so its speed is `v = √(E/ρ)` from the material's Young's modulus and density — a
   material constant, shown in settings. Separately, tension/width scale coupling through a

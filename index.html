@@ -635,6 +635,37 @@
             }
             return best;
         }
+        // SIM (Stage 2 / B.5): one integration step of the EPM charge / brownout loop.
+        // Pure: takes the current charge + brownout latch and returns the next pair, so the
+        // test harness drives the same arithmetic the game runs. The caller owns the side
+        // effects — `tripped` is true only on the frame brownout latches, so the audio cue
+        // fires exactly once. Reproduces the order of the old inlined loop:
+        //   (1) drain/regen only while pulsing AND not latched out,
+        //   (2) ambient trickle ALWAYS applies (which is how a latched brownout recovers),
+        //   (3) the latch releases once charge climbs back to BROWNOUT_RECOVER.
+        //   pulsing      : EPMs engaged this frame (monkey.isGrabbing)
+        //   quality      : 0..1 coupling quality from calculateContinuousCoupling
+        //   energyFactor : waveEnergyFactor(altitude, materialGpa) — altitude attenuation (Q-P3)
+        //   tier         : monkey.equipment.magnet key; unknown/absent falls back to 'base'
+        // No clamping the old loop never had: charge is only floored by the brownout trip
+        // itself, and quality/energyFactor stay the caller's responsibility (both are bounded
+        // upstream). Break-even quality per tier is DRAIN/REGEN; the perfect-timing altitude
+        // ceiling is attenLength * ln(REGEN / (DRAIN - TRICKLE)) — see tests/pure.test.mjs.
+        function epmChargeStep({ charge, brownout, pulsing, quality, energyFactor, tier, dt }) {
+            const t = tier || 'base';
+            let next = charge;
+            let tripped = false;
+            if (pulsing && !brownout) {
+                const drain = GameConfig.EPM.DRAIN[t] || GameConfig.EPM.DRAIN.base;
+                const regenGain = GameConfig.EPM.REGEN[t] || GameConfig.EPM.REGEN.base;
+                next += (quality * energyFactor * regenGain - drain) * dt;
+                if (next <= 0) { next = 0; brownout = true; tripped = true; }
+            }
+            next = Math.min(GameConfig.EPM.CAPACITY, next + GameConfig.EPM.TRICKLE * dt);
+            if (brownout && next >= GameConfig.EPM.BROWNOUT_RECOVER) brownout = false;
+            const netPerSec = dt > 0 ? (next - charge) / dt : 0;
+            return { charge: next, brownout, tripped, netPerSec };
+        }
         // ===== END PURE SIM HELPERS ===== //
 
         
@@ -2976,8 +3007,12 @@
             // climb is an active energy battle. Drives the EPM charge/brownout loop.
             updateContinuous(dt) {
                 this.physics.applyGravityAndDrag(this.monkey, dt, false, this.gravityMultiplier, this.dragMultiplier);
-                const chargeBefore = this.epmCharge;
-                if (this.monkey.isGrabbing && !this.epmBrownout) {
+                // Compute `engaged` once, at frame entry: the recovery check inside epmChargeStep
+                // can clear the latch at the END of the previous frame, so the branch must read
+                // the value as it stands on entry or a frame could both pulse and recover.
+                const engaged = this.monkey.isGrabbing && !this.epmBrownout;
+                let quality = 0;
+                if (engaged) {
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor() * this._coldFactor;
@@ -2986,15 +3021,7 @@
                     // them off (zero power) and the climber coasts.
                     this.physics.applyEddyDrag(this.monkey, dt, this.gripMultiplier);
                     this.monkey.x = this.wave.x - this.monkey.width / 2;
-
-                    // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave
-                    // coupling regenerates it, attenuated by altitude (Q-P3) + gated by material.
-                    const tier = this.monkey.equipment.magnet || 'base';
-                    const drain = GameConfig.EPM.DRAIN[tier] || GameConfig.EPM.DRAIN.base;
-                    const regenGain = GameConfig.EPM.REGEN[tier] || GameConfig.EPM.REGEN.base;
-                    const energyFactor = this.waveEnergyFactor(this.monkey.altitude);
-                    this.epmCharge += (c.quality * energyFactor * regenGain - drain) * dt;
-                    if (this.epmCharge <= 0) { this.epmCharge = 0; this.epmBrownout = true; this.audio.brownout(); }
+                    quality = c.quality;
 
                     this.lastGrabQuality = c.quality;
                     this.grabFlashColor = c.flashColor;
@@ -3016,10 +3043,23 @@
                     this.monkey.x = this.wave.x - this.monkey.width / 2;
                     this.lastGrabQuality = 0;
                 }
-                // Ambient eddy-current trickle (always near the tether) — recover by coasting.
-                this.epmCharge = Math.min(GameConfig.EPM.CAPACITY, this.epmCharge + GameConfig.EPM.TRICKLE * dt);
-                if (this.epmBrownout && this.epmCharge >= GameConfig.EPM.BROWNOUT_RECOVER) this.epmBrownout = false;
-                this.epmNetPerSec = dt > 0 ? (this.epmCharge - chargeBefore) / dt : 0;
+                // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave coupling
+                // regenerates it, attenuated by altitude (Q-P3) + gated by material. Ambient
+                // eddy-current trickle (always near the tether) makes brownout recoverable by
+                // coasting. The arithmetic is the extracted pure epmChargeStep; only the
+                // side effects live here. `tripped` moves the brownout audio cue to the end
+                // of this synchronous frame (previously it fired inside the drain block) —
+                // nothing between those points reads EPM state, and AudioSystem.brownout()
+                // is a stateless blip, so the cue is identical.
+                const step = epmChargeStep({
+                    charge: this.epmCharge, brownout: this.epmBrownout, pulsing: engaged, quality,
+                    energyFactor: this.waveEnergyFactor(this.monkey.altitude),
+                    tier: this.monkey.equipment.magnet || 'base', dt,
+                });
+                this.epmCharge = step.charge;
+                this.epmBrownout = step.brownout;
+                this.epmNetPerSec = step.netPerSec;
+                if (step.tripped) this.audio.brownout();
             }
 
             // SIM: legacy discrete "grab/hold" integrator (hidden backup, toggled with K).

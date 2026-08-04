@@ -41,6 +41,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- **EPM charge/regen/brownout loop** — the energy-loop arithmetic was extracted from
+  `updateContinuous` into a pure exported `epmChargeStep` (same ritual as
+  `altimeterLandmarkAt`), so the difficulty curve is now unit-tested: trickle/coast,
+  per-tier drain, regen at ground, break-even quality `DRAIN/REGEN` rising with tier
+  (S11), the altitude-gated perfect-timing ceiling (Q-P3), unknown-tier fallback,
+  brownout latch with single-fire `tripped`, trickle-only recovery, `[0, CAPACITY]`
+  bounding under an adversarial sweep, and `netPerSec` HUD semantics. Equivalence
+  with the pre-refactor loop was verified once during development against a
+  600-frame reference trace (scratch script, not committed).
+- **Camera coverage** — snap path, the strict `absDiff > 500` fast-catchup boundary,
+  `smoothing` as an instance field (the landmark-dwell path), no-overshoot at any
+  `dt`, shake decay/floor/max semantics, and `±intensity/2` displacement bounds.
+  (Camera has no look-ahead and no clamping; an earlier plan mislabelled those as
+  untested — they do not exist.)
+
 - **Exercise shipped code, not reimplementations** — the B.14 drag test and the
   altimeter boundary test now drive the real `applyGravityAndDrag` /
   `applyEddyDrag` and the extracted `altimeterLandmarkAt` function.

@@ -43,6 +43,7 @@ const EXPORTED_SYMBOLS = [
   'thermalSuitIndex',
   'coldGripFactor',
   'altimeterLandmarkAt',
+  'epmChargeStep',
 ];
 
 // Pull out the body of the single largest <script> block.
