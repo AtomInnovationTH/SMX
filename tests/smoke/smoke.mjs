@@ -235,6 +235,65 @@ try {
   });
   record('blur: releases grab + clears keys', blur.before.grab === true && blur.after.grab === false && blur.after.left === false && blur.after.keys === 0, JSON.stringify(blur));
 
+  // 8) Gear button opens Settings; the in-panel colorblind toggle exists and its label
+  //    stays in sync whether toggled by the button or the C key (task 2).
+  const settings = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    const panel = document.getElementById('settingsPanel');
+    const gear = document.getElementById('ux-settings-btn');
+    const btn = document.getElementById('colorblindToggle');
+    const before = panel.classList.contains('visible');
+    gear.click();
+    await new Promise((r) => setTimeout(r, 30));
+    const afterGear = panel.classList.contains('visible');
+    const initialLabel = btn.textContent;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' })); // C key route
+    await new Promise((r) => setTimeout(r, 30));
+    const afterC = btn.textContent;
+    btn.click(); // button route
+    await new Promise((r) => setTimeout(r, 30));
+    const afterBtn = btn.textContent;
+    return { before, afterGear, initialLabel, afterC, afterBtn };
+  });
+  record('gear opens Settings + colorblind label in sync',
+    settings.before === false && settings.afterGear === true &&
+    settings.initialLabel === 'Colorblind palette: Off' &&
+    settings.afterC === 'Colorblind palette: On' &&
+    settings.afterBtn === 'Colorblind palette: Off',
+    JSON.stringify(settings));
+
+  // 9) Restart latch (task 10): a single R arms (no restart); a second R within the window
+  //    restarts and clears the latch; and initGame clears it (D1) so a fresh run needs a
+  //    fresh confirm instead of a single stray R restarting immediately.
+  const latch = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.restartArmedAt = 0;
+    let initCalls = 0;
+    const origInit = g.initGame.bind(g);
+    g.initGame = (...a) => { initCalls++; return origInit(...a); };
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' })); // arm
+    await new Promise((r) => setTimeout(r, 30));
+    const armed = g.restartArmedAt > 0;
+    const callsAfterArm = initCalls;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' })); // confirm
+    await new Promise((r) => setTimeout(r, 50));
+    const callsAfterConfirm = initCalls;
+    const armedAtCleared = g.restartArmedAt === 0;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' })); // fresh run, single R
+    await new Promise((r) => setTimeout(r, 30));
+    const d1Armed = g.restartArmedAt > 0; // armed again, not an instant restart
+    const callsAfterD1 = initCalls;
+    g.initGame = origInit;
+    return { armed, callsAfterArm, callsAfterConfirm, armedAtCleared, d1Armed, callsAfterD1 };
+  });
+  record('restart: arm then confirm restarts; fresh run needs a fresh confirm',
+    latch.armed === true && latch.callsAfterArm === 0 &&
+    latch.callsAfterConfirm === 1 && latch.armedAtCleared === true &&
+    latch.d1Armed === true && latch.callsAfterD1 === 1,
+    JSON.stringify(latch));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

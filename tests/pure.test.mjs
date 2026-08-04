@@ -39,6 +39,9 @@ const {
   scaleSettingValue,
   couplingTier,
   upgradeCrossed,
+  restartPressDecision,
+  GAME_OVER_INPUT_GATE_MS,
+  RESTART_CONFIRM_MS,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -54,7 +57,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
-    couplingTier, upgradeCrossed,
+    couplingTier, upgradeCrossed, restartPressDecision,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -1043,4 +1046,31 @@ test('upgradeCrossed: descending past it never collects; stationary above never 
 
 test('upgradeCrossed: an already-collected upgrade never fires, even on crossing', () => {
   assert.equal(upgradeCrossed(0, 100000, 5000, true), false);
+});
+
+// ---------------------------------------------------------------------------
+// restartPressDecision (shift 7, task 10) — timestamp-based restart latch.
+// ---------------------------------------------------------------------------
+const restart = (over) => restartPressDecision({
+  paused: false, gameOver: false, now: 0, gameOverTime: 0, armedAt: 0, ...over,
+});
+
+test('restart: paused always ignores, and beats gameOver', () => {
+  assert.equal(restartPressDecision({ paused: true, gameOver: true, now: 99999, gameOverTime: 0, armedAt: 0 }), 'ignore');
+  assert.equal(restart({ paused: true, now: 100, armedAt: 50 }), 'ignore'); // armed but paused
+});
+
+test('restart: game-over gate is exclusive (strictly past)', () => {
+  assert.equal(restart({ gameOver: true, now: 0, gameOverTime: 0 }), 'ignore');                 // inside
+  assert.equal(restart({ gameOver: true, now: GAME_OVER_INPUT_GATE_MS, gameOverTime: 0 }), 'ignore'); // exactly -> exclusive >
+  assert.equal(restart({ gameOver: true, now: GAME_OVER_INPUT_GATE_MS + 1, gameOverTime: 0 }), 'restart');
+});
+
+test('restart: in play and not armed -> arm; armed within the window (inclusive) -> restart', () => {
+  assert.equal(restart({ now: 1000, armedAt: 0 }), 'arm');                                            // arm
+  assert.equal(restart({ now: 100, armedAt: 50 }), 'restart');                                        // within
+  const t = 12345;
+  assert.equal(restart({ now: t + RESTART_CONFIRM_MS, armedAt: t }), 'restart');                      // exactly (inclusive <=)
+  assert.equal(restart({ now: t + RESTART_CONFIRM_MS + 1, armedAt: t }), 'arm');                      // expiry re-arms
+  assert.equal(restart({ now: 1e9, armedAt: 0 }), 'arm');                                             // never armed
 });

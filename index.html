@@ -231,7 +231,7 @@
     
     <!-- Restart Confirmation Toast -->
     <div id="restart-toast">Press R again to restart</div>
-    
+
     <!-- UX: Game Over Overlay (2e) -->
         <div id="game-over-overlay">
             <div class="go-previous" id="go-previous"></div>
@@ -401,6 +401,13 @@
         // UX: game-over gate (2e)
         const GAME_OVER_MIN_ALT = 50;       // Must reach this altitude before game-over can trigger
         const GAME_OVER_INPUT_GATE_MS = 500; // Minimum ms before restart input accepted
+
+        // UX: one-button restart confirm (2e, shift 7). Timestamp-based (not timer-based)
+        // so the latch can never be left silently armed when showToast's own timer clears
+        // the shared #restart-toast element early. MSG must stay byte-identical to the
+        // static toast text and showToast's reset text — all read this const.
+        const RESTART_CONFIRM_MS = 2000;
+        const RESTART_CONFIRM_MSG = 'Press R again to restart';
         
         // UX: reduced motion + colorblind settings (2f)
         const SETTINGS_STORAGE_KEY = 'spaceMonkey.settings.v1';
@@ -751,6 +758,18 @@
         function upgradeCrossed(prevAltitude, altitude, upgradeAltitude, collected) {
             if (collected) return false;
             return prevAltitude < upgradeAltitude && altitude >= upgradeAltitude;
+        }
+
+        // UX (2e): what a single R press does. Time-based, not timer-based, so the latch
+        // cannot be left silently armed when the shared toast element's own timer clears the
+        // affordance early. armedAt === 0 means not armed. Pure with respect to the module's
+        // RESTART_CONFIRM_MS / GAME_OVER_INPUT_GATE_MS consts (same contract as epmChargeStep
+        // reading GameConfig). paused wins over gameOver.
+        function restartPressDecision({ paused, gameOver, now, gameOverTime, armedAt }) {
+            if (paused) return 'ignore';
+            if (gameOver) return (now - gameOverTime > GAME_OVER_INPUT_GATE_MS) ? 'restart' : 'ignore';
+            if (armedAt > 0 && now - armedAt <= RESTART_CONFIRM_MS) return 'restart';
+            return 'arm';
         }
 
         // ===== END PURE SIM HELPERS ===== //
@@ -2358,9 +2377,9 @@
                 // Pause state
                 this.paused = false;
                 
-                // Restart confirmation state
-                this.restartPending = false;
-                this.restartTimer = null;
+                // Restart confirm latch — timestamp of the last arm press (0 = not armed),
+                // time-based so the shared showToast timer can't leave it silently armed.
+                this.restartArmedAt = 0;
                 
                 this.setupEventListeners();
                 this.initGame();
@@ -2752,6 +2771,9 @@
                 this.gameOver = false;
                 this.gameOverTime = 0;
                 this.maxAltitude = 0;
+                // D1: clear the restart latch too — otherwise a single R in the next run
+                // restarts immediately (a leftover armed confirm from the previous run).
+                this.restartArmedAt = 0;
                 // Reset the upgrade-crossing baseline too: without this, the first frame of a
                 // new run compares against the previous run's altitude and can false-fire every
                 // upgrade at once.
@@ -2836,28 +2858,21 @@
                 });
                 
                 this.eventBus.on('input:restart', () => {
-                    if (this.paused) return;
-                    // UX: if game-over, R also restarts (2e)
-                    if (this.gameOver) {
-                        if (performance.now() - this.gameOverTime > GAME_OVER_INPUT_GATE_MS) {
+                    const wasGameOver = this.gameOver;            // initGame() clears it
+                    switch (restartPressDecision({
+                        paused: this.paused, gameOver: this.gameOver, now: performance.now(),
+                        gameOverTime: this.gameOverTime, armedAt: this.restartArmedAt,
+                    })) {
+                        case 'restart':
+                            this.restartArmedAt = 0;
                             this.initGame();
-                            this._startLoop();
-                        }
-                        return;
-                    }
-                    const toast = document.getElementById('restart-toast');
-                    if (this.restartPending) {
-                        clearTimeout(this.restartTimer);
-                        this.restartPending = false;
-                        if (toast) toast.classList.remove('visible');
-                        this.initGame();
-                    } else {
-                        this.restartPending = true;
-                        if (toast) toast.classList.add('visible');
-                        this.restartTimer = setTimeout(() => {
-                            this.restartPending = false;
-                            if (toast) toast.classList.remove('visible');
-                        }, 2000);
+                            if (wasGameOver) this._startLoop();   // in play the loop already runs
+                            break;
+                        case 'arm':
+                            this.restartArmedAt = performance.now();
+                            this.showToast(RESTART_CONFIRM_MSG, RESTART_CONFIRM_MS);
+                            break;
+                        // 'ignore' (paused or inside the game-over gate): do nothing.
                     }
                 });
                 this.eventBus.on('input:toggleSettings', () => document.getElementById('settingsPanel').classList.toggle('visible'));
@@ -3057,12 +3072,16 @@
             showToast(msg, ms = 1200) {
                 const toast = document.getElementById('restart-toast');
                 if (!toast) return;
+                // D2: a non-restart toast (suit upgrade, sound toggle, ...) means the player
+                // isn't confirming a restart, so disarm the latch. Otherwise only a restart
+                // confirm would arm-but-invisibly-overwrite a pending confirm.
+                if (msg !== RESTART_CONFIRM_MSG) this.restartArmedAt = 0;
                 toast.textContent = msg;
                 toast.classList.add('visible');
                 clearTimeout(this._toastTimer);
                 this._toastTimer = setTimeout(() => {
                     toast.classList.remove('visible');
-                    toast.textContent = 'Press R again to restart';
+                    toast.textContent = RESTART_CONFIRM_MSG;
                 }, ms);
             }
 

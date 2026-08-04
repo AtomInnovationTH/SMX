@@ -50,6 +50,9 @@ const EXPORTED_SYMBOLS = [
   'scaleSettingValue',
   'couplingTier',
   'upgradeCrossed',
+  'restartPressDecision',
+  'GAME_OVER_INPUT_GATE_MS',
+  'RESTART_CONFIRM_MS',
 ];
 
 // Pull out the body of the single largest <script> block.
