@@ -36,6 +36,14 @@ config.local.js
 node_modules/
 bower_components/
 
+# Optional browser smoke test (tests/smoke/): playwright-core is installed locally and
+# never committed — the repo stays zero-dependency. node_modules/ is already ignored
+# above; also ignore the local package manifests the install would create.
+tests/smoke/package.json
+tests/smoke/package-lock.json
+/package.json
+/package-lock.json
+
 # Build output
 dist/
 build/

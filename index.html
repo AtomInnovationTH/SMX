@@ -2323,6 +2323,17 @@
                 // and audio — a 2x-speed bug reachable via a fast pause/unpause double-tap or
                 // overlapping restart inputs).
                 this._rafId = null;
+
+                // Optional debug hook: expose this instance as window.__smokeGame ONLY when
+                // the page is opened with ?debug (or #debug). Inert in normal play — nothing
+                // in game logic reads it — and used solely by the optional browser smoke test
+                // (tests/smoke/). Kept here so the smoke test never has to patch index.html.
+                try {
+                    if (typeof location !== 'undefined' &&
+                        (/[?&]debug\b/.test(location.search) || location.hash === '#debug')) {
+                        window.__smokeGame = this;
+                    }
+                } catch (e) { /* non-browser / sandboxed: ignore */ }
                 this._badgeGradient = null;
                 this._badgeGradientY = null;
                 

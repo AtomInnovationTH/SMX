@@ -75,7 +75,28 @@ holds the assertions. When you add a pure top-level function or class worth test
 make **three** edits or the new symbol is silently `undefined` in tests: (1) add its name to
 `EXPORTED_SYMBOLS` in `extract.mjs`, (2) destructure it from the loaded module at the top of
 `pure.test.mjs`, and (3) add it to the extraction-sanity object literal (the "core pure
-symbols" test).
+symbols" test). A guard test also scans the delimited pure-helpers block and **fails
+loudly** if a declared helper is missing from `EXPORTED_SYMBOLS`, so a forgotten export
+turns red instead of silently reading `undefined`.
+
+### Optional browser smoke test
+
+The unit suite covers pure logic but cannot boot the game, render, or catch asset 404s.
+[`tests/smoke/smoke.mjs`](../tests/smoke/smoke.mjs) drives the built `index.html` in a
+real headless Chromium (boot, the EPM loop, landmark/cloud transform anchors, the
+single-RAF loop, focus-loss handling). It is **optional and adds no committed
+dependency**: it resolves `playwright-core` and a Chromium binary at runtime and skips
+cleanly if either is absent, so `node --test` and CI stay browser-free (it lives outside
+the `tests/*.test.mjs` glob and never runs there). To run it locally:
+
+```sh
+npm --prefix tests/smoke i -D playwright-core
+npx --prefix tests/smoke playwright install chromium   # or set SMOKE_CHROMIUM
+node tests/smoke/smoke.mjs
+```
+
+It reads live state via `window.__smokeGame`, a handle the game exposes **only** under
+`?debug`/`#debug` (inert in normal play). See [`tests/smoke/README.md`](../tests/smoke/README.md).
 
 ---
 

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Optional browser smoke test** (`tests/smoke/smoke.mjs`) — drives the built
+  `index.html` in a real headless Chromium to cover what the pure-logic suite cannot:
+  boot, the EPM energy loop, landmark/cloud transform anchors, the single-RAF loop, and
+  focus-loss handling. It adds **no committed dependency** — it resolves `playwright-core`
+  and a Chromium binary at runtime and skips cleanly if either is absent, and it lives
+  outside the `tests/*.test.mjs` glob so `node --test` and CI stay browser-free. It reads
+  live state through a `window.__smokeGame` handle the game exposes only under
+  `?debug`/`#debug` (inert in normal play), so it never patches the build artifact.
+
 ### Fixed
 
 - **Deep-review bug sweep** — a broad audit of the game loop, systems and settings
