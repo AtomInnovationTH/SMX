@@ -153,13 +153,35 @@ try {
   });
   record('grip default = 1.0 at slider 20/"20%"', Math.abs(grip.mult - 1) < 1e-9 && grip.val === '20' && grip.lbl === '20%', JSON.stringify(grip));
 
-  // 3) EPM loop: engaging drains/moves charge and the net readout.
-  const base = await page.evaluate(() => ({ c: window.__smokeGame.epmCharge, n: window.__smokeGame.epmNetPerSec }));
+  // 3) EPM loop: engaging via the real SPACE key drains charge and drives the net readout.
+  //    Deterministic ON PURPOSE. The old version held SPACE from a full charge and asserted
+  //    "charge moved and netPerSec != 0", which is environment dependent: epmChargeStep
+  //    clamps with Math.min(CAPACITY, ...) and netPerSec is (next - charge)/dt, so at a
+  //    saturated charge BOTH are legitimately 0 whenever ambient coupling quality happens to
+  //    beat break-even (DRAIN/REGEN ~ 0.43). That passed locally and failed in CI on frame
+  //    pacing alone. Force quality 0 from a non-saturated charge so the sign is fixed:
+  //    net = TRICKLE - DRAIN = -1.5/s for the base tier.
+  const epmSetup = await page.evaluate(() => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    const origAmp = g.waveSystem.amplitude;
+    g.waveSystem.amplitude = 0;   // quality 0 -> pure drain, no timing dependence
+    g.epmCharge = 50;             // clear of the CAPACITY clamp so movement is observable
+    g.epmBrownout = false;
+    return { origAmp, c: g.epmCharge };
+  });
   await page.keyboard.down(' ');
   await page.waitForTimeout(350);
-  const during = await page.evaluate(() => ({ c: window.__smokeGame.epmCharge, n: window.__smokeGame.epmNetPerSec, grab: window.__smokeGame.monkey.isGrabbing }));
+  const during = await page.evaluate(() => ({
+    c: window.__smokeGame.epmCharge,
+    n: window.__smokeGame.epmNetPerSec,
+    grab: window.__smokeGame.monkey.isGrabbing,
+  }));
   await page.keyboard.up(' ');
-  record('EPM: pulsing engages + moves charge/net', during.grab === true && during.c !== base.c && Math.abs(during.n) > 0, JSON.stringify(during));
+  await page.evaluate((amp) => { window.__smokeGame.waveSystem.amplitude = amp; }, epmSetup.origAmp);
+  record('EPM: pulsing engages + drains charge (net < 0 at quality 0)',
+    during.grab === true && during.c < epmSetup.c && during.n < 0,
+    JSON.stringify({ base: epmSetup.c, during }));
 
   // 4) Brownout latches, the audio cue fires exactly once, and coasting recovers it.
   const brownout = await page.evaluate(async () => {
