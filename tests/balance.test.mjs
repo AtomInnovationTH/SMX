@@ -34,22 +34,21 @@ const SNAPSHOT_PATH = join(__dirname, 'balance.snapshot.json');
 
 const {
   GameConfig, WaveSystem, PhysicsEngine,
-  epmChargeStep, waveEnergyFactor, couplingMomentumScale, thermalStep, climbSpeedKmh,
+  epmChargeStep, couplingMomentumScale, thermalStep, climbSpeedKmh,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly: vineWidth 4.5 == 45 mm (slider
-// raw / SETTINGS_SCALE.WIDTH), tension 100 kgf, material 300 GPa CC-CNT, field x1.00,
-// gravity x1.00, cargo 50 kg, sine carrier at WAVE.DEFAULT_FREQUENCY / DEFAULT_AMPLITUDE.
-// materialDamping is 1.0 at boot: the settings:material handler is the only writer of
-// materialDampingFor(), and it does not fire until the dropdown changes.
+// raw / SETTINGS_SCALE.WIDTH), tension 100 kgf, material 300 GPa CC-CNT (speculative,
+// MATERIAL_DEFAULT_INDEX), field x1.00, gravity x1.00, cargo 50 kg, sine carrier at
+// WAVE.DEFAULT_FREQUENCY / DEFAULT_AMPLITUDE (7.0 m — the honest equivalent of the old
+// 70 px). Wave power does not attenuate with altitude (paper p.9), so energyFactor is
+// 1.0; the fabricated material damping multiplier went with it (both M2.2 deletions).
 const DEFAULTS = {
   gripMultiplier: 1.0,
   gravityMultiplier: 1.0,
   dragMultiplier: 1.0,
   vineWidth: 4.5,
   vineTension: 100,
-  materialGpa: 300,
-  materialDamping: 1.0,
   cargoKg: GameConfig.MONKEY.WEIGHT,
 };
 
@@ -84,12 +83,12 @@ function runClimb(dt, wallS) {
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey, DEFAULTS.gripMultiplier,
         GameConfig.PHYSICS.MOMENTUM_MULTIPLIER, dt);
-      monkey.velocityY += c.impulse * DEFAULTS.materialDamping * waveSpeedFactor() * coldFactor;
+      monkey.velocityY += c.impulse * waveSpeedFactor() * coldFactor;
       phys.applyEddyDrag(monkey, dt, DEFAULTS.gripMultiplier);
       quality = c.quality;
     }
     const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,
-      energyFactor: waveEnergyFactor(monkey.altitude, DEFAULTS.materialGpa), tier: 'base', dt });
+      energyFactor: 1.0, tier: 'base', dt });
     charge = step.charge; brownout = step.brownout;
     phys.updatePosition(monkey, dt);
 

@@ -81,7 +81,7 @@
         #grip, #gravity, #weight { accent-color: #8B4513; }
         
         /* Style tether sliders green to match tether */
-        #frequency, #amplitude, #width, #tension { accent-color: #22C55E; }
+        #frequency, #amplitude, #width, #tension, #stressBudget { accent-color: #22C55E; }
         
         select { width: 210px; padding: 5px; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 3px; font-size: 11px; }
         
@@ -299,15 +299,15 @@
 
         <h4>Tether (seed)</h4>
         <div class="slider-container">
-            <label>Material: <span id="materialValue">300 GPa CC-CNT</span></label>
+            <label>Material: <span id="materialValue">300 GPa CC-CNT (speculative)</span></label>
             <select id="material">
-                <option value="50">50 GPa Pentalayer Rhombohedral Graphene</option>
-                <option value="100">100 GPa Polycrystalline Graphene</option>
-                <option value="130">130 GPa Monocrystalline Graphene</option>
-                <option value="150">150 GPa CNT</option>
-                <option value="300" selected>300 GPa CC-CNT</option>
+                <option value="0">50 GPa Pentalayer Rhombohedral Graphene</option>
+                <option value="1">100 GPa Polycrystalline Graphene</option>
+                <option value="2">130 GPa Monocrystalline Graphene</option>
+                <option value="3">150 GPa CNT (speculative)</option>
+                <option value="4" selected>300 GPa CC-CNT (speculative)</option>
             </select>
-            <small class="setting-hint">Real space-elevator-candidate carbon materials, by specific strength. Strength sets how hard you may drive the film before you risk tearing it.</small>
+            <small class="setting-hint">Carbon films by working STRENGTH — stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
         </div>
         <div class="slider-container">
             <label>Frequency: <span id="frequencyValue">0.5 Hz</span></label>
@@ -315,9 +315,14 @@
             <small class="setting-hint">How fast the ground station drives compression pulses up the tether — a driver control.</small>
         </div>
         <div class="slider-container">
-            <label>Amplitude: <span id="amplitudeValue">700 mm</span></label>
-            <input type="range" id="amplitude" min="100" max="1000" step="50" value="700">
-            <small class="setting-hint">How far the tether surges along its length in each pulse — bigger waves carry more momentum per coupling.</small>
+            <label>Amplitude: <span id="amplitudeValue">7.0 m</span></label>
+            <input type="range" id="amplitude" min="1" max="10" step="0.5" value="7">
+            <small class="setting-hint">Ground stroke per cycle, in real metres. Capped by the stress budget: A·ω can never exceed v_max, or the wave tears the film.</small>
+        </div>
+        <div class="slider-container">
+            <label>Tether stress budget: <span id="stressBudgetValue">30% of stress (9.0% of power)</span></label>
+            <input type="range" id="stressBudget" min="5" max="60" step="1" value="30">
+            <small class="setting-hint">Fraction of the film's working stress the wave may use: v_max = budget × strength ÷ √(Eρ). The paper's "10% of tether strength at 1000 km/h" is a share of stress-limited POWER (P ∝ σ²) — at 30% stress you use 9% of it, which is why both numbers are shown.</small>
         </div>
         <div class="slider-container">
             <label>Width: <span id="widthValue">45 mm</span></label>
@@ -332,6 +337,10 @@
         <div class="slider-container">
             <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">— m/s</span></label>
             <small class="setting-hint">Longitudinal (compression) wave speed, set by the material's stiffness and density — this is what your pulses couple to.</small>
+        </div>
+        <div class="slider-container">
+            <label>v_max: <span id="vmaxValue">— km/h</span> · stroke cap: <span id="strokeCapValue">— m</span></label>
+            <small class="setting-hint" id="waveStressValue">Wave now: —</small>
         </div>
         <div class="slider-container">
             <label>Air density: <span id="airDensityValue">100%</span> of sea level</label>
@@ -551,8 +560,10 @@
 
         // SIM (Stage 2 / B.8): LONGITUDINAL (compression) wave speed v = sqrt(E/rho).
         // Set by the material's Young's modulus and density — independent of tension and width.
-        // For the carbon materials in the ladder E ~ 1 TPa and rho ~ 1800 kg/m^3, giving
-        // v ~ 23.6 km/s (faster than orbital velocity): the pulse outruns the climber by ~3 orders
+        // The paper's values (slide 3): E ≈ 1 TPa, ρ = 2300 kg/m³ → c ≈ 20.9 km/s (paper
+        // rounds to 21 km/s; slide 6's impedance/power table reproduces ONLY at ρ = 2300,
+        // which is why this is 2300 and not the older 1800 guess — see tests/pure.test.mjs
+        // for the slide-6 regression fixture). The pulse outruns the climber by ~2 orders
         // of magnitude, which is exactly why the climber rides the wave rather than chasing it.
         function tetherWaveSpeed() {
             return Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY);
@@ -582,11 +593,19 @@
             return Math.sqrt(tensionN / Math.max(1e-9, mu));
         }
 
-        // SIM (Stage 2 / B.5): wave energy attenuates with altitude; stiffer material
-        // (higher GPa) attenuates less (longer e-fold length), so material sets reach.
-        function waveEnergyFactor(altitude, materialGpa) {
-            const attenLength = GameConfig.EPM.ATTEN_BASE_M * (materialGpa / 100);
-            return Math.exp(-Math.max(0, altitude) / attenLength);
+        // SIM (§2.1 / M2.2): the material-only speed ceiling of a wave-driven film.
+        // Longitudinal wave stress σ = A·ω·√(Eρ); capping it at f_safety·strength gives
+        // v_max = A·ω = f_safety · strength / √(Eρ) — independent of carrier and amplitude,
+        // so the frequency cheat dies structurally, not by clamp. strengthGpa is the film's
+        // WORKING stress (45 GPa is the paper's operating value, slide 6).
+        function maxMaterialVelocityMps(strengthGpa, youngsPa, densityKgM3, safetyFraction) {
+            return safetyFraction * strengthGpa * 1e9 / Math.sqrt(youngsPa * densityKgM3);
+        }
+
+        // SIM (§2.2 / M2.2): A_max = v_max / ω — the stroke budget. Amplitude is the real
+        // constraint: at 1 Hz the ground station needs a ~100 m stroke, at 260 Hz ~1 m.
+        function maxAmplitudeM(vMaxMps, omegaRadS) {
+            return vMaxMps / omegaRadS;
         }
 
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
@@ -690,7 +709,10 @@
         //   (3) the latch releases once charge climbs back to BROWNOUT_RECOVER.
         //   pulsing      : EPMs engaged this frame (monkey.isGrabbing)
         //   quality      : 0..1 coupling quality from calculateContinuousCoupling
-        //   energyFactor : waveEnergyFactor(altitude, materialGpa) — altitude attenuation (Q-P3)
+        //   energyFactor : caller-supplied regen scaling — 1.0, because wave power does NOT
+        //                  attenuate with altitude (paper p.9: amplitude adjusts to keep
+        //                  transported power constant). M2.8 replaces this loop with
+        //                  switching watts vs extracted mechanical power.
         //   tier         : monkey.equipment.magnet key; unknown/absent falls back to 'base'
         // No clamping the old loop never had: charge is only floored by the brownout trip
         // itself, and quality/energyFactor stay the caller's responsibility (both are bounded
@@ -731,23 +753,16 @@
             return maxAltitude > minAltitude && altitude <= 0 && !alreadyOver;
         }
 
-        // SIM (Stage 2 / B.8): material-stiffness -> swing damping mapping. Stiffer
-        // (higher-GPa) material swings less, so the damping multiplier falls linearly
-        // with GPa. Kept pure so the settings:material handler and tests share the curve.
-        function materialDampingFor(gpa) {
-            return GameConfig.TETHER.DAMPING_BASE - (gpa * GameConfig.TETHER.DAMPING_PER_GPA);
-        }
-
         // UX (settings): slider raw-value -> simulation-value mapping for the divided
-        // scales (amplitude/width/grip). Frequency, tension, gravity, weight and material
-        // pass through unscaled, so they are handled inline by their handlers. Returns
-        // the scaled value, or the raw value unchanged for an unscaled/unknown key.
+        // scales (width/grip/stressBudget). Amplitude, frequency, tension, gravity, weight
+        // and material pass through unscaled, so they are handled inline by their handlers.
+        // Returns the scaled value, or the raw value unchanged for an unscaled/unknown key.
         function scaleSettingValue(name, raw) {
             switch (name) {
-                case 'amplitude': return raw / GameConfig.SETTINGS_SCALE.AMPLITUDE;
-                case 'width':     return raw / GameConfig.SETTINGS_SCALE.WIDTH;
-                case 'grip':      return raw / GameConfig.SETTINGS_SCALE.GRIP;
-                default:          return raw;
+                case 'width':        return raw / GameConfig.SETTINGS_SCALE.WIDTH;
+                case 'grip':         return raw / GameConfig.SETTINGS_SCALE.GRIP;
+                case 'stressBudget': return raw / GameConfig.SETTINGS_SCALE.STRESS_BUDGET;
+                default:             return raw;
             }
         }
         // UX/SIM: single source of truth for the coupling-quality tier. The flash colour,
@@ -1723,7 +1738,11 @@
             
             static WAVE = {
                 DEFAULT_FREQUENCY: 0.5,
-                DEFAULT_AMPLITUDE: 70,
+                // Real metres (M2.2): the ground stroke per cycle. The old value (70) was
+                // labelled "700 mm" but consumed as 70 px = 7 m at PX_PER_M — a 10x lie of
+                // the same family as the speed readout M1.1 fixed. 7.0 m is the honest
+                // equivalent of the shipped tuning. Clamped to maxAmplitudeM(v_max, omega).
+                DEFAULT_AMPLITUDE: 7.0,
                 WIDTH: 4,
                 SEGMENTS: 40,
                 SEGMENT_WIDTH: 12,
@@ -1777,16 +1796,16 @@
             // SIM (Stage 2 / B.5): EPM charge / regen energy loop tunables (continuous mode only).
             // Capacity normalized 0-100. All values are INITIAL GUESSES flagged for playtest.
             //   - Pulsing DRAINS charge (per-tier: strength-vs-draw tradeoff, S11).
-            //   - A well-timed up-wave coupling REGENs charge: quality * waveEnergyFactor(alt) * tier regen.
-            //   - waveEnergyFactor attenuates with altitude (Q-P3); stiffer material attenuates less,
-            //     so material choice sets reachable altitude (the difficulty curve).
+            //   - A well-timed up-wave coupling REGENs charge: quality * tier regen.
+            //   - Wave power does NOT attenuate with altitude (paper p.9: amplitude adjusts
+            //     to keep transported power constant); the old altitude-attenuation factor
+            //     was fabricated and is gone. Material's real role is §2.1's v_max ceiling.
             //   - Ambient TRICKLE near the tether makes brownout recoverable by coasting.
             static EPM = {
                 CAPACITY: 100,
                 START_CHARGE: 100,
                 TRICKLE: 1.5,            // /s ambient eddy-current regen (always, near tether)
                 BROWNOUT_RECOVER: 15,    // re-enable pulsing once charge climbs back above this %
-                ATTEN_BASE_M: 40000,     // e-fold wave attenuation length (m) per 100 GPa of material
                 // keyed by monkey.equipment.magnet ('base' = no upgrade): drain /s, regen gain
                 DRAIN: { base: 3, alnico: 4, neodymium: 8, hallbach: 15 },
                 REGEN: { base: 7, alnico: 8, neodymium: 12, hallbach: 18 }
@@ -1801,24 +1820,41 @@
             // the material ladder (it's tensile STRENGTH that varies 50-300 GPa, not stiffness), and
             // density is held constant, so the longitudinal wave speed is a material-independent
             // constant here. Tension's gameplay role is a coupling-momentum modifier (a tauter tether
-            // couples better), and material's role is altitude attenuation (Q-P3). No tether-break
-            // fail state (S13).
+            // couples better), and material STRENGTH's role is §2.1's v_max ceiling (no tether-break
+            // fail state, S13).
             static TETHER = {
-                CARBON_DENSITY: 1800,   // kg/m^3, representative for graphene / CNT
+                // The paper's values (slide 3): rho = 2300 kg/m^3 and E ≈ 1 TPa reproduce EVERY
+                // figure on slide 6 to 2-3 s.f.; rho = 1800 misses all of them by 8-13%.
+                // The slide-6 regression fixture in tests/pure.test.mjs guards this.
+                CARBON_DENSITY: 2300,   // kg/m^3 (paper, slide 3)
                 YOUNGS_MODULUS: 1.0e12, // Pa (~1 TPa), representative for graphene / CNT
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
-                SPEED_FACTOR_MAX: 2.0,
-                DAMPING_BASE: 1.3,      // materialDamping = DAMPING_BASE - gpa * DAMPING_PER_GPA
-                DAMPING_PER_GPA: 0.001  // stiffer material (higher GPa) = lower damping multiplier
+                SPEED_FACTOR_MAX: 2.0
             };
+
+            // SIM (§2.1 / M2.2): the material ladder is a STRENGTH ladder — E and rho are
+            // effectively constant across carbon allotropes, so v_max scales with strength.
+            // youngsPa / densityKgM3 / sigmaSPerM are shared defaults (sigma ≈ 1e6 S/m is the
+            // §2.5 coupling estimate for a conductive carbon film). Entries above ~130 GPa
+            // exceed anything the paper assumes (it works at 45 GPa, uses 90 GPa once) and
+            // are labelled speculative — kept because they were shipped, but marked.
+            static MATERIALS = [
+                { label: '50 GPa Pentalayer Rhombohedral Graphene', strengthGpa: 50,  speculative: false },
+                { label: '100 GPa Polycrystalline Graphene',        strengthGpa: 100, speculative: false },
+                { label: '130 GPa Monocrystalline Graphene',        strengthGpa: 130, speculative: false },
+                { label: '150 GPa CNT (speculative)',               strengthGpa: 150, speculative: true },
+                { label: '300 GPa CC-CNT (speculative)',            strengthGpa: 300, speculative: true },
+            ].map((m) => ({ ...m, youngsPa: 1.0e12, densityKgM3: 2300, sigmaSPerM: 1.0e6 }));
+            // Default = 300 GPa CC-CNT (index 4), the shipped default; M2.11 owns rebalance.
+            static MATERIAL_DEFAULT_INDEX = 4;
 
             // SIM: slider raw-value -> model-value scalings (see setupEventListeners).
             static SETTINGS_SCALE = {
-                AMPLITUDE: 10,  // amplitude slider raw / 10
-                WIDTH: 10,      // width slider raw / 10 (mm)
-                GRIP: 20        // grip slider raw / 20 -> gripMultiplier (raw 20 => x1.00, raw 100 => x5.00,
-                                //   which is why the label is a multiplier and not the raw "%" it used to read)
+                WIDTH: 10,          // width slider raw / 10 (mm)
+                GRIP: 20,           // grip slider raw / 20 -> gripMultiplier (raw 20 => x1.00, raw 100 => x5.00,
+                                    //   which is why the label is a multiplier and not the raw "%" it used to read)
+                STRESS_BUDGET: 100  // stress-budget slider raw % / 100 -> safetyFraction (§2.1)
             };
 
             // SIM (Stage 2 / B.11): cargo delivery mission (S10/S15/S16).
@@ -2033,8 +2069,13 @@
             calculateContinuousCoupling(waveSystem, monkey, gripMult, tetherMult, dt) {
                 const waveVelocity = this.calculateWaveVelocity(waveSystem);
                 const omega = waveSystem.frequency * 2 * Math.PI;
-                const maxVel = (waveSystem.amplitude * omega) || 1;
-                const quality = Math.min(1, Math.abs(waveVelocity) / maxVel);
+                // Amplitude is real METRES (M2.2): quality normalises against the film's
+                // peak velocity in m/s; the impulse needs it in px/s (× PX_PER_M), which
+                // keeps the impulse scale identical to the pre-metres code at the honest
+                // default (7.0 m × PX_PER_M = the old 70 px).
+                const maxVelMps = (waveSystem.amplitude * omega) || 1e-9;
+                const quality = Math.min(1, Math.abs(waveVelocity) / maxVelMps);
+                const maxVel = maxVelMps * GameConfig.PHYSICS.ALTITUDE_CONVERSION;
 
                 // Rectified timing coupling: always imparts UP momentum (negative velocityY),
                 // with magnitude proportional to how close the pulse lands to peak wave velocity.
@@ -2192,9 +2233,16 @@
             setupUIHandlers() {
                 const UI_CONFIG = {
                     frequency: { unit: ' Hz', formatter: null },
-                    amplitude: { unit: ' mm', formatter: null },
+                    amplitude: { unit: ' m', formatter: (v) => parseFloat(v).toFixed(1) },
                     width: { unit: ' mm', formatter: null },
                     tension: { unit: ' kg', formatter: null },
+                    // Dual display (M2.2): the budget is a STRESS fraction; the paper's
+                    // "10% of tether strength" is a POWER fraction (P ∝ σ²), so both are
+                    // shown and the paper's figure reconciles instead of contradicting.
+                    stressBudget: { unit: '', formatter: (v) => {
+                        const pct = parseFloat(v);
+                        return pct + '% of stress (' + (pct * pct / 100).toFixed(1) + '% of power)';
+                    } },
                     // The raw slider value is NOT a percentage: it is divided by
                     // SETTINGS_SCALE.GRIP (20) to get the field multiplier, so raw 20 is x1.00
                     // and raw 100 is x5.00. Label it as the multiplier the sim actually uses.
@@ -2383,7 +2431,8 @@
                 this.tetherMultiplier = GameConfig.PHYSICS.MOMENTUM_MULTIPLIER;
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
-                this.materialDamping = 1.0;
+                this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
+                this.safetyFraction = 0.30;   // §2.1 stress budget slider default (M2.2)
                 
                 // Pause state
                 this.paused = false;
@@ -2748,8 +2797,8 @@
                 // Reset physics multipliers to defaults
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
-                this.materialDamping = 1.0;
-                this.materialGpa = 300;        // CC-CNT default (matches the Material dropdown)
+                this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
+                this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
                 this.gripMultiplier = 1.0;
                 this.gravityMultiplier = 1.0;
                 this.dragMultiplier = 1.0;
@@ -2817,9 +2866,10 @@
                 // Reset HTML slider elements and labels to defaults
                 const sliderDefaults = {
                     frequency:  { value: 0,      label: '0.5 Hz' },
-                    amplitude:  { value: 700,    label: '700 mm' },
+                    amplitude:  { value: 7,      label: '7.0 m' },
                     width:      { value: 45,     label: '45 mm' },
                     tension:    { value: 100,    label: '100 kg' },
+                    stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
                     grip:       { value: 20,     label: '×1.00' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
                     weight:     { value: 50,     label: '50 kg' }
@@ -2832,9 +2882,9 @@
                 });
                 const materialEl = document.getElementById('material');
                 if (materialEl) {
-                    materialEl.value = '300';
+                    materialEl.value = String(GameConfig.MATERIAL_DEFAULT_INDEX);
                     const materialLbl = document.getElementById('materialValue');
-                    if (materialLbl) materialLbl.textContent = '300 GPa CC-CNT';
+                    if (materialLbl) materialLbl.textContent = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX].label;
                 }
             }
             
@@ -2907,20 +2957,22 @@
                     applyColorblindPalette(!_uxColorblind);
                     if (this.waveSystem) this.waveSystem.cachedColor = null;
                 });
-                this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) this.waveSystem.frequency = data.value; });
-                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) this.waveSystem.amplitude = scaleSettingValue('amplitude', data.value); });
+                this.eventBus.on('settings:frequency', (data) => { if (this.waveSystem) { this.waveSystem.frequency = data.value; this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); } });
+                this.eventBus.on('settings:amplitude', (data) => { if (this.waveSystem) { this.waveSystem.amplitude = scaleSettingValue('amplitude', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); } });
                 this.eventBus.on('settings:width', (data) => { this.vineWidth = scaleSettingValue('width', data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
+                this.eventBus.on('settings:stressBudget', (data) => { this.safetyFraction = scaleSettingValue('stressBudget', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = scaleSettingValue('grip', data.value); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
                 
                 this.eventBus.on('settings:material', (data) => {
-                    // Higher GPa = stiffer material = less swing (lower damping multiplier)
-                    // 300 GPa (CC-CNT, default) = 1.0, 50 GPa (graphene) = 1.25
-                    const gpa = data.value;
-                    this.materialGpa = gpa;                 // feeds waveEnergyFactor attenuation (Q-P3)
-                    this.materialDamping = materialDampingFor(gpa);
+                    // The ladder is a STRENGTH ladder (E, rho constant) — material choice moves
+                    // §2.1's v_max ceiling and nothing else. (The fabricated stiffness-damping
+                    // and altitude-attenuation roles were deleted in M2.2.)
+                    const idx = Math.max(0, Math.min(GameConfig.MATERIALS.length - 1, data.value | 0));
+                    this.materialIndex = idx;
+                    this.clampAmplitudeToStressCap();
                     this.updateDerivedReadouts();
                 });
                 
@@ -2987,11 +3039,27 @@
                 fill ? ctx.fill() : ctx.stroke();
             }
 
-            // SIM (Stage 2 / Q-P3): wave energy remaining at a given altitude. Ground-driven
-            // waves attenuate with height; a stiffer (higher-GPa) material attenuates less, so
-            // material choice sets how high regen stays net-positive (the difficulty curve).
-            waveEnergyFactor(altitude) {
-                return waveEnergyFactor(altitude, this.materialGpa);
+            // SIM (§2.1 / M2.2): the film's material-only speed ceiling under the current
+            // stress budget. THIS is what material strength buys — not altitude reach.
+            vMaxMps() {
+                const m = GameConfig.MATERIALS[this.materialIndex];
+                return maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, this.safetyFraction);
+            }
+
+            // SIM (§2.2 / M2.2): the stroke budget at the current carrier — the largest
+            // amplitude the stress budget permits (A·ω ≤ v_max).
+            strokeCapM() {
+                const omega = this.waveSystem.frequency * 2 * Math.PI;
+                return maxAmplitudeM(this.vMaxMps(), omega);
+            }
+
+            // §2.1 enforcement: A·ω > v_max would tear the film, so amplitude is clamped
+            // to the stress cap. Called from every handler that moves the cap (material,
+            // stress budget) or the ratio (frequency, amplitude). Never auto-raises.
+            clampAmplitudeToStressCap() {
+                if (!this.waveSystem) return;
+                const cap = this.strokeCapM();
+                if (this.waveSystem.amplitude > cap) this.waveSystem.amplitude = cap;
             }
 
             // SIM (Stage 2 / B.8): longitudinal wave speed v = sqrt(E/rho) — a material constant,
@@ -3010,10 +3078,28 @@
                                 couplingMomentumScale(this.vineWidth, this.vineTension) / ref));
             }
 
-            // Refresh derived settings readouts (wave speed). Safe before the DOM exists.
+            // Refresh derived settings readouts (wave speed, v_max, stroke cap, live wave
+            // stress). Safe before the DOM exists.
             updateDerivedReadouts() {
                 const el = document.getElementById('waveSpeedValue');
                 if (el) el.textContent = (this.tetherWaveSpeed() / 1000).toFixed(1) + ' km/s';
+                const vMax = this.vMaxMps();
+                const vEl = document.getElementById('vmaxValue');
+                if (vEl) vEl.textContent = Math.round(vMax * 3.6) + ' km/h';
+                const capEl = document.getElementById('strokeCapValue');
+                if (capEl && this.waveSystem) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this.waveSystem.frequency.toFixed(1) + ' Hz';
+                // Live wave stress: what the CURRENT (clamped) A·ω actually uses of the
+                // film — as % of working stress AND % of stress-limited power (P ∝ σ²),
+                // so the paper's "10% at 1000 km/h" reads natively.
+                const wsEl = document.getElementById('waveStressValue');
+                if (wsEl && this.waveSystem) {
+                    const m = GameConfig.MATERIALS[this.materialIndex];
+                    const vPeak = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI;
+                    const sigmaGpa = vPeak * Math.sqrt(m.youngsPa * m.densityKgM3) / 1e9;
+                    const stressPct = (sigmaGpa / m.strengthGpa) * 100;
+                    const powerPct = stressPct * stressPct / 100;
+                    wsEl.textContent = `Wave now: σ = ${sigmaGpa.toFixed(1)} GPa = ${stressPct.toFixed(1)}% of stress (${powerPct.toFixed(1)}% of power)`;
+                }
             }
 
             // B.14: live air-density readout (% of sea level) — the number the player watches
@@ -3191,7 +3277,7 @@
                 if (engaged) {
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
-                    this.monkey.velocityY += c.impulse * this.materialDamping * this.waveSpeedFactor() * this._coldFactor;
+                    this.monkey.velocityY += c.impulse * this.waveSpeedFactor() * this._coldFactor;
                     // B.14: the same magnetic interaction that couples to the wave also brakes
                     // against the tether. Present only while the EPMs are on; releasing latches
                     // them off (zero power) and the climber coasts.
@@ -3218,16 +3304,19 @@
                     this.lastGrabQuality = 0;
                 }
                 // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave coupling
-                // regenerates it, attenuated by altitude (Q-P3) + gated by material. Ambient
-                // eddy-current trickle (always near the tether) makes brownout recoverable by
-                // coasting. The arithmetic is the extracted pure epmChargeStep; only the
-                // side effects live here. `tripped` moves the brownout audio cue to the end
-                // of this synchronous frame (previously it fired inside the drain block) —
-                // nothing between those points reads EPM state, and AudioSystem.brownout()
-                // is a stateless blip, so the cue is identical.
+                // regenerates it. Wave power does NOT attenuate with altitude (paper p.9:
+                // amplitude adjusts to keep transported power constant), so energyFactor is
+                // 1.0 — the fabricated altitude-gated regen is gone; M2.8 replaces this loop
+                // with switching watts vs extracted mechanical power. Ambient eddy-current
+                // trickle (always near the tether) makes brownout recoverable by coasting.
+                // The arithmetic is the extracted pure epmChargeStep; only the side effects
+                // live here. `tripped` moves the brownout audio cue to the end of this
+                // synchronous frame (previously it fired inside the drain block) — nothing
+                // between those points reads EPM state, and AudioSystem.brownout() is a
+                // stateless blip, so the cue is identical.
                 const step = epmChargeStep({
                     charge: this.epmCharge, brownout: this.epmBrownout, pulsing: engaged, quality,
-                    energyFactor: this.waveEnergyFactor(this.monkey.altitude),
+                    energyFactor: 1.0,
                     tier: this.monkey.equipment.magnet || 'base', dt,
                 });
                 this.epmCharge = step.charge;

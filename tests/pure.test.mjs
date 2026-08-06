@@ -23,8 +23,9 @@ const {
   climbSpeedKmh,
   tetherWaveSpeed,
   tetherPhaseAt,
+  maxMaterialVelocityMps,
+  maxAmplitudeM,
   couplingMomentumScale,
-  waveEnergyFactor,
   safePersistedNumber,
   missionScore,
   bootstrapPct,
@@ -36,7 +37,6 @@ const {
   epmChargeStep,
   milestoneMarkerAt,
   shouldTriggerGameOver,
-  materialDampingFor,
   scaleSettingValue,
   couplingTier,
   couplingColor,
@@ -60,9 +60,10 @@ test('extraction exposes the core pure symbols', () => {
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
-    tetherWaveSpeed, tetherPhaseAt, couplingMomentumScale, waveEnergyFactor,
+    tetherWaveSpeed, tetherPhaseAt, maxMaterialVelocityMps, maxAmplitudeM,
+    couplingMomentumScale,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
-    milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
+    milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit,
   })) {
@@ -302,15 +303,65 @@ test('climbSpeedKmh replaces the old 0.036 badge factor, which under-reported 10
 });
 
 // ---------------------------------------------------------------------------
-// tetherWaveSpeed / couplingMomentumScale / waveEnergyFactor
+// tetherWaveSpeed / couplingMomentumScale
 // ---------------------------------------------------------------------------
 test('tetherWaveSpeed = sqrt(E/rho), a material constant (longitudinal wave)', () => {
   const v = tetherWaveSpeed();
   assert.ok(v > 0);
   // Longitudinal (compression) wave speed in a rod: v = sqrt(E/rho).
   approx(v, Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY), 1e-9);
-  // ~23.6 km/s for E=1 TPa, rho=1800 — far above orbital velocity.
-  assert.ok(v > 20000 && v < 25000);
+  // ~20.9 km/s for the paper's E=1 TPa, rho=2300 (slide 3) — far above orbital velocity.
+  assert.ok(v > 20000 && v < 22000);
+});
+
+// M2.2 — slide 6 is a REGRESSION FIXTURE: at the paper's rho = 2300 kg/m^3 the derived
+// units chain reproduces every published figure to 2 s.f.; at the old guess (1800) every
+// one of these assertions fails by 8-13%. This single test proves E, rho, c, Z and P
+// are mutually consistent AND agree with the source.
+test('slide-6 fixture: the units chain reproduces the paper to 2 significant figures', () => {
+  const E = GameConfig.TETHER.YOUNGS_MODULUS;
+  const rho = GameConfig.TETHER.CARBON_DENSITY;
+  assert.equal(rho, 2300, 'the paper gives rho = 2300 kg/m^3 (slide 3) — do not regress this');
+  assert.equal(E, 1.0e12, 'the paper gives E ≈ 1 TPa (slide 3)');
+  const r2 = (x) => Number(x.toPrecision(2));
+  const cLong = Math.sqrt(E / rho);
+  assert.equal(r2(cLong / 1000), 21, 'c_longitudinal ≈ 21 km/s (slide 3)');
+  const cTrans = Math.sqrt(90e9 / rho);           // transverse wave at 90 GPa working stress
+  assert.equal(r2(cTrans / 1000), 6.3, 'c_transverse @ 90 GPa ≈ 6.3 km/s (slide 3)');
+  assert.equal(r2(cLong * rho / 1e6), 48, 'Z/A longitudinal = 48 N/(m/s)/mm^2 (slide 6)');
+  assert.equal(r2(cTrans * rho / 1e6), 14, 'Z/A transverse = 14 N/(m/s)/mm^2 (slide 6)');
+  // P/A = σ²/(cρ) with σ = v·√(Eρ). W/m^2 → kW/mm^2 is /1e9, → MW/mm^2 is /1e12.
+  const powerAt = (vMps) => (vMps * Math.sqrt(E * rho)) ** 2 / (cLong * rho);
+  assert.equal(r2(powerAt(200 / 3.6) / 1e9), 150, 'P/A @ 200 km/h = 150 kW/mm^2 (slide 6)');
+  assert.equal(r2(powerAt(1000 / 3.6) / 1e12), 3.7, 'P/A @ 1000 km/h = 3.7 MW/mm^2 (slide 6)');
+  assert.equal(r2((45e9) ** 2 / (cLong * rho) / 1e12), 42, 'P/A @ 45 GPa = 42 MW/mm^2 (slide 6)');
+});
+
+test('§2.1 v_max: material-only ceiling, stress-fraction reading reconciles the paper', () => {
+  const E = GameConfig.TETHER.YOUNGS_MODULUS, rho = GameConfig.TETHER.CARBON_DENSITY;
+  // v_max = f·strength/√(Eρ): 30% of the paper's 45 GPa working stress lands on the
+  // paper's 1000 km/h operating point (the DECIDED default budget).
+  const v = maxMaterialVelocityMps(45, E, rho, 0.30);
+  assert.equal(Number((v * 3.6).toPrecision(2)), 1000, '30% of 45 GPa = 1000 km/h (paper p.9)');
+  // v_max scales with strength (the ladder is a strength ladder) and budget.
+  assert.ok(maxMaterialVelocityMps(90, E, rho, 0.30) > v);
+  assert.ok(maxMaterialVelocityMps(45, E, rho, 0.60) > v);
+  // The paper's "10% at 1000 km/h" is a POWER fraction: σ at 1000 km/h is 13.3 GPa,
+  // and (13.3/45)² ≈ 8.8% ≈ 10% of stress-limited power — NOT 10% of stress.
+  const sigmaAt1000 = (1000 / 3.6) * Math.sqrt(E * rho) / 1e9;   // GPa
+  approx(sigmaAt1000, 13.3, 0.1);
+  const powerFraction = (sigmaAt1000 / 45) ** 2;
+  assert.ok(powerFraction > 0.08 && powerFraction < 0.12,
+    `power fraction ${powerFraction} should be ≈10%, not a 10% stress reading`);
+});
+
+test('§2.2 maxAmplitudeM = v_max / omega — the stroke budget', () => {
+  // At the paper's operating point (1000 km/h, 260 Hz): A ≈ 0.17 m one-sided stroke.
+  approx(maxAmplitudeM(1000 / 3.6, 2 * Math.PI * 260), (1000 / 3.6) / (2 * Math.PI * 260), 1e-12);
+  // Halving the carrier doubles the required stroke.
+  const a1 = maxAmplitudeM(280, 2 * Math.PI * 260);
+  const a2 = maxAmplitudeM(280, 2 * Math.PI * 130);
+  approx(a2, 2 * a1, 1e-9);
 });
 
 // M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.
@@ -356,15 +407,6 @@ test('couplingMomentumScale = sqrt(T/mu); rises with tension, falls with width',
   const mu = GameConfig.TETHER.CARBON_DENSITY * area;
   const tensionN = 100 * GameConfig.TETHER.KGF_TO_N;
   approx(baseScale, Math.sqrt(tensionN / mu), 1e-9);
-});
-
-test('waveEnergyFactor decays with altitude (exp), 1.0 at ground', () => {
-  approx(waveEnergyFactor(0, 300), 1.0);
-  assert.ok(waveEnergyFactor(50000, 300) < 1.0);
-  // Stiffer material (higher GPa) attenuates less at the same altitude.
-  assert.ok(waveEnergyFactor(50000, 600) > waveEnergyFactor(50000, 300));
-  // Negative altitude is clamped to 0 (no amplification below ground).
-  approx(waveEnergyFactor(-1000, 300), 1.0);
 });
 
 test('the transverse-string "sag" fiction is gone', () => {
@@ -589,12 +631,6 @@ const epmStep = (over) => epmChargeStep({
   charge: EPM.CAPACITY, brownout: false, pulsing: false, quality: 0,
   energyFactor: 1, tier: 'base', dt: 1 / 60, ...over,
 });
-// Perfect-timing altitude ceiling: highest altitude where quality 1 still
-// breaks even INCLUDING trickle — solves REGEN*ef = DRAIN - TRICKLE.
-const perfectCeiling = (tier, gpa) => {
-  const attenLength = EPM.ATTEN_BASE_M * (gpa / 100);
-  return attenLength * Math.log(EPM.REGEN[tier] / (EPM.DRAIN[tier] - EPM.TRICKLE));
-};
 
 test('epm: coasting only trickles, and saturates at CAPACITY', () => {
   const dt = 0.1;
@@ -633,27 +669,6 @@ test('epm: break-even quality is DRAIN/REGEN and rises with tier (the S11 tradeo
     assert.ok(breakEvens[i] > breakEvens[i - 1],
       `break-even must rise with tier: ${tiers[i - 1]} ${breakEvens[i - 1]} !< ${tiers[i]} ${breakEvens[i]}`);
   }
-});
-
-test('epm: altitude gates regen; material sets the perfect-timing reach (Q-P3)', () => {
-  const dt = 1 / 60;
-  // Default 300 GPa tether: base tier stays positive for the WHOLE climb (100 km).
-  const efBase100k = waveEnergyFactor(100000, 300);
-  const sBase = epmStep({ charge: 50, pulsing: true, quality: 1, energyFactor: efBase100k, tier: 'base', dt });
-  assert.ok(sBase.netPerSec > 0, 'base tier on 300 GPa must sustain past the Kármán line');
-  // 50 GPa tether: hallbach is already net-negative by ~6 km even with perfect timing.
-  const efHall6k = waveEnergyFactor(6000, 50);
-  const sHall = epmStep({ charge: 50, pulsing: true, quality: 1, energyFactor: efHall6k, tier: 'hallbach', dt });
-  assert.ok(sHall.netPerSec < 0, 'hallbach on 50 GPa must NOT sustain at 6 km');
-  // The ceiling formula is monotonic in material stiffness — material choice sets reach.
-  for (const tier of ['base', 'alnico', 'neodymium', 'hallbach']) {
-    assert.ok(perfectCeiling(tier, 300) > perfectCeiling(tier, 100));
-    assert.ok(perfectCeiling(tier, 100) > perfectCeiling(tier, 50));
-  }
-  // Spot-check the formula against the shipped waveEnergyFactor at 300 GPa for base:
-  // ceiling = 120000 * ln(7 / 1.5) ≈ 184.7 km.
-  approx(perfectCeiling('base', 300), 120000 * Math.log(7 / 1.5), 1e-6);
-  assert.ok(perfectCeiling('base', 300) > 100000);
 });
 
 test('epm: unknown or non-magnet tiers fall back to base drain/regen', () => {
@@ -904,25 +919,15 @@ test('gameover: climbing above the min then returning to ground ends the run, on
 });
 
 // ---------------------------------------------------------------------------
-// materialDampingFor (B.8) — stiffness -> swing damping
-// ---------------------------------------------------------------------------
-test('material damping: stiffer material swings less (monotonic in GPa)', () => {
-  const { DAMPING_BASE, DAMPING_PER_GPA } = GameConfig.TETHER;
-  approx(materialDampingFor(0), DAMPING_BASE, 1e-12);
-  approx(materialDampingFor(300), DAMPING_BASE - 300 * DAMPING_PER_GPA, 1e-12);
-  approx(materialDampingFor(300), 1.0, 1e-12);              // CC-CNT default sits at 1.0
-  approx(materialDampingFor(50), 1.3 - 50 * 0.001, 1e-12);  // graphene damps most (loosest)
-  assert.ok(materialDampingFor(300) < materialDampingFor(50));
-});
-
-// ---------------------------------------------------------------------------
 // scaleSettingValue — slider raw -> sim value for the divided scales
 // ---------------------------------------------------------------------------
 test('scaleSettingValue: divided scales use SETTINGS_SCALE, others pass through', () => {
-  const { AMPLITUDE, WIDTH, GRIP } = GameConfig.SETTINGS_SCALE;
-  approx(scaleSettingValue('amplitude', 70), 70 / AMPLITUDE, 1e-12);
+  const { WIDTH, GRIP, STRESS_BUDGET } = GameConfig.SETTINGS_SCALE;
   approx(scaleSettingValue('width', 45), 45 / WIDTH, 1e-12);
   approx(scaleSettingValue('grip', 20), 20 / GRIP, 1e-12);
+  approx(scaleSettingValue('stressBudget', 30), 30 / STRESS_BUDGET, 1e-12);
+  // Amplitude is real metres since M2.2 — raw passes through unscaled.
+  assert.equal(scaleSettingValue('amplitude', 7), 7);
   // Unscaled keys and unknown keys are returned unchanged.
   assert.equal(scaleSettingValue('tension', 123), 123);
   assert.equal(scaleSettingValue('gravity', 1.5), 1.5);

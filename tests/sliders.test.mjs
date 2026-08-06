@@ -64,3 +64,20 @@ test('width/tension/grip/gravity slider defaults map to their plain class fields
   const gravity = sliderDefaults().gravity;
   assert.equal(scaleSettingValue('gravity', parseFloat(gravity.inputValue)), 1.0);
 });
+
+test('stress-budget slider default maps to the DECIDED §2.1 safety fraction (30%)', () => {
+  // The paper's "10% of tether strength" is a fraction of stress-limited POWER, not of
+  // stress (P ∝ σ²): read as a stress fraction, 10% forbids the paper's own 1000 km/h
+  // operating point. The slider is a STRESS fraction of working stress, 5-60%, default
+  // 30% — the reference configuration lands exactly on the paper's 1000 km/h — and the
+  // label shows BOTH readings so the paper's 10% reconciles instead of contradicting.
+  const d = sliderDefaults().stressBudget;
+  assert.equal(scaleSettingValue('stressBudget', parseFloat(d.inputValue)), 0.30);
+  assert.ok(d.staticLabel.includes('30% of stress'), 'label states the stress fraction');
+  assert.ok(d.staticLabel.includes('9.0% of power'), 'label ALSO states the power fraction (0.30^2)');
+  // The amplitude default is real metres (7.0 m is the honest equivalent of the old
+  // "700 mm" label that was consumed as 7 m of world stroke).
+  const a = sliderDefaults().amplitude;
+  assert.equal(scaleSettingValue('amplitude', parseFloat(a.inputValue)), GameConfig.WAVE.DEFAULT_AMPLITUDE);
+  assert.ok(a.staticLabel.endsWith(' m'), 'amplitude label is in metres');
+});
