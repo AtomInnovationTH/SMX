@@ -10,37 +10,54 @@
     "filmThicknessMm": 0.2,
     "cargoKg": 50
   },
-  "doneAtS": 345.4,
-  "finalSpeedKmh": 1258.9,
+  "config": {
+    "materialIndex": 1,
+    "gapMm": 0.15,
+    "nPairs": 128,
+    "carrierHz": 92.00000000000001,
+    "cargoKg": 50,
+    "amplitudeM": 1,
+    "materialGpa": 100,
+    "stressBudget": 0.3,
+    "capacityJ": 3000000
+  },
+  "doneAtS": 387.6,
+  "finalSpeedKmh": 1114.6,
   "trace": [
     {
       "t": 60,
-      "altM": 8653.7,
-      "speedKmh": 666.7,
+      "altM": 7599.4,
+      "speedKmh": 568.8,
       "charge": 100
     },
     {
       "t": 120,
-      "altM": 22674.5,
-      "speedKmh": 1055.7,
+      "altM": 19252.1,
+      "speedKmh": 843.9,
       "charge": 100
     },
     {
       "t": 180,
-      "altM": 42284,
-      "speedKmh": 1238.5,
+      "altM": 35947.1,
+      "speedKmh": 1082.5,
       "charge": 100
     },
     {
       "t": 240,
-      "altM": 63142.1,
-      "speedKmh": 1257.3,
+      "altM": 54318,
+      "speedKmh": 1111.6,
       "charge": 100
     },
     {
       "t": 300,
-      "altM": 84114.8,
-      "speedKmh": 1258.8,
+      "altM": 72876.1,
+      "speedKmh": 1114.4,
+      "charge": 100
+    },
+    {
+      "t": 360,
+      "altM": 91451.9,
+      "speedKmh": 1114.6,
       "charge": 100
     }
   ]

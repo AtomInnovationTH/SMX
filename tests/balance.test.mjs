@@ -91,7 +91,8 @@ function runClimb(dt, wallS, over = {}) {
   const ws = new WaveSystem('sine');
   ws.frequency = cfg.carrierHz;
   // §2.1: initGame clamps amplitude to the stress cap at boot, so the harness does the
-  // same — the 7.0 m default stroke exceeds the cap at any carrier in the band.
+  // same. At the shipped 92 Hz carrier the 1.00 m default stroke sits just under the
+  // 1.08 m cap (no-op); on a hotter carrier the cap binds and this is what enforces it.
   {
     const m = GameConfig.MATERIALS[cfg.materialIndex];
     const vMax = maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, 0.30);
@@ -248,7 +249,13 @@ test('brownout recovers via ambient trickle (loop invariant, even when the defau
 
 test('trace matches the committed snapshot at documented defaults (advisory)', () => {
   const r = runClimb(1 / 60, WALL_S);
-  const snapshot = { dt: '1/60', wallS: WALL_S, defaults: DEFAULTS, doneAtS: +(r.doneAt ?? -1).toFixed(1),
+  // The snapshot records the FULL config that produced the trace, so a future reader can
+  // tell a retune from a regression without re-deriving the defaults.
+  const config = { ...DEFAULT_CFG, amplitudeM: GameConfig.WAVE.DEFAULT_AMPLITUDE,
+                   materialGpa: GameConfig.MATERIALS[DEFAULT_CFG.materialIndex].strengthGpa,
+                   stressBudget: 0.30, capacityJ: GameConfig.EPM.CAPACITY_J };
+  const snapshot = { dt: '1/60', wallS: WALL_S, defaults: DEFAULTS, config,
+                     doneAtS: +(r.doneAt ?? -1).toFixed(1),
                      finalSpeedKmh: +r.finalSpeedKmh.toFixed(1), trace: r.trace };
   if (process.env.BALANCE_SNAPSHOT_UPDATE === '1') {
     writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2) + '\n');

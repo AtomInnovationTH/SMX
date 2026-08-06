@@ -162,16 +162,20 @@ test('band-limited sawtooth: asymmetric ratchet shape, no 50x reset spike', () =
 // ---------------------------------------------------------------------------
 // WaveSystem
 // ---------------------------------------------------------------------------
-test('WaveSystem position/velocity are derivative-consistent (sine)', () => {
+test('sine carrier is derivative-consistent, and WaveSystem has no time-only wave API', () => {
+  // M2.10 deleted WaveSystem.calculatePosition/calculateVelocity and
+  // PhysicsEngine.calculateWaveVelocity: the film's state is a PHASE (φ = ωt − k·y), so a
+  // bare-time API is exactly how a renderer drifts away from the physics. Shape lives in
+  // WAVE_CALCULATORS and is sampled with an explicit phase by both.
   const ws = new WaveSystem('sine');
-  ws.frequency = 0.5;
-  ws.amplitude = 70;
-  const t = 0.37;
-  // Numerical derivative of position should match analytic velocity.
-  const h = 1e-6;
-  const numeric = (ws.calculatePosition(t + h) - ws.calculatePosition(t - h)) / (2 * h);
-  const analytic = ws.calculateVelocity(t);
-  approx(numeric, analytic, 1e-3);
+  assert.equal(ws.calculatePosition, undefined, 'time-only calculatePosition was deleted');
+  assert.equal(ws.calculateVelocity, undefined, 'time-only calculateVelocity was deleted');
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  assert.equal(p.calculateWaveVelocity, undefined, 'calculateWaveVelocity was deleted');
+  // Numerical derivative of position matches analytic velocity at unit omega.
+  const amp = 1.05, t0 = 0.37, h = 1e-6;
+  const numeric = (WAVE_CALCULATORS.sine.position(amp, t0 + h) - WAVE_CALCULATORS.sine.position(amp, t0 - h)) / (2 * h);
+  approx(numeric, WAVE_CALCULATORS.sine.velocity(amp, 1, t0), 1e-6);
 });
 
 test('WaveSystem.setType only accepts known types', () => {
@@ -441,7 +445,7 @@ test('gapFluxT: datasheet anchors, monotonic collapse, clamps at the table ends'
   approx((gapFluxT(0.1, pole) / pole) ** 2, 1.0, 1e-9);        // 0.1 mm: 100%
   approx((gapFluxT(0.501, pole) / pole) ** 2, 0.16243, 1e-4);  // 0.5 mm: ~16%
   approx((gapFluxT(1.0, pole) / pole) ** 2, 0.03304, 1e-4);    // 1.0 mm: ~3%
-  // The working point: gap 0.30 mm -> ~0.44 T, ~38% force (§2.5's "~0.3 T" region).
+  // §2.5's "~0.3 T across a working gap" region: 0.30 mm -> ~0.44 T, ~38% force.
   const bAtDefault = gapFluxT(0.30, pole);
   assert.ok(bAtDefault > 0.40 && bAtDefault < 0.49, `flux at 0.30 mm: ${bAtDefault} T`);
   // Monotonically decreasing over the published domain.

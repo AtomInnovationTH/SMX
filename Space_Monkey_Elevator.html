@@ -315,9 +315,9 @@
             <small class="setting-hint">How fast the ground station drives the wave, 92-1000 Hz (Wessels to Lofstrom). Carrier sets the wavelength (λ = c/f) and the stroke cap — and the SWITCHING cost: with this film class the energy loop stalls above ~200 Hz. Find the wall; that's the paper's story.</small>
         </div>
         <div class="slider-container">
-            <label>Amplitude: <span id="amplitudeValue">7.0 m</span></label>
-            <input type="range" id="amplitude" min="1" max="10" step="0.5" value="7">
-            <small class="setting-hint">Ground stroke per cycle, in real metres. Capped by the stress budget: A·ω can never exceed v_max, or the wave tears the film.</small>
+            <label>Amplitude: <span id="amplitudeValue">1.00 m</span></label>
+            <input type="range" id="amplitude" min="0.05" max="1.1" step="0.05" value="1">
+            <small class="setting-hint">Ground stroke per cycle, in real metres. The stress budget caps it (A·ω ≤ v_max, or the wave tears the film): raise the carrier and the cap drops — the label then reads "(capped)" and shows the stroke actually in use.</small>
         </div>
         <div class="slider-container">
             <label>Tether stress budget: <span id="stressBudgetValue">30% of stress (9.0% of power)</span></label>
@@ -1868,9 +1868,11 @@
                 DEFAULT_FREQUENCY: logSliderToFreq(0),
                 // Real metres (M2.2): the ground stroke per cycle. The old value (70) was
                 // labelled "700 mm" but consumed as 70 px = 7 m at PX_PER_M — a 10x lie of
-                // the same family as the speed readout M1.1 fixed. 7.0 m is the honest
-                // equivalent of the shipped tuning. Clamped to maxAmplitudeM(v_max, omega).
-                DEFAULT_AMPLITUDE: 7.0,
+                // the same family as the speed readout M1.1 fixed. M2.11 sets the default
+                // just UNDER the stress cap at the shipped 92 Hz carrier (A_max = 1.08 m),
+                // so the slider reads true out of the box; raising the carrier lowers the
+                // cap and the label then says "(capped)".
+                DEFAULT_AMPLITUDE: 1.00,
                 WIDTH: 4,
                 SEGMENTS: 40,
                 SEGMENT_WIDTH: 12,
@@ -2157,17 +2159,10 @@
                 this.cachedColor = null;
             }
             
-            calculatePosition(time) {
-                const t = time * this.frequency * 2 * Math.PI;
-                return WAVE_CALCULATORS[this.type]?.position(this.amplitude, t) || 0;
-            }
-            
-            calculateVelocity(time) {
-                const t = time * this.frequency * 2 * Math.PI;
-                const omega = this.frequency * 2 * Math.PI;
-                return WAVE_CALCULATORS[this.type]?.velocity(this.amplitude, omega, t) || 0;
-            }
-            
+            // Shape is read from WAVE_CALCULATORS with an explicit PHASE (M2.10): the film's
+            // state is φ = ωt − k·y, never a bare time, so the renderer and the slip physics
+            // cannot drift apart. (The old time-only calculatePosition/calculateVelocity
+            // helpers and PhysicsEngine.calculateWaveVelocity went with that change.)
             getColor() { return this.colors[this.type]; }
             
             getRGB() {
@@ -2195,8 +2190,6 @@
                 this.config = gameConfig;
                 this.eventBus = eventBus;
             }
-            
-            calculateWaveVelocity(waveSystem) { return waveSystem.calculateVelocity(waveSystem.time); }
 
             // SIM (§2.3 / M2.5): the slip coupling — the load-bearing model. The FG40 stack
             // gates ON exactly when the film outruns the climber; mean thrust over a cycle
@@ -2350,7 +2343,7 @@
             setupUIHandlers() {
                 const UI_CONFIG = {
                     frequency: { unit: ' Hz', formatter: null },
-                    amplitude: { unit: ' m', formatter: (v) => parseFloat(v).toFixed(1) },
+                    amplitude: { unit: ' m', formatter: (v) => parseFloat(v).toFixed(2) },
                     width: { unit: ' mm', formatter: null },
                     thickness: { unit: ' mm', formatter: (v) => parseFloat(v).toFixed(2) },
                     tension: { unit: ' kg', formatter: null },
@@ -2934,8 +2927,10 @@
                 this.epmBrownout = false;
                 this.epmNetPerSec = 0;
 
-                // §2.1: the boot configuration must be physical — at the 262.8 Hz default
-                // carrier the 7.0 m default stroke exceeds the stress cap, so clamp it.
+                // §2.1: the boot configuration must be physical. At the shipped 92 Hz
+                // carrier the 1.00 m default stroke sits just under the 1.08 m stress cap,
+                // so this is a no-op at defaults — it bites when a run starts on a hotter
+                // carrier or a weaker film, and the label then reads "(capped)".
                 this.clampAmplitudeToStressCap();
                 this.updateDerivedReadouts();
 
@@ -2992,7 +2987,7 @@
                 // Reset HTML slider elements and labels to defaults
                 const sliderDefaults = {
                     frequency:  { value: 0,      label: '92.0 Hz' },
-                    amplitude:  { value: 7,      label: '7.0 m' },
+                    amplitude:  { value: 1,      label: '1.00 m' },
                     width:      { value: 45,     label: '45 mm' },
                     thickness:  { value: 0.2,    label: '0.20 mm' },
                     tension:    { value: 100,    label: '100 kg' },
@@ -3199,6 +3194,20 @@
                 if (!this.waveSystem) return;
                 const cap = this.strokeCapM();
                 if (this.waveSystem.amplitude > cap) this.waveSystem.amplitude = cap;
+                this.refreshAmplitudeLabel();
+            }
+
+            // The amplitude slider is a REQUEST; the stress budget can cap it. The label
+            // must therefore show the stroke ACTUALLY in use — a slider whose value is
+            // silently overridden is exactly the class of lie M1 spent itself removing.
+            refreshAmplitudeLabel() {
+                const lbl = document.getElementById('amplitudeValue');
+                if (!lbl || !this.waveSystem) return;
+                const el = document.getElementById('amplitude');
+                const requested = el ? parseFloat(el.value) : this.waveSystem.amplitude;
+                const actual = this.waveSystem.amplitude;
+                const capped = actual < requested - 1e-9;
+                lbl.textContent = actual.toFixed(2) + ' m' + (capped ? ' (capped)' : '');
             }
 
             // SIM (Stage 2 / B.8): longitudinal wave speed v = sqrt(E/rho) — a material constant,
@@ -3406,7 +3415,7 @@
                 // can clear the latch at the END of the previous frame, so the branch must read
                 // the value as it stands on entry or a frame could both pulse and recover.
                 const engaged = this.monkey.isGrabbing && !this.epmBrownout;
-                let quality = 0, thrustFrameN = 0;
+                let thrustFrameN = 0;
                 if (engaged) {
                     // §2.5 hardware chain (M2.4 gap -> flux, M2.5 flux -> traction):
                     // air gap sets pole flux via FG40's published curve; flux sets the
@@ -3428,7 +3437,6 @@
                         { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
-                    quality = c.quality;
                     thrustFrameN = c.thrustN;
 
                     this.lastGrabQuality = c.quality;
@@ -3618,16 +3626,21 @@
 
                 const maxLineWidth = this.vineWidth * 3;
                 const baseSpacing = height / this.wave.segments;
+                // One source of truth for waveform shape: the same calculators the slip
+                // integral samples. Displacement uses the real (band-limited) shape, and
+                // "strain" is its normalised particle velocity — for a travelling wave
+                // strain = −v_particle/c, so velocity IS the strain profile.
+                const shape = WAVE_CALCULATORS[this.waveSystem.type] || WAVE_CALCULATORS.sine;
                 for (let i = 0; i < this.wave.segments; i++) {
                     const yBase = i * baseSpacing;
                     const phi = tetherPhaseAt(altAt(yBase), t, freq, cMps);
-                    // Real longitudinal displacement, real amplitude (A ≤ ~1.1 m = ≤11 px
-                    // at the stress-capped carrier — small and honest, not exaggerated).
-                    const y = yBase - ampPx * Math.sin(phi);
+                    // Real longitudinal displacement, real amplitude (A ≤ ~1.08 m = ≤11 px
+                    // at the stress-capped 92 Hz carrier — small and honest, not exaggerated).
+                    const y = yBase - shape.position(ampPx, phi);
                     if (y > height || y < 0) continue;
-                    // Brightness/width track STRAIN (cos φ): compression vs rarefaction is
-                    // what carries the stress. The depth of the modulation is presentation.
-                    const strain = Math.cos(phi);
+                    // Brightness/width track strain: compression vs rarefaction is what
+                    // carries the stress. The depth of the modulation is presentation.
+                    const strain = shape.velocity(1, 1, phi);
                     const opacity = 0.5 + (strain + 1) * 0.25;
                     const segWidth = this.vineWidth + Math.max(0, strain) * this.vineWidth * 0.67;
                     ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
@@ -3703,7 +3716,7 @@
                 // film HERE is moving up fast exactly when cos(φ) is near 1. It reads the
                 // same phase the slip physics uses — what you see is what couples.
                 if (!this.monkey.isGrabbing) {
-                    const filmVelFrac = Math.cos(tetherPhaseAt(altAt(cy), t, freq, cMps));
+                    const filmVelFrac = shape.velocity(1, 1, tetherPhaseAt(altAt(cy), t, freq, cMps));
                     if (filmVelFrac > 0.2) {
                         const intensity = Math.pow(filmVelFrac, 2);
                         const radius = 8 + intensity * 12;

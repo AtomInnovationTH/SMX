@@ -109,7 +109,8 @@ test('stress-budget slider default maps to the DECIDED §2.1 safety fraction (30
   assert.equal(scaleSettingValue('stressBudget', parseFloat(d.inputValue)), 0.30);
   assert.ok(d.staticLabel.includes('30% of stress'), 'label states the stress fraction');
   assert.ok(d.staticLabel.includes('9.0% of power'), 'label ALSO states the power fraction (0.30^2)');
-  // The amplitude default is real metres (7.0 m is the honest equivalent of the old
+  // The amplitude default is real metres, and M2.11 put it just under the stress cap at
+  // the shipped 92 Hz carrier (1.08 m) so the label reads true out of the box.
   // "700 mm" label that was consumed as 7 m of world stroke).
   const a = sliderDefaults().amplitude;
   assert.equal(scaleSettingValue('amplitude', parseFloat(a.inputValue)), GameConfig.WAVE.DEFAULT_AMPLITUDE);
