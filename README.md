@@ -52,7 +52,6 @@ Three ways to play:
 | `M` | Toggle sound (starts muted) |
 | `Esc` / `P` | Pause / resume |
 | `1` / `2` / `3` | Switch wave type — sine / square / sawtooth |
-| `K` | Switch to the legacy "classic grab" model (hidden backup) |
 | ⚙ button (top-right) | Open settings panel (same as `S`) |
 
 ---

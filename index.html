@@ -449,12 +449,6 @@
         let _uxReducedMotion = false;
         let _uxColorblind = false;
 
-        // SIM: coupling model. Continuous "pulse/couple" (the contactless EPM model) is the
-        // DEFAULT experience. The legacy discrete "grab/hold" model is kept as a hidden backup,
-        // toggled at runtime with 'K' and persisted in localStorage.
-        const CONTINUOUS_COUPLING_KEY = 'spaceMonkey.continuousCoupling.v1';
-        let _continuousCoupling = true;
-
         // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap progress.
         const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run score (kg·km)
         const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v1';  // cumulative kg delivered to Kármán
@@ -752,8 +746,6 @@
         // UX/SIM: single source of truth for the coupling-quality tier. The flash colour,
         // the colorblind glyph and the badge bar all derive from this, so they cannot drift
         // apart. Pure only with respect to a fixed GameConfig (same contract as epmChargeStep).
-        // NOTE: the hidden legacy grab model (K) is deliberately 2-tier and assigns its colour
-        // from phase error, not from quality — it does NOT use this helper. See the plan's §5.
         function couplingTier(quality) {
             if (quality >= GameConfig.COUPLING.PERFECT_QUALITY) return 'perfect';
             if (quality >= GameConfig.COUPLING.GOOD_QUALITY) return 'good';
@@ -819,8 +811,8 @@
         // credited. NOTE the NEGATED >= form: for NaN, `NaN >= X` is false (no credit, as
         // the original code), whereas `NaN < X` is ALSO false (would wrongly credit) — the
         // negation is required for byte-identical behaviour. Pure w.r.t. GameConfig.
-        function cargoDeliveryCredit({ continuous, delivered, altitude, cargoKg, bootstrapKg }) {
-            if (!continuous || delivered) return null;
+        function cargoDeliveryCredit({ delivered, altitude, cargoKg, bootstrapKg }) {
+            if (delivered) return null;
             if (!(altitude >= GameConfig.MISSION.DELIVER_ALTITUDE_M)) return null;
             return { deliveredKg: cargoKg, bootstrapKg: bootstrapKg + cargoKg };
         }
@@ -1763,8 +1755,6 @@
             };
             
             static GRAB = {
-                PERFECT_WINDOW: 0.12,
-                GOOD_WINDOW: 0.30,
                 FLASH_DURATION: 0.15,
                 PERFECT_COLOR: COLOR_PALETTE.GRAB_PERFECT,
                 GOOD_COLOR: COLOR_PALETTE.GRAB_GOOD,
@@ -2018,52 +2008,7 @@
             calculateWaveVelocity(waveSystem) { return waveSystem.calculateVelocity(waveSystem.time); }
 
             // Heavier climber (+ cargo) accelerates less per unit coupling momentum.
-            // Shared by both the discrete and continuous coupling models so they cannot drift.
             weightFactor(monkey) { return 1.0 / (1.0 + monkey.weight / 100); }
-
-            calculateGrabMomentum(waveSystem, monkey, gripMult, tetherMult) {
-                const waveVelocity = this.calculateWaveVelocity(waveSystem);
-                // Bound the velocity to the sine-equivalent peak (amp*omega). The square /
-                // sawtooth calculators fake their discontinuity impulse with a large spike
-                // (x100 / x50 of a normal peak); the continuous model tolerates it because it
-                // normalises by maxVel and clamps quality, but this legacy discrete path
-                // multiplies the raw velocity straight into momentum. Without this bound a
-                // well-timed square/sawtooth grab launches the climber off the map. Sine is
-                // already within the bound, so its behaviour is unchanged.
-                const peak = waveSystem.amplitude * waveSystem.frequency * 2 * Math.PI;
-                const boundedVel = peak > 0
-                    ? Math.max(-peak, Math.min(peak, waveVelocity))
-                    : waveVelocity;
-                // Normalise into [0,1): JS `%` keeps the operand's sign, so a negative
-                // time/frequency would yield a negative phase and push phaseDiff above
-                // 0.25 — which the single good-band branch below relies on never happening.
-                const wavePhase = (((waveSystem.time * waveSystem.frequency) % 1) + 1) % 1;
-                const optimalPhase = 0.25;
-                const phaseDiff = Math.min(
-                    Math.abs(wavePhase - optimalPhase),
-                    Math.abs(wavePhase - (optimalPhase + 0.5))
-                );
-                
-                let quality, flashColor;
-                if (phaseDiff < GameConfig.GRAB.PERFECT_WINDOW) {
-                    quality = 1.0;
-                    flashColor = GameConfig.GRAB.PERFECT_COLOR;
-                } else {
-                    // The two optimal phases (0.25 and 0.75) are antipodal on the unit
-                    // cycle, so phaseDiff can never exceed 0.25 — which is strictly below
-                    // GRAB.GOOD_WINDOW (0.30). There is deliberately NO "poor" tier: a
-                    // mistimed legacy grab floors at the good-band edge (~0.639) instead of
-                    // at a POOR_QUALITY constant, and the else-branch that used to hold one
-                    // was unreachable dead code (guarded by a test that pins this invariant).
-                    quality = 0.5 + 0.5 * (1 - (phaseDiff - GameConfig.GRAB.PERFECT_WINDOW) /
-                              (GameConfig.GRAB.GOOD_WINDOW - GameConfig.GRAB.PERFECT_WINDOW));
-                    flashColor = GameConfig.GRAB.GOOD_COLOR;
-                }
-                
-                const momentum = boundedVel * quality * tetherMult * gripMult;
-                const weightFactor = this.weightFactor(monkey);
-                return { quality, momentum: momentum * weightFactor, flashColor };
-            }
 
             // SIM (Stage 2 / B.10): continuous coupling integrator — coupling(t) x waveVelocity(t)
             // applied per-frame while the EPM is pulsing. Returns a per-frame impulse (already
@@ -2073,6 +2018,17 @@
             //   S12: an asymmetric (sawtooth) wave adds a small timing-independent net up-assist
             //        (the traveling-wave / ratchet motor effect).
             // Tunables live in GameConfig.COUPLING and are initial guesses flagged for playtest.
+            //
+            // INVARIANT (do not break): the square / sawtooth calculators fake their
+            // discontinuity impulse with a large velocity spike (x100 / x50 of a normal peak,
+            // WAVE_CALCULATORS). The retired legacy grab path needed an explicit velocity
+            // bound because it multiplied the raw velocity straight into momentum. THIS path
+            // needs none, because it uses the raw velocity ONLY inside `quality`, which is
+            // clamped to 1, and scales the impulse by `maxVel` (= amp*omega) rather than by
+            // the velocity itself. A spike therefore SATURATES quality instead of launching
+            // the climber. If a future change ever multiplies waveVelocity into the impulse
+            // directly, the bound has to come back. (The spikes themselves are slated for
+            // replacement by honest band-limited derivatives.)
             calculateContinuousCoupling(waveSystem, monkey, gripMult, tetherMult, dt) {
                 const waveVelocity = this.calculateWaveVelocity(waveSystem);
                 const omega = waveSystem.frequency * 2 * Math.PI;
@@ -2097,20 +2053,22 @@
                 return { impulse, quality, flashColor };
             }
 
-            applyGravityAndDrag(monkey, dt, isGrabbing, gravityMult, dragMult) {
-                if (!isGrabbing) {
-                    monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
-                    // B.14: AERODYNAMIC drag only. Scales with air density, so it fades to nothing
-                    // in the upper climb; the magnetic (eddy) term lives in applyEddyDrag and
-                    // applies only while the EPMs are engaged.
-                    // B.15: dragMult scales the drag LOSS, not the retention factor, so an
-                    // Aero/Streamline kit REDUCES drag (it previously multiplied the retention
-                    // factor, which made the kits dramatically worse -- see B.15 below).
-                    const ef = GameConfig.PHYSICS.EDDY_FRACTION;
-                    const aeroLossSeaLevel = (1 - Math.pow(GameConfig.PHYSICS.AIR_DRAG, 1 - ef)) * dragMult;
-                    const aero = 1 - aeroLossSeaLevel * densityRatio(monkey.altitude);
-                    monkey.velocityY *= frameDecay(aero, dt);
-                }
+            // Gravity ALWAYS applies: the climber is never mechanically attached to the film,
+            // so there is no "hanging" state that suspends it. (This used to take an
+            // `isGrabbing` flag that suspended gravity for the retired discrete grab model;
+            // the surviving caller already passed a literal `false`, so the branch was dead.)
+            applyGravityAndDrag(monkey, dt, gravityMult, dragMult) {
+                monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
+                // B.14: AERODYNAMIC drag only. Scales with air density, so it fades to nothing
+                // in the upper climb; the magnetic (eddy) term lives in applyEddyDrag and
+                // applies only while the EPMs are engaged.
+                // B.15: dragMult scales the drag LOSS, not the retention factor, so an
+                // Aero/Streamline kit REDUCES drag (it previously multiplied the retention
+                // factor, which made the kits dramatically worse -- see B.15 below).
+                const ef = GameConfig.PHYSICS.EDDY_FRACTION;
+                const aeroLossSeaLevel = (1 - Math.pow(GameConfig.PHYSICS.AIR_DRAG, 1 - ef)) * dragMult;
+                const aero = 1 - aeroLossSeaLevel * densityRatio(monkey.altitude);
+                monkey.velocityY *= frameDecay(aero, dt);
             }
 
             // SIM (B.14): magnetic drag from the EPM's coupling to the tether -- the same
@@ -2988,20 +2946,6 @@
                         this.showToast(muted ? '🔇 Sound off' : '🔊 Sound on');
                     }
 
-                    // SIM: K toggles between the default pulse/couple model and the hidden legacy grab model.
-                    if (e.key === 'k' || e.key === 'K') {
-                        _continuousCoupling = !_continuousCoupling;
-                        try { localStorage.setItem(CONTINUOUS_COUPLING_KEY, _continuousCoupling ? '1' : '0'); } catch (err) {}
-                        // Reset transient coupling state so the mode switch is clean.
-                        if (this.monkey) this.monkey.isGrabbing = false;
-                        this.lastGrabQuality = 0;
-                        this._couplingParticleTimer = 0;
-                        this.epmCharge = GameConfig.EPM.CAPACITY;
-                        this.epmBrownout = false;
-                        this.epmNetPerSec = 0;
-                        console.log('[SIM] coupling model:', _continuousCoupling ? 'PULSE (default)' : 'CLASSIC GRAB');
-                    }
-                    
                     // Pause toggle — skip if game-over is showing
                     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
                         if (this.gameOver) return; // UX: don't pause during game-over (2e)
@@ -3089,23 +3033,13 @@
                 this.airDensityLabel.textContent = airDensityReadout(this.monkey.altitude);
             }
 
+            // The ENGAGE LATCH. Pressing only engages the EPM coupling; the upward impulse is
+            // integrated every frame in updateContinuous() while SPACE is held. Called from the
+            // SPACE handler, from coyote-time re-grab, and from input-buffer execution — so this
+            // is load-bearing for SPACE even though it is now three lines.
             attemptGrab() {
                 this._firstCoupleDone = true;   // hides the first-load pulse hint (3.5)
-                if (this._isContinuous()) {
-                    // Continuous mode: pressing only ENGAGES the EPM coupling; the upward
-                    // impulse is integrated every frame in update() while SPACE is held.
-                    this.monkey.isGrabbing = true;
-                    return;
-                }
-                const g = this.physics.calculateGrabMomentum(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier);
-                this.monkey.velocityY += g.momentum * this.materialDamping;
-                this.lastGrabQuality = g.quality;
-                this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
-                this.grabFlashColor = g.flashColor;
                 this.monkey.isGrabbing = true;
-                this.eventBus.emit('grab', { quality: g.quality, momentum: g.momentum });
-                this.audio.pulse(g.quality);
-                this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.floor(g.quality * GameConfig.PARTICLES.MAX_COUNT), g.flashColor);
             }
             
             checkCollisions() {
@@ -3188,34 +3122,27 @@
                 // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap meter.
                 const cargoEl = document.getElementById('go-cargo');
                 const bootEl = document.getElementById('go-bootstrap');
-                if (this._isContinuous()) {
-                    // Mission score (S15): cargo kg × delivered altitude km. Only nonzero on a
-                    // successful Kármán delivery; persist the personal best.
-                    const score = this.cargoDelivered ? missionScore(this.deliveredKg) : 0;
-                    if (score > this.cargoBest) {
-                        this.cargoBest = score;
-                        try { localStorage.setItem(CARGO_BEST_KEY, this.cargoBest.toString()); } catch(e) {}
-                    }
-                    if (cargoEl) {
-                        cargoEl.style.display = 'block';
-                        cargoEl.textContent = this.cargoDelivered
-                            ? `Mission score: ${this.deliveredKg.toFixed(1)} kg  →  ${Math.round(score)} kg·km  (best ${Math.round(this.cargoBest)})`
-                            : 'Mission score: 0 — deliver cargo to the Kármán Line (100 km)';
-                    }
-                    if (bootEl) {
-                        const pct = bootstrapPct(this.bootstrapKg);
-                        bootEl.style.display = 'block';
-                        bootEl.textContent = `Tether bootstrap: ${this.bootstrapKg.toFixed(0)} / ${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg  (${pct.toFixed(1)}%)`;
-                    }
-                    // "What's above 100 km" teaching panel — shown once the player reaches Kármán.
-                    const geoEl = document.getElementById('go-geo');
-                    if (geoEl) geoEl.style.display = this.cargoDelivered ? 'block' : 'none';
-                } else {
-                    if (cargoEl) cargoEl.style.display = 'none';
-                    if (bootEl) bootEl.style.display = 'none';
-                    const geoEl = document.getElementById('go-geo');
-                    if (geoEl) geoEl.style.display = 'none';
+                // Mission score (S15): cargo kg × delivered altitude km. Only nonzero on a
+                // successful Kármán delivery; persist the personal best.
+                const score = this.cargoDelivered ? missionScore(this.deliveredKg) : 0;
+                if (score > this.cargoBest) {
+                    this.cargoBest = score;
+                    try { localStorage.setItem(CARGO_BEST_KEY, this.cargoBest.toString()); } catch(e) {}
                 }
+                if (cargoEl) {
+                    cargoEl.style.display = 'block';
+                    cargoEl.textContent = this.cargoDelivered
+                        ? `Mission score: ${this.deliveredKg.toFixed(1)} kg  →  ${Math.round(score)} kg·km  (best ${Math.round(this.cargoBest)})`
+                        : 'Mission score: 0 — deliver cargo to the Kármán Line (100 km)';
+                }
+                if (bootEl) {
+                    const pct = bootstrapPct(this.bootstrapKg);
+                    bootEl.style.display = 'block';
+                    bootEl.textContent = `Tether bootstrap: ${this.bootstrapKg.toFixed(0)} / ${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg  (${pct.toFixed(1)}%)`;
+                }
+                // "What's above 100 km" teaching panel — shown once the player reaches Kármán.
+                const geoEl = document.getElementById('go-geo');
+                if (geoEl) geoEl.style.display = this.cargoDelivered ? 'block' : 'none';
                 if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'flex';
             }
             
@@ -3244,14 +3171,8 @@
                 ctx.restore();
             }
             
-            // SIM: single source of truth for which coupling model is active. The flag is a
-            // module-level toggle (K key, persisted); reading it through one helper keeps the
-            // branching localized rather than sprinkled across update/render/game-over.
-            _isContinuous() { return _continuousCoupling; }
-
             // SIM (thermal layer): update temperature + protective-suit tier from the current
             // altitude, announce a new suit, and cache the cold coupling multiplier for the physics.
-            // Runs in both models so the climber visibly suits up regardless of coupling mode.
             updateThermal() {
                 // NOTE (shift 7 §2): this call stays BEFORE updatePosition below. It
                 // intentionally consumes LAST frame's altitude — a one-frame intrinsic
@@ -3265,11 +3186,11 @@
                 this._coldFactor = coldFactor;
             }
 
-            // SIM (Stage 2 / B.10): continuous "pulse/couple" integrator (the default EPM model).
+            // SIM (Stage 2 / B.10): the "pulse/couple" integrator — the only coupling model.
             // Gravity ALWAYS applies; the coupling impulse fights it only while pulsing, so the
             // climb is an active energy battle. Drives the EPM charge/brownout loop.
             updateContinuous(dt) {
-                this.physics.applyGravityAndDrag(this.monkey, dt, false, this.gravityMultiplier, this.dragMultiplier);
+                this.physics.applyGravityAndDrag(this.monkey, dt, this.gravityMultiplier, this.dragMultiplier);
                 // Compute `engaged` once, at frame entry: the recovery check inside epmChargeStep
                 // can clear the latch at the END of the previous frame, so the branch must read
                 // the value as it stands on entry or a frame could both pulse and recover.
@@ -3325,14 +3246,6 @@
                 if (step.tripped) this.audio.brownout();
             }
 
-            // SIM: legacy discrete "grab/hold" integrator (hidden backup, toggled with K).
-            // Gravity is suspended while grabbing; the upward impulse is applied once per grab
-            // in attemptGrab() rather than integrated per-frame.
-            updateLegacy(dt) {
-                this.physics.applyGravityAndDrag(this.monkey, dt, this.monkey.isGrabbing, this.gravityMultiplier, this.dragMultiplier);
-                if (this.monkey.isGrabbing) this.monkey.x = this.wave.x - this.monkey.width / 2;
-            }
-
             update(time) {
                 if (!this.running) return;
                 if (this.paused) return;
@@ -3350,13 +3263,7 @@
                 this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
                 this.updateThermal();
                 this.updateAirDensityReadout();
-                // SIM: dispatch to the active coupling model. The two integrators are kept in
-                // separate methods so the model branching lives in exactly one place.
-                if (this._isContinuous()) {
-                    this.updateContinuous(dt);
-                } else {
-                    this.updateLegacy(dt);
-                }
+                this.updateContinuous(dt);
                 this.physics.updatePosition(this.monkey, dt, this.canvas.width, this.wave.x);
                 this.checkCollisions();
                 
@@ -3383,9 +3290,8 @@
                 }
 
                 // SIM (Stage 2 / B.11): cargo delivery — credit cargo the first time the climber
-                // reaches Kármán in continuous mode, and add it to the cumulative bootstrap meter.
+                // reaches Kármán, and add it to the cumulative bootstrap meter.
                 const credit = cargoDeliveryCredit({
-                    continuous: this._isContinuous(),
                     delivered: this.cargoDelivered,
                     altitude: this.monkey.altitude,
                     cargoKg: this.monkey.weight,
@@ -3624,12 +3530,10 @@
                     ctx.restore();
                 }
 
-                // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow. In the pulse model the hands
-                // are electro-permanent magnets — they glow brighter/pulse faster with EPM charge,
+                // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow. The hands are
+                // electro-permanent magnets — they glow brighter/pulse faster with EPM charge,
                 // redden + flicker near brownout, and go dark at zero. Reinforces "pulsing magnets".
-                if (this._isContinuous()) {
-                    this.renderEpmHandsGlow(ctx, monkeyScreenY);
-                }
+                this.renderEpmHandsGlow(ctx, monkeyScreenY);
                 
                 const bx = this.monkey.x + GameConfig.MONKEY.BADGE_X_OFFSET, by = monkeyScreenY + GameConfig.MONKEY.BADGE_Y_OFFSET;
                 ctx.shadowBlur = GameConfig.RENDER.SHADOW_BLUR.BADGE;
@@ -3799,7 +3703,6 @@
                 this.renderMonkey(ctx);
                 this.renderEffects(ctx, width, height);
                 this.renderControls(ctx, height);
-                this.renderCouplingModeIndicator(ctx, width);
                 this.renderMissionHud(ctx, width);
                 this.renderThermal(ctx, width, height);
                 this.renderEpmGauge(ctx, width, height);
@@ -3820,22 +3723,9 @@
                 ctx.restore();
             }
 
-            // SIM: on-canvas badge shown only when the hidden legacy "classic grab" model is active.
-            renderCouplingModeIndicator(ctx, width) {
-                if (this._isContinuous()) return;
-                ctx.save();
-                ctx.font = 'bold 11px monospace';
-                ctx.textAlign = 'left';
-                ctx.fillStyle = 'rgba(255, 180, 0, 0.9)';
-                ctx.fillText('CLASSIC GRAB MODE  (K to restore pulse)', 10, 16);
-                ctx.restore();
-            }
-
             // SIM (Stage 2 / B.11): persistent mission HUD — surface the same cargo / mission-score
             // and bootstrap metrics shown at game-over so the player tracks them during the climb.
-            // Pulse model only (the legacy grab model has no cargo mission).
             renderMissionHud(ctx, width) {
-                if (!this._isContinuous()) return;
                 const cargoKg = this.monkey ? this.monkey.weight : 0;
                 // Live mission score = cargo kg × current altitude km (locks in at Kármán delivery).
                 const km = this.monkey ? this.monkey.altitude / 1000 : 0;
@@ -3921,7 +3811,6 @@
             // SIM (Stage 2 / B.5.1): fixed EPM charge gauge — always-legible battery bar with a
             // net-flow arrow (▲ regen >= drain, ▼ net-draining) plus a brownout warning.
             renderEpmGauge(ctx, width, height) {
-                if (!this._isContinuous()) return;
                 const w = 18, h = 150, x = width - w - 16, y = 72;
                 const charge = Math.max(0, Math.min(GameConfig.EPM.CAPACITY, this.epmCharge || 0));
                 const pct = charge / GameConfig.EPM.CAPACITY;
@@ -4016,12 +3905,6 @@
             try {
                 const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}');
                 if (saved.colorblind !== undefined) _uxColorblind = saved.colorblind;
-            } catch(e) {}
-
-            // SIM: restore the coupling-model preference (defaults to the pulse model).
-            try {
-                const stored = localStorage.getItem(CONTINUOUS_COUPLING_KEY);
-                if (stored !== null) _continuousCoupling = stored === '1';
             } catch(e) {}
             
             // UX: backup original palette then apply colorblind if saved (2f)

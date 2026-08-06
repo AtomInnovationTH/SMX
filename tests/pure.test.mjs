@@ -198,15 +198,19 @@ test('sawtooth ratchet adds extra upward bias vs sine at matched quality', () =>
   assert.ok(GameConfig.COUPLING.RATCHET_GAIN > 0);
 });
 
-test('applyGravityAndDrag does nothing while grabbing, applies gravity while falling', () => {
+test('applyGravityAndDrag always applies gravity — there is no attached state', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const grabbing = { velocityY: 0 };
-  p.applyGravityAndDrag(grabbing, 1 / 60, true, 1, 1);
-  assert.equal(grabbing.velocityY, 0);
+  // The climber never touches the film, so gravity is unconditional. The retired
+  // discrete grab model suspended it via an `isGrabbing` parameter; that parameter
+  // is gone, and engaging must NOT stop the climber falling — only the coupling
+  // impulse fights gravity.
+  const engaged = { velocityY: 0, altitude: 0 };
+  p.applyGravityAndDrag(engaged, 1 / 60, 1, 1);
+  assert.ok(engaged.velocityY > 0, 'gravity should pull downward (positive velocityY)');
 
   const falling = { velocityY: 0, altitude: 0 };
-  p.applyGravityAndDrag(falling, 1 / 60, false, 1, 1);
-  assert.ok(falling.velocityY > 0, 'gravity should pull downward (positive velocityY)');
+  p.applyGravityAndDrag(falling, 1 / 60, 1, 1);
+  assert.equal(engaged.velocityY, falling.velocityY, 'engaged and free-falling gravity are identical');
 });
 
 // ---------------------------------------------------------------------------
@@ -429,7 +433,7 @@ test('B.14 split: aero x eddy == AIR_DRAG at sea level, reference field', () => 
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   const dt = 1 / 60;
   const m = { velocityY: -1000, altitude: 0 };
-  p.applyGravityAndDrag(m, dt, false, 0, 1);   // gravityMult 0: isolate drag
+  p.applyGravityAndDrag(m, dt, 0, 1);   // gravityMult 0: isolate drag
   p.applyEddyDrag(m, dt, 1.0);                  // fieldFactor 1 = reference field
   approx(m.velocityY, -1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt), 1e-9);
 });
@@ -438,7 +442,7 @@ test('B.15: an aero kit REDUCES drag, and drag vanishes with altitude', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   const run = (dragMult, altitude) => {
     const m = { velocityY: -1000, altitude };
-    p.applyGravityAndDrag(m, 1 / 60, false, 0, dragMult);   // gravityMult 0: isolate drag
+    p.applyGravityAndDrag(m, 1 / 60, 0, dragMult);   // gravityMult 0: isolate drag
     return Math.abs(m.velocityY);
   };
   // lower dragMult (a kit) must RETAIN more speed at sea level
@@ -453,7 +457,7 @@ test('applyEddyDrag brakes with no air at 100 km (the whole point of the B.14 sp
   // Gravity off, aero ~ a no-op at 100 km (densityRatio ~ 4.6e-7): any residual
   // damping has to be the eddy term braking against the tether's field.
   const m = { velocityY: -1000, altitude: 100000 };
-  p.applyGravityAndDrag(m, dt, false, 0, 1);
+  p.applyGravityAndDrag(m, dt, 0, 1);
   const afterAero = m.velocityY;
   p.applyEddyDrag(m, dt, 1.0);
   assert.ok(Math.abs(m.velocityY) < Math.abs(afterAero),
@@ -466,7 +470,7 @@ test('applyEddyDrag at fieldFactor 0 is a true frictionless coaster', () => {
   const dt = 1 / 60;
   // Run at 100 km so aero drag is a no-op; the eddy term is the only damping left.
   const m = { velocityY: -1000, altitude: 100000 };
-  p.applyGravityAndDrag(m, dt, false, 0, 1);
+  p.applyGravityAndDrag(m, dt, 0, 1);
   const beforeEddy = m.velocityY;
   p.applyEddyDrag(m, dt, 0);   // EPMs latch OFF at zero power: eddyRef ** 0 === 1
   approx(m.velocityY, beforeEddy, 1e-9);   // eddy leaves it exactly unchanged
@@ -476,141 +480,18 @@ test('applyEddyDrag is frame-rate independent (one 1/60 step ~ four 1/240 steps)
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   const oneShot = () => {
     const m = { velocityY: -1000, altitude: 100000 };
-    p.applyGravityAndDrag(m, 1 / 60, false, 0, 1);
+    p.applyGravityAndDrag(m, 1 / 60, 0, 1);
     p.applyEddyDrag(m, 1 / 60, 1.0);
     return m.velocityY;
   };
   let v = -1000;
   for (let i = 0; i < 4; i++) {
     const m = { velocityY: v, altitude: 100000 };
-    p.applyGravityAndDrag(m, 1 / 240, false, 0, 1);
+    p.applyGravityAndDrag(m, 1 / 240, 0, 1);
     p.applyEddyDrag(m, 1 / 240, 1.0);
     v = m.velocityY;
   }
   approx(v, oneShot(), 1e-6);
-});
-
-test('calculateGrabMomentum: perfect quality at both optimal phases (0.25 and 0.75)', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const mk = () => {
-    const ws = new WaveSystem('sine');
-    ws.frequency = 1;
-    ws.amplitude = 70;
-    return ws;
-  };
-  for (const phase of [0.25, 0.75]) { // optimalPhase, and the optimalPhase + 0.5 alias
-    const ws = mk();
-    ws.time = phase; // (time * frequency) % 1 === phase
-    const g = p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1);
-    assert.equal(g.quality, 1.0, `quality at phase ${phase}`);
-  }
-});
-
-test('calculateGrabMomentum: good band quality is strictly in (0.5,1) and decreases with phaseDiff', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const qualityAt = (phase) => {
-    const ws = new WaveSystem('sine');
-    ws.frequency = 1;
-    ws.amplitude = 70;
-    ws.time = phase;
-    return p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1).quality;
-  };
-  // Phases just inside GOOD_WINDOW on the same side of the optimum (monotonic phaseDiff).
-  const phases = [0.40, 0.45, 0.50];
-  const qs = phases.map(qualityAt);
-  for (const q of qs) {
-    assert.ok(q > 0.5 && q < 1.0, `expected quality in (0.5,1), got ${q}`);
-  }
-  // As phaseDiff grows across the good band, quality decreases monotonically.
-  assert.ok(qs[0] > qs[1] && qs[1] > qs[2]);
-});
-
-test('calculateGrabMomentum: momentum falls when the climber gets heavier', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const momentum = (weight) => {
-    const ws = new WaveSystem('sine');
-    ws.frequency = 1;
-    ws.amplitude = 70;
-    ws.time = 0.5; // nonzero |velocity| so momentum is non-degenerate
-    return p.calculateGrabMomentum(ws, { weight }, 1, 1).momentum;
-  };
-  assert.ok(Math.abs(momentum(100)) < Math.abs(momentum(50)),
-    'a heavier climber must receive less grab momentum (shared weightFactor)');
-});
-
-test('calculateGrabMomentum: momentum is signed and follows waveVelocity (legacy can push down)', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const grabAt = (phase) => {
-    const ws = new WaveSystem('sine');
-    ws.frequency = 1;
-    ws.amplitude = 70;
-    ws.time = phase;
-    return { ws, g: p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1) };
-  };
-  // velocityY is positive = DOWN. The legacy model's momentum = waveVelocity * quality
-  // keeps waveVelocity's sign, so a positive wave velocity pushes the climber DOWN:
-  // phase 0.125 (sine velocity positive) -> momentum > 0. This is the exact contrast
-  // to the rectified continuous model, which always imparts UP (impulse < 0).
-  const down = grabAt(0.125);
-  assert.ok(down.g.momentum > 0, 'positive wave velocity must push the climber down (legacy model)');
-  // Phase 0.5: sine velocity negative -> upward momentum (< 0).
-  const up = grabAt(0.5);
-  assert.ok(up.g.momentum < 0, 'negative wave velocity must yield upward momentum');
-  // momentum sign is exactly waveVelocity's sign in both cases (quality is always >= 0).
-  assert.equal(Math.sign(down.g.momentum), Math.sign(down.ws.calculateVelocity(down.ws.time)));
-  assert.equal(Math.sign(up.g.momentum), Math.sign(up.ws.calculateVelocity(up.ws.time)));
-});
-
-test('calculateGrabMomentum: bounds the square/sawtooth velocity spike (no legacy teleport)', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const peak = (ws) => ws.amplitude * ws.frequency * 2 * Math.PI;
-  // Square: the calculators return amp*omega*100 where sin(t)~0 (time ~ 0). The raw
-  // velocity is ~100x a sine peak; the bounded momentum must not exceed amp*omega.
-  const sq = new WaveSystem('square'); sq.frequency = 0.5; sq.amplitude = 70; sq.time = 0;
-  assert.ok(Math.abs(sq.calculateVelocity(sq.time)) > peak(sq) * 10, 'precondition: raw square spike is huge');
-  const gsq = p.calculateGrabMomentum(sq, { weight: 50 }, 1, 1);
-  assert.ok(Math.abs(gsq.momentum) <= peak(sq) + 1e-9, 'square momentum must be bounded by amp*omega');
-  // Sawtooth: amp*omega*50 at the cycle boundary ((time*freq)%1 >= 0.98).
-  const st = new WaveSystem('sawtooth'); st.frequency = 0.5; st.amplitude = 70; st.time = 1.98;
-  assert.ok(Math.abs(st.calculateVelocity(st.time)) > peak(st) * 10, 'precondition: raw sawtooth spike is huge');
-  const gst = p.calculateGrabMomentum(st, { weight: 50 }, 1, 1);
-  assert.ok(Math.abs(gst.momentum) <= peak(st) + 1e-9, 'sawtooth momentum must be bounded by amp*omega');
-});
-
-test('legacy grab has no poor tier: max phaseDiff is 0.25 and stays below GOOD_WINDOW', () => {
-  const { GOOD_WINDOW } = GameConfig.GRAB;
-  // phaseDiff = distance to the nearer of the two optimal phases (0.25 / 0.75).
-  // They are antipodal on a unit cycle, so the maximum is exactly 0.25. The shipped
-  // code relies on this staying below GOOD_WINDOW (0.30) to keep the (removed)
-  // POOR_QUALITY tier unreachable — a mistimed legacy grab floors at the good-band
-  // edge (~0.639). If a future change makes GOOD_WINDOW <= 0.25, this fails loudly.
-  let maxDiff = 0;
-  const STEPS = 100000;
-  for (let i = 0; i < STEPS; i++) {
-    const p = i / STEPS;
-    maxDiff = Math.max(maxDiff, Math.min(Math.abs(p - 0.25), Math.abs(p - 0.75)));
-  }
-  approx(maxDiff, 0.25, 1e-4);
-  assert.ok(maxDiff < GOOD_WINDOW,
-    `GOOD_WINDOW (${GOOD_WINDOW}) must stay above max phaseDiff (${maxDiff.toFixed(4)})`);
-});
-
-test('calculateGrabMomentum: quality stays valid for negative/huge wave time', () => {
-  // JS `%` keeps the operand's sign, so a negative time would yield a negative phase
-  // and (with the single good-band branch) a NEGATIVE quality. The phase is normalised
-  // into [0,1) to make the phaseDiff <= 0.25 bound structural. Guard that here.
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const quality = (time) => {
-    const ws = new WaveSystem('sine');
-    ws.frequency = 1;
-    ws.amplitude = 70;
-    ws.time = time;
-    return p.calculateGrabMomentum(ws, { weight: 50 }, 1, 1).quality;
-  };
-  for (const t of [-0.7, -0.3, -0.05, 0, 1e6, 12345.678]) {
-    const q = quality(t);
-    assert.ok(q > 0.5 && q <= 1.0, `quality ${q} out of the reachable band at time ${t}`);
-  }
 });
 
 test('updatePosition: clamps x to vine ±150 (minus width), y/altitude to ground', () => {
@@ -1209,12 +1090,14 @@ test('airDensityReadout: the 1% and 0.001% boundaries land on the higher band (>
 
 // ---------------------------------------------------------------------------
 // cargoDeliveryCredit (shift 7, task 13) — cargo credited on the first Kármán
-// crossing in continuous mode. Behaviour identical to the pre-refactor inline
-// block (note the NEGATED >= form that preserves NaN behaviour).
+// crossing. Behaviour identical to the pre-refactor inline block (note the
+// NEGATED >= form that preserves NaN behaviour). The `continuous` parameter went
+// with the retired discrete grab model: there is only one coupling model now, so
+// the caller had nothing but a literal `true` left to pass.
 // ---------------------------------------------------------------------------
 const DELIVER_M = GameConfig.MISSION.DELIVER_ALTITUDE_M;
 const credit = (over) => cargoDeliveryCredit({
-  continuous: true, delivered: false, altitude: DELIVER_M, cargoKg: 100, bootstrapKg: 50, ...over,
+  delivered: false, altitude: DELIVER_M, cargoKg: 100, bootstrapKg: 50, ...over,
 });
 
 test('cargoDeliveryCredit: below Kármán is null; exactly at the line credits', () => {
@@ -1222,15 +1105,15 @@ test('cargoDeliveryCredit: below Kármán is null; exactly at the line credits',
   assert.deepEqual(credit({ altitude: DELIVER_M }), { deliveredKg: 100, bootstrapKg: 150 });
 });
 
-test('cargoDeliveryCredit: legacy mode never credits (even at 200 km); delivered latches null', () => {
-  assert.equal(credit({ continuous: false, altitude: 200000 }), null);
+test('cargoDeliveryCredit: delivered latches null; credits well above the line', () => {
   assert.equal(credit({ delivered: true }), null);
+  assert.deepEqual(credit({ altitude: 200000 }), { deliveredKg: 100, bootstrapKg: 150 });
 });
 
 test('cargoDeliveryCredit: bootstrap accumulates; NaN altitude is null; input not mutated', () => {
   assert.equal(credit({ cargoKg: 25, bootstrapKg: 40 }).bootstrapKg, 65);
   assert.equal(credit({ altitude: NaN }), null);
-  const input = { continuous: true, delivered: false, altitude: DELIVER_M, cargoKg: 100, bootstrapKg: 50 };
+  const input = { delivered: false, altitude: DELIVER_M, cargoKg: 100, bootstrapKg: 50 };
   const before = { ...input };
   credit(input);
   assert.deepEqual(input, before);

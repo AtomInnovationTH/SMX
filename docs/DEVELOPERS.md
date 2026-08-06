@@ -134,8 +134,7 @@ Rough top-to-bottom structure of `Space_Monkey_Elevator.html`:
 
 - **`<head>` / `<body>`** — styles, settings panel, overlays (loading, pause,
   game-over, mobile gate), `<noscript>`, the two canvases.
-- **Tunable constants & storage keys** — UX constants, `localStorage` keys, the
-  `_continuousCoupling` model flag.
+- **Tunable constants & storage keys** — UX constants and `localStorage` keys.
 - **`GameConfig`** — central tuning: `PHYSICS`, `GRAB`, `COUPLING`, `EPM`, `TETHER`,
   `MISSION`, `RENDER`, `CAMERA`, particle/speed-line configs.
 - **Data tables** — `WAVE_CALCULATORS`, `LANDMARKS_DATA`, `UPGRADES_CONFIG`,
@@ -181,9 +180,6 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - **Scoring** (`GameConfig.MISSION`): the Weight slider is cargo; delivering it to the
   Kármán Line scores `cargo_kg × altitude_km`, with a persisted best and a cumulative
   "bootstrap %" meter.
-
-A legacy discrete **grab/hold** model is preserved as a hidden backup, toggled with
-`K` (preference persisted). Most UI is gated on `_continuousCoupling`.
 
 ---
 
