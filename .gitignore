@@ -79,3 +79,12 @@ art-gen/*
 # Local working files — art pipeline preview + agent handoff notes (never on remote)
 art-preview.html
 handoff.md
+
+# Source papers — REFERENCE ONLY, NEVER COMMITTED.
+# The research this project illustrates belongs to its authors. Gassend's ISDC 2025
+# slides, Wessels' arXiv paper and Lofstrom's write-up carry no redistribution grant,
+# and ATTRIBUTIONS.md stakes its credibility on nothing third-party being shipped here.
+# Keep them locally for reference; link to the authors' own copies instead (see
+# ATTRIBUTIONS.md). This pattern exists because a `git add -A` once swept the ISDC PDF
+# into a commit by accident.
+*.pdf
