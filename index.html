@@ -382,7 +382,7 @@
         <div class="slider-container">
             <label>Gravity: <span id="gravityValue">1.00 G</span></label>
             <input type="range" id="gravity" min="0.01" max="1" step="0.01" value="1.00">
-            <small class="setting-hint">Pulls the climber down; you beat it only by coupling to the wave.</small>
+            <small class="setting-hint">1.00 G = 9.81 m/s². Pulls the climber down; you beat it only by coupling to the wave.</small>
         </div>
         <div class="slider-container">
             <label>Stack: <span id="stackValue">128 units · 2.6 m · dry 11.5 kg</span></label>
@@ -662,6 +662,14 @@
             return sigmaSPerM * thicknessM * fluxT * fluxT * poleAreaM2;
         }
 
+        // SIM (§2.5 / M2.8): EPM switching power = 4·N_pairs·E_switch·f — two transitions
+        // per cycle per unit, two units per opposed pair — FLAT in duty cycle (the gate
+        // width changes WHEN the magnets fire, not how often). 128 units × 4 J × 260 Hz
+        // = 266 kW = 6.7% of the paper's 4 MW wave budget.
+        function switchingPowerW(carrierHz, nPairs, eSwitchJ) {
+            return 4 * nPairs * eSwitchJ * carrierHz;
+        }
+
         // SIM (§2.5 / M2.6): dry mass of the FG40 stack alone (magnets only — 2 units per
         // opposed pair × 72 g). Structure mass is M2.7's STRUCTURE_MASS_FRACTION. The
         // thrust-to-weight story: ~15 N per pair vs 1.41 N of pair weight ≈ 10:1, so the
@@ -809,26 +817,19 @@
         //   (1) drain/regen only while pulsing AND not latched out,
         //   (2) ambient trickle ALWAYS applies (which is how a latched brownout recovers),
         //   (3) the latch releases once charge climbs back to BROWNOUT_RECOVER.
-        //   pulsing      : EPMs engaged this frame (monkey.isGrabbing)
-        //   quality      : 0..1 coupling quality from calculateContinuousCoupling
-        //   energyFactor : caller-supplied regen scaling — 1.0, because wave power does NOT
-        //                  attenuate with altitude (paper p.9: amplitude adjusts to keep
-        //                  transported power constant). M2.8 replaces this loop with
-        //                  switching watts vs extracted mechanical power.
-        //   tier         : EPM tier key for drain/regen rates ('base' = no upgrade; the
-        //                  magnet-ladder tiers are legacy until M2.8 replaces this loop)
+        //   pulsing     : EPMs engaged this frame (monkey.isGrabbing)
+        //   drainPerSec : switching watts in charge-points/s = switchingPowerW / CAPACITY_J × 100
+        //                 (the cost of coupling — flat in duty, §2.3)
+        //   regenPerSec : extracted mechanical power in charge-points/s = F_mean × v_climber
+        //                 normalised the same way (the income — collapses as slip closes)
         // No clamping the old loop never had: charge is only floored by the brownout trip
-        // itself, and quality/energyFactor stay the caller's responsibility (both are bounded
-        // upstream). Break-even quality per tier is DRAIN/REGEN; the perfect-timing altitude
-        // ceiling is attenLength * ln(REGEN / (DRAIN - TRICKLE)) — see tests/pure.test.mjs.
-        function epmChargeStep({ charge, brownout, pulsing, quality, energyFactor, tier, dt }) {
-            const t = tier || 'base';
+        // itself. Brownout means "switching power exceeds extraction" — which happens
+        // naturally as u → 1, so the release rhythm is emergent.
+        function epmChargeStep({ charge, brownout, pulsing, drainPerSec, regenPerSec, dt }) {
             let next = charge;
             let tripped = false;
             if (pulsing && !brownout) {
-                const drain = GameConfig.EPM.DRAIN[t] || GameConfig.EPM.DRAIN.base;
-                const regenGain = GameConfig.EPM.REGEN[t] || GameConfig.EPM.REGEN.base;
-                next += (quality * energyFactor * regenGain - drain) * dt;
+                next += (regenPerSec - drainPerSec) * dt;
                 if (next <= 0) { next = 0; brownout = true; tripped = true; }
             }
             next = Math.min(GameConfig.EPM.CAPACITY, next + GameConfig.EPM.TRICKLE * dt);
@@ -1881,8 +1882,7 @@
             };
             
             static PHYSICS = {
-                GRAVITY: 160,
-                AIR_DRAG: 0.985,
+                GRAVITY: 98.1,   // px/s² = 1.00 G exactly at PX_PER_M (9.81 m/s² × 10)
                 // B.14: aerodynamic (aero) drag retention per 60 Hz frame at sea level.
                 // (The old EDDY_FRACTION split a share off for applyEddyDrag — that flat
                 // velocity decay was the game's ONLY speed ceiling, and it is DELETED in
@@ -1891,6 +1891,13 @@
                 // the waveSpeedFactor tuning curve went with it: the slip thrust is a
                 // physical force and carries no gameplay multipliers — M2.11 tunes via the
                 // real knobs, not a constant.)
+                // Retuned 0.985 -> 0.9985 in M2.8/M2.9: the old arcade viscosity (60%/s at
+                // sea level) capped the climber near 15 m/s at 1 G — BELOW the energy
+                // loop's break-even speed (extraction F·v covers the 269 kW switching draw
+                // only past ~150 m/s), so the climb could never start. 0.9985 lifts the
+                // in-atmosphere cap to ~215 m/s. M4 replaces this linear form with the
+                // paper's wave drag.
+                AIR_DRAG: 0.9985,
                 // PX_PER_M: the authoritative world scale, 10 pixels per metre.
                 // DERIVED, not chosen: one carrier wavelength must fit on screen
                 // (lambda = c/f ~ 91 m at 260 Hz -> ~910 px), and it is what the five
@@ -1916,24 +1923,21 @@
                 AUDIO_PULSE_INTERVAL: 0.16 // seconds between rhythmic pulse tones while coupling
             };
 
-            // SIM (Stage 2 / B.5): EPM charge / regen energy loop tunables (continuous mode only).
-            // Capacity normalized 0-100. All values are INITIAL GUESSES flagged for playtest.
-            //   - Pulsing DRAINS charge (per-tier: strength-vs-draw tradeoff, S11).
-            //   - A well-timed up-wave coupling REGENs charge: quality * tier regen.
-            //   - Wave power does NOT attenuate with altitude (paper p.9: amplitude adjusts
-            //     to keep transported power constant); the old altitude-attenuation factor
-            //     was fabricated and is gone. Material's real role is §2.1's v_max ceiling.
+            // SIM (Stage 2 / B.5): EPM charge / brownout loop tunables. The charge gauge is
+            // normalised 0-100; CAPACITY_J is the joules behind it.
+            //   - Engaging the stack DRAINS at switchingPowerW (4·N·E_switch·f — flat in duty).
+            //   - Extraction REGENs at F_mean × v_climber (mechanical power skimmed).
             //   - Ambient TRICKLE near the tether makes brownout recoverable by coasting.
             static EPM = {
                 CAPACITY: 100,
                 START_CHARGE: 100,
-                TRICKLE: 1.5,            // /s ambient eddy-current regen (always, near tether)
+                // ESTIMATE (M2.11 owns the tune): joules behind the gauge, chosen so the
+                // full buffer bridges the low-speed extraction deficit (11 s of the default
+                // 269 kW switching draw) — the engage/release rhythm then lands in seconds.
+                CAPACITY_J: 3.0e6,
+                TRICKLE: 1.5,            // charge-points/s ambient regen (always, near tether)
                 BROWNOUT_RECOVER: 15,    // re-enable pulsing once charge climbs back above this %
-                // keyed by tier ('base' = shipped configuration; the magnet-ladder tiers are
-                // unreachable since M2.6 retired the pickups and are deleted in M2.8):
-                // drain /s, regen gain
-                DRAIN: { base: 3, alnico: 4, neodymium: 8, hallbach: 15 },
-                REGEN: { base: 7, alnico: 8, neodymium: 12, hallbach: 18 }
+                REFERENCE_WAVE_POWER_W: 4.0e6,  // the paper's 4 MW wave budget (slide 6 / p.13)
             };
 
             // SIM (Stage 2 / B.8): light units chain — wire the tether sliders into one model.
@@ -3398,7 +3402,7 @@
                 // can clear the latch at the END of the previous frame, so the branch must read
                 // the value as it stands on entry or a frame could both pulse and recover.
                 const engaged = this.monkey.isGrabbing && !this.epmBrownout;
-                let quality = 0;
+                let quality = 0, thrustFrameN = 0;
                 if (engaged) {
                     // §2.5 hardware chain (M2.4 gap -> flux, M2.5 flux -> traction):
                     // air gap sets pole flux via FG40's published curve; flux sets the
@@ -3421,6 +3425,7 @@
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     quality = c.quality;
+                    thrustFrameN = c.thrustN;
 
                     this.lastGrabQuality = c.quality;
                     this.grabFlashColor = c.flashColor;
@@ -3441,21 +3446,24 @@
                     // Browned out: EPM can't fire — no momentum imparted, just stay on the film.
                     this.lastGrabQuality = 0;
                 }
-                // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave coupling
-                // regenerates it. Wave power does NOT attenuate with altitude (paper p.9:
-                // amplitude adjusts to keep transported power constant), so energyFactor is
-                // 1.0 — the fabricated altitude-gated regen is gone; M2.8 replaces this loop
-                // with switching watts vs extracted mechanical power. Ambient eddy-current
-                // trickle (always near the tether) makes brownout recoverable by coasting.
-                // The arithmetic is the extracted pure epmChargeStep; only the side effects
-                // live here. `tripped` moves the brownout audio cue to the end of this
-                // synchronous frame (previously it fired inside the drain block) — nothing
-                // between those points reads EPM state, and AudioSystem.brownout() is a
-                // stateless blip, so the cue is identical.
+                // EPM energy loop (M2.8): the cost of coupling is SWITCHING WATTS
+                // (4·N·E_switch·f, flat in duty), the income is EXTRACTED MECHANICAL POWER
+                // (F_mean · v_climber). Brownout means switching power exceeds extraction
+                // for longer than the battery buffers — which §2.3 shows happens naturally
+                // as u → 1 (extraction collapses while drain holds flat), so the
+                // engage/release rhythm is emergent, not scripted. Ambient trickle keeps
+                // a latched brownout recoverable by coasting. `tripped` keeps the brownout
+                // audio cue single-fire.
+                const switchW = switchingPowerW(this.waveSystem.frequency, this.nPairs, GameConfig.FG40.E_SWITCH_J);
+                const extractW = thrustFrameN * Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+                this._switchingW = switchW;
+                this._extractionW = extractW;
+                const toChargeRate = (watts) => watts / GameConfig.EPM.CAPACITY_J * GameConfig.EPM.CAPACITY;
                 const step = epmChargeStep({
-                    charge: this.epmCharge, brownout: this.epmBrownout, pulsing: engaged, quality,
-                    energyFactor: 1.0,
-                    tier: 'base', dt,
+                    charge: this.epmCharge, brownout: this.epmBrownout, pulsing: engaged,
+                    drainPerSec: toChargeRate(switchW),
+                    regenPerSec: toChargeRate(extractW),
+                    dt,
                 });
                 this.epmCharge = step.charge;
                 this.epmBrownout = step.brownout;
@@ -4058,6 +4066,15 @@
                 else { ctx.moveTo(ax, ay + 3); ctx.lineTo(ax - 6, ay - 7); ctx.lineTo(ax + 6, ay - 7); }
                 ctx.closePath();
                 ctx.fill();
+                // M2.8: the energy loop in real units — switching watts against the
+                // paper's 4 MW wave budget, and live extraction (F_mean · v_climber).
+                ctx.fillStyle = 'rgba(190, 240, 255, 0.85)';
+                ctx.font = '9px monospace';
+                const sw = this._switchingW || 0;
+                ctx.fillText(`switch ${(sw / 1000).toFixed(0)} kW`, ax, ay + 15);
+                ctx.fillText(`${(sw / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of 4 MW`, ax, ay + 26);
+                ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
+                ctx.fillText(`skim ${((this._extractionW || 0) / 1000).toFixed(0)} kW`, ax, ay + 37);
                 // brownout warning (blinks)
                 if (this.epmBrownout && Math.floor(performance.now() / 350) % 2 === 0) {
                     ctx.fillStyle = '#e74c3c';

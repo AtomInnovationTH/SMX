@@ -30,6 +30,7 @@ const {
   pairCouplingK,
   stackDryMassKg,
   stackLengthM,
+  switchingPowerW,
   slipThrustMeanN,
   safePersistedNumber,
   missionScore,
@@ -66,7 +67,7 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
-    gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, slipThrustMeanN,
+    gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, switchingPowerW, slipThrustMeanN,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -93,11 +94,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 31 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 32 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 31);
+  assert.equal(declaredPureHelpers().length, 32);
 });
 
 // ---------------------------------------------------------------------------
@@ -690,14 +691,28 @@ test('ALTIMETER_LANDMARKS table is sorted ascending by altitude', () => {
 });
 
 // ---------------------------------------------------------------------------
-// EPM charge / regen / brownout loop (B.5) — drives the extracted pure
-// epmChargeStep, the same function updateContinuous delegates to.
+// EPM charge / brownout loop (M2.8): switching watts out, extracted mechanical
+// power in — drives the extracted pure epmChargeStep, the same function
+// updateContinuous delegates to.
 // ---------------------------------------------------------------------------
 const EPM = GameConfig.EPM;
 // Convenience: one step with everything defaulting to "idle at full charge".
 const epmStep = (over) => epmChargeStep({
-  charge: EPM.CAPACITY, brownout: false, pulsing: false, quality: 0,
-  energyFactor: 1, tier: 'base', dt: 1 / 60, ...over,
+  charge: EPM.CAPACITY, brownout: false, pulsing: false, drainPerSec: 0, regenPerSec: 0,
+  dt: 1 / 60, ...over,
+});
+
+test('switchingPowerW reproduces §2.5\'s 266 kW / 6.7% of 4 MW at the documented defaults', () => {
+  // 128 units x 4 J x 260 Hz: two transitions per cycle per unit, two units per pair.
+  approx(switchingPowerW(260, 64, 4), 266240, 1e-9);
+  const pct = switchingPowerW(260, 64, 4) / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100;
+  assert.ok(Math.abs(pct - 6.7) < 0.15, `266 kW should be ≈6.7% of 4 MW, got ${pct}`);
+  // Flat in duty by construction — and linear in carrier, pairs, and energy per switch.
+  approx(switchingPowerW(520, 64, 4), 2 * switchingPowerW(260, 64, 4), 1e-9);
+  approx(switchingPowerW(260, 128, 4), 2 * switchingPowerW(260, 64, 4), 1e-9);
+  // At the shipped carrier (~262.8 Hz): ≈269 kW.
+  const shipW = switchingPowerW(GameConfig.WAVE.DEFAULT_FREQUENCY, GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.E_SWITCH_J);
+  assert.ok(shipW > 265e3 && shipW < 275e3, `shipped default switching ${shipW} W`);
 });
 
 test('epm: coasting only trickles, and saturates at CAPACITY', () => {
@@ -708,87 +723,62 @@ test('epm: coasting only trickles, and saturates at CAPACITY', () => {
   approx(full.netPerSec, 0, 1e-12);
 });
 
-test('epm: zero-quality pulsing drains at TRICKLE - DRAIN', () => {
+test('epm: engaged with no extraction drains at TRICKLE - switching', () => {
   const dt = 0.2;
-  const s = epmStep({ charge: 50, pulsing: true, quality: 0, dt });
-  approx(s.charge, 50 + (EPM.TRICKLE - EPM.DRAIN.base) * dt, 1e-9);
-  approx(s.netPerSec, EPM.TRICKLE - EPM.DRAIN.base, 1e-9); // base: -1.5/s
+  const s = epmStep({ charge: 50, pulsing: true, drainPerSec: 10, regenPerSec: 0, dt });
+  approx(s.charge, 50 + (EPM.TRICKLE - 10) * dt, 1e-9);
+  approx(s.netPerSec, EPM.TRICKLE - 10, 1e-9);
 });
 
-test('epm: perfect coupling at ground regenerates at REGEN - DRAIN + TRICKLE', () => {
+test('epm: extraction above switching is net-positive; break-even nets exactly TRICKLE', () => {
   const dt = 0.2;
   // charge 50 keeps clear of the CAPACITY clamp so the raw rate is visible.
-  const s = epmStep({ charge: 50, pulsing: true, quality: 1, energyFactor: 1, dt });
-  approx(s.netPerSec, EPM.REGEN.base - EPM.DRAIN.base + EPM.TRICKLE, 1e-9); // base: +5.5/s
-});
-
-test('epm: break-even quality is DRAIN/REGEN and rises with tier (the S11 tradeoff)', () => {
-  const dt = 1 / 60;
-  const tiers = ['base', 'alnico', 'neodymium', 'hallbach'];
-  const breakEvens = tiers.map((t) => EPM.DRAIN[t] / EPM.REGEN[t]);
-  // At break-even quality and ground, the loop nets exactly TRICKLE.
-  for (let i = 0; i < tiers.length; i++) {
-    const s = epmStep({ charge: 50, pulsing: true, quality: breakEvens[i], energyFactor: 1, tier: tiers[i], dt });
-    approx(s.netPerSec, EPM.TRICKLE, 1e-9);
-  }
-  // base 3/7, alnico 1/2, neodymium 2/3, hallbach 5/6 — strictly increasing:
-  // stronger magnets demand better timing to be charge-positive at all.
-  for (let i = 1; i < breakEvens.length; i++) {
-    assert.ok(breakEvens[i] > breakEvens[i - 1],
-      `break-even must rise with tier: ${tiers[i - 1]} ${breakEvens[i - 1]} !< ${tiers[i]} ${breakEvens[i]}`);
-  }
-});
-
-test('epm: unknown or non-magnet tiers fall back to base drain/regen', () => {
-  const dt = 1 / 60;
-  const ref = epmStep({ charge: 50, pulsing: true, quality: 0.8, dt });
-  for (const tier of ['nonesuch', 'carbon', null]) {
-    const s = epmStep({ charge: 50, pulsing: true, quality: 0.8, tier, dt });
-    approx(s.charge, ref.charge, 1e-12, `tier "${tier}" must equal base`);
-  }
+  const s = epmStep({ charge: 50, pulsing: true, drainPerSec: 10, regenPerSec: 20, dt });
+  approx(s.netPerSec, 20 - 10 + EPM.TRICKLE, 1e-9);
+  // Break-even: extraction == switching -> net is the ambient trickle alone.
+  const even = epmStep({ charge: 50, pulsing: true, drainPerSec: 26.9, regenPerSec: 26.9, dt });
+  approx(even.netPerSec, EPM.TRICKLE, 1e-9);
 });
 
 test('epm: brownout latches, and tripped fires only on the transition frame', () => {
   const dt = 1 / 60;
-  // Step to zero in one shot: huge dt with zero quality.
-  const trip = epmStep({ charge: 0.01, pulsing: true, quality: 0, dt: 1 });
+  // Step to zero in one shot: huge dt with no extraction.
+  const trip = epmStep({ charge: 0.01, pulsing: true, drainPerSec: 10, dt: 1 });
   assert.equal(trip.charge, 0 + EPM.TRICKLE); // floored at 0, then trickle applies
   assert.equal(trip.brownout, true);
   assert.equal(trip.tripped, true);
   // The very next identical step: still latched, but tripped is false — the audio
   // cue cannot machine-gun.
-  const next = epmStep({ charge: trip.charge, brownout: trip.brownout, pulsing: true, quality: 0, dt });
+  const next = epmStep({ charge: trip.charge, brownout: trip.brownout, pulsing: true, drainPerSec: 10, dt });
   assert.equal(next.brownout, true);
   assert.equal(next.tripped, false);
 });
 
 test('epm: recovery needs coasting past BROWNOUT_RECOVER on trickle alone', () => {
   const dt = 1 / 60;
-  // Latched, pulsing contributes nothing — charge climbs on TRICKLE alone, so
-  // recovery from 0 takes BROWNOUT_RECOVER / TRICKLE = 10 s.
+  // Latched, pulsing contributes nothing while latched — charge climbs on TRICKLE
+  // alone, so recovery from 0 takes BROWNOUT_RECOVER / TRICKLE = 10 s.
   let charge = 0, brownout = true;
   const stepsNeeded = Math.ceil((EPM.BROWNOUT_RECOVER / EPM.TRICKLE) * 60);
   for (let i = 0; i < stepsNeeded - 1; i++) {
-    const s = epmStep({ charge, brownout, pulsing: true, quality: 1, energyFactor: 1, tier: 'base', dt });
+    const s = epmStep({ charge, brownout, pulsing: true, drainPerSec: 10, regenPerSec: 100, dt });
     charge = s.charge; brownout = s.brownout;
     assert.equal(brownout, true, `still latched below RECOVER at frame ${i} (charge ${charge})`);
   }
-  const release = epmStep({ charge, brownout, pulsing: true, quality: 1, energyFactor: 1, tier: 'base', dt });
+  const release = epmStep({ charge, brownout, pulsing: true, drainPerSec: 10, regenPerSec: 100, dt });
   assert.equal(release.brownout, false, 'latch releases at/above RECOVER');
   assert.ok(charge < EPM.BROWNOUT_RECOVER && release.charge >= EPM.BROWNOUT_RECOVER);
 });
 
 test('epm: charge never leaves [0, CAPACITY] under an adversarial sweep', () => {
   for (const dt of [1 / 240, 1 / 60, 0.5, 5]) {
-    for (const quality of [0, 0.25, 0.7, 1]) {
-      for (const tier of ['base', 'alnico', 'neodymium', 'hallbach', 'nonesuch']) {
-        for (const energyFactor of [0, 1]) {
-          for (const charge of [0, 1, 50, EPM.CAPACITY]) {
-            for (const brownout of [false, true]) {
-              const s = epmStep({ charge, brownout, pulsing: true, quality, energyFactor, tier, dt });
-              assert.ok(s.charge >= 0 && s.charge <= EPM.CAPACITY,
-                `charge ${s.charge} out of range (dt=${dt} q=${quality} tier=${tier} ef=${energyFactor} c=${charge} b=${brownout})`);
-            }
+    for (const drainPerSec of [0, 5, 30]) {
+      for (const regenPerSec of [0, 5, 30]) {
+        for (const charge of [0, 1, 50, EPM.CAPACITY]) {
+          for (const brownout of [false, true]) {
+            const s = epmStep({ charge, brownout, pulsing: true, drainPerSec, regenPerSec, dt });
+            assert.ok(s.charge >= 0 && s.charge <= EPM.CAPACITY,
+              `charge ${s.charge} out of range (dt=${dt} drain=${drainPerSec} regen=${regenPerSec} c=${charge} b=${brownout})`);
           }
         }
       }
@@ -802,7 +792,7 @@ test('epm: frame-rate independent where no clamp/latch crosses; honest about whe
   const run = (dt, steps) => {
     let charge = 50;
     for (let i = 0; i < steps; i++) {
-      charge = epmStep({ charge, brownout: false, pulsing: true, quality: 0.6, energyFactor: 0.9, tier: 'alnico', dt }).charge;
+      charge = epmStep({ charge, brownout: false, pulsing: true, drainPerSec: 4, regenPerSec: 10, dt }).charge;
     }
     return charge;
   };
@@ -810,11 +800,11 @@ test('epm: frame-rate independent where no clamp/latch crosses; honest about whe
   // Crossing the 0 floor is sub-step dependent: with the same wall time, finer steps
   // can trip brownout LATER (or not yet) because each step re-adds trickle after the
   // floor. This is inherent to the latched model — do not "fix" it.
-  const coarse = epmStep({ charge: 0.05, brownout: false, pulsing: true, quality: 0, tier: 'hallbach', dt: 0.5 });
+  const coarse = epmStep({ charge: 0.05, brownout: false, pulsing: true, drainPerSec: 15, dt: 0.5 });
   assert.equal(coarse.tripped, true);
   let c = 0.05, tripped = false;
   for (let i = 0; i < 120; i++) {           // same 0.5 s at 1/240 steps
-    const s = epmStep({ charge: c, brownout: false, pulsing: true, quality: 0, tier: 'hallbach', dt: 1 / 240 });
+    const s = epmStep({ charge: c, brownout: false, pulsing: true, drainPerSec: 15, dt: 1 / 240 });
     c = s.charge; tripped = tripped || s.tripped;
   }
   assert.equal(tripped, true);              // still trips, just possibly a step later
@@ -825,8 +815,8 @@ test('epm: netPerSec matches the HUD arrow contract and is dt=0 safe', () => {
   assert.equal(zero.netPerSec, 0);
   approx(zero.charge, 42, 1e-12);           // dt=0 mutates nothing
   // Sign convention is what drawEPMGauge renders: up arrow iff netPerSec >= 0.
-  assert.ok(epmStep({ charge: 50, pulsing: true, quality: 1, dt: 0.1 }).netPerSec > 0);
-  assert.ok(epmStep({ charge: 50, pulsing: true, quality: 0, dt: 0.1 }).netPerSec < 0);
+  assert.ok(epmStep({ charge: 50, pulsing: true, drainPerSec: 5, regenPerSec: 20, dt: 0.1 }).netPerSec > 0);
+  assert.ok(epmStep({ charge: 50, pulsing: true, drainPerSec: 5, regenPerSec: 0, dt: 0.1 }).netPerSec < 0);
 });
 
 // ---------------------------------------------------------------------------

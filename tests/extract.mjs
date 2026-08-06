@@ -41,6 +41,7 @@ const EXPORTED_SYMBOLS = [
   'pairCouplingK',
   'stackDryMassKg',
   'stackLengthM',
+  'switchingPowerW',
   'slipThrustMeanN',
   'safePersistedNumber',
   'missionScore',

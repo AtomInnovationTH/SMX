@@ -210,10 +210,10 @@ try {
     window.__cue = 0;
     const orig = g.audio.brownout.bind(g.audio);
     g.audio.brownout = () => { window.__cue++; orig(); };
-    // The magnet ladder is gone (M2.6): drain is the base tier, so trip the latch from a
-    // small charge instead of a large drain — deterministic: 0.2 / (DRAIN 3 - TRICKLE 1.5)
-    // = 133 ms to brownout.
-    g.waveSystem.amplitude = 0;               // quality 0 -> pure drain
+    // The magnet ladder is gone (M2.6) and M2.8's drain is switching watts (269 kW at
+    // defaults ≈ 26.9 charge-points/s): trip the latch from a small charge instead of a
+    // large tier — deterministic: 0.2 / (26.9 - TRICKLE 1.5) ≈ 8 ms to brownout.
+    g.waveSystem.amplitude = 0;               // no film velocity -> no thrust -> pure drain
     g.epmCharge = 0.2; g.epmBrownout = false; g.monkey.isGrabbing = true;
     await new Promise((r) => setTimeout(r, 400));
     const latched = g.epmBrownout, cueAtLatch = window.__cue;

@@ -36,6 +36,7 @@ const {
   GameConfig, WaveSystem, PhysicsEngine,
   epmChargeStep, thermalStep, climbSpeedKmh,
   maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK, stackDryMassKg,
+  switchingPowerW,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly: vineWidth 4.5 == 45 mm (slider
@@ -104,14 +105,20 @@ function runClimb(dt, wallS) {
     const prevAlt = monkey.altitude;
     phys.applyGravityAndDrag(monkey, dt, DEFAULTS.gravityMultiplier, DEFAULTS.dragMultiplier);
     const engaged = monkey.isGrabbing && !brownout;
-    let quality = 0;
+    let quality = 0, thrustFrameN = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
         { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, massKg, dt });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
-    }    const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,
-      energyFactor: 1.0, tier: 'base', dt });
+      thrustFrameN = c.thrustN;
+    }
+    // M2.8: switching watts out, extracted mechanical power in (mirrors updateContinuous).
+    const switchW = switchingPowerW(ws.frequency, GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.E_SWITCH_J);
+    const extractW = thrustFrameN * Math.max(0, -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+    const toRate = (w) => w / GameConfig.EPM.CAPACITY_J * GameConfig.EPM.CAPACITY;
+    const step = epmChargeStep({ charge, brownout, pulsing: engaged,
+      drainPerSec: toRate(switchW), regenPerSec: toRate(extractW), dt });
     charge = step.charge; brownout = step.brownout;
     phys.updatePosition(monkey, dt);
 
