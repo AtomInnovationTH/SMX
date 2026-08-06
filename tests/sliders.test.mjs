@@ -22,14 +22,14 @@ test('slider defaults agree across the static input, label span and initGame res
     // default sits within [min,max]
     const min = parseFloat(d.min), max = parseFloat(d.max), step = parseFloat(d.step);
     assert.ok(d.initValue >= min && d.initValue <= max, `${id}: default within min/max`);
-    // ...and is selectable on the step grid. NOTE: width's default (45 mm) is NOT on
-    // its 10 mm step grid (10,20,...,40,50...) — a pre-existing quirk, out of scope this
-    // shift (fixing it would change the tuned 4.5-width default). Assert the strict
-    // boundary for the other six, which are all on-grid.
-    if (id !== 'width') {
-      const offStep = (d.initValue - min) / step;
-      assert.ok(Math.abs(offStep - Math.round(offStep)) < 1e-9, `${id}: default on a step boundary`);
-    }
+    // ...and is selectable on the step grid — for EVERY slider, with no exemptions.
+    // width used to be exempt: its 45 mm default sat off a 10 mm grid, so the shipped
+    // default was a value the player could never dial back in. Fixed by refining width's
+    // step to 5 mm rather than moving the default, because 45 mm is the paper's ribbon
+    // width (45 mm x 0.2 mm = 9 mm^2) and moving it would have been a balance change.
+    const offStep = (d.initValue - min) / step;
+    assert.ok(Math.abs(offStep - Math.round(offStep)) < 1e-9,
+      `${id}: default ${d.initValue} is not on the step grid (min ${min}, step ${step})`);
   }
 });
 
@@ -57,6 +57,10 @@ test('width/tension/grip/gravity slider defaults map to their plain class fields
   assert.equal(scaleSettingValue('tension', parseFloat(tension.inputValue)), 100);
   const grip = sliderDefaults().grip;
   assert.equal(scaleSettingValue('grip', parseFloat(grip.inputValue)), 1.0);
+  // ...and the label must SAY the multiplier, not a percentage. The old "20%" label was
+  // simply false: raw 20 is the x1.00 reference field, and raw 100 is x5.00.
+  assert.equal(grip.staticLabel, '×1.00', 'grip label states the field multiplier');
+  assert.equal(scaleSettingValue('grip', parseFloat(grip.max)), 5.0, 'slider max is x5.00');
   const gravity = sliderDefaults().gravity;
   assert.equal(scaleSettingValue('gravity', parseFloat(gravity.inputValue)), 1.0);
 });

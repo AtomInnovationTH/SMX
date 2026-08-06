@@ -146,12 +146,33 @@ try {
   });
   record('boot: loading overlay cleared', loadingHidden);
 
-  // 2) Grip default: fresh gripMultiplier is the tuned reference 1.0, slider reads 20/"20%".
+  // 2) Field-strength default: fresh gripMultiplier is the tuned reference 1.0, and the label
+  //    SAYS so. The slider's raw value is 20 and gets divided by SETTINGS_SCALE.GRIP, so the
+  //    old "20%" label was false in the live DOM too, not just in the static HTML.
   const grip = await page.evaluate(() => {
     const g = window.__smokeGame;
     return { mult: g.gripMultiplier, val: document.getElementById('grip')?.value, lbl: document.getElementById('gripValue')?.textContent };
   });
-  record('grip default = 1.0 at slider 20/"20%"', Math.abs(grip.mult - 1) < 1e-9 && grip.val === '20' && grip.lbl === '20%', JSON.stringify(grip));
+  record('field strength default = x1.00 at slider raw 20',
+    Math.abs(grip.mult - 1) < 1e-9 && grip.val === '20' && grip.lbl === '\u00d71.00',
+    JSON.stringify(grip));
+
+  //    ...and dragging it re-labels as a multiplier, never a percentage.
+  const gripDrag = await page.evaluate(async () => {
+    const el = document.getElementById('grip');
+    const before = el.value;
+    el.value = '100';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 40));
+    const out = { lbl: document.getElementById('gripValue').textContent, mult: window.__smokeGame.gripMultiplier };
+    el.value = before;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 40));
+    return { ...out, restored: window.__smokeGame.gripMultiplier };
+  });
+  record('field strength slider max reads x5.00 (not "100%")',
+    gripDrag.lbl === '\u00d75.00' && Math.abs(gripDrag.mult - 5) < 1e-9 && Math.abs(gripDrag.restored - 1) < 1e-9,
+    JSON.stringify(gripDrag));
 
   // 3) EPM loop: engaging via the real SPACE key drains charge and drives the net readout.
   //    Deterministic ON PURPOSE. The old version held SPACE from a full charge and asserted
