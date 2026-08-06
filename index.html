@@ -317,9 +317,9 @@
             <small class="setting-hint">Carbon films by working STRENGTH — stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
         </div>
         <div class="slider-container">
-            <label>Frequency: <span id="frequencyValue">0.5 Hz</span></label>
-            <input type="range" id="frequency" min="0" max="100" step="1" value="0">
-            <small class="setting-hint">How fast the ground station drives compression pulses up the tether — a driver control.</small>
+            <label>Carrier: <span id="frequencyValue">262.8 Hz</span></label>
+            <input type="range" id="frequency" min="0" max="100" step="1" value="44">
+            <small class="setting-hint">How fast the ground station drives the wave, 92-1000 Hz (Wessels to Lofstrom). Carrier sets the wavelength (λ = c/f) and the stroke cap — the speed ceiling comes from the stress budget, never from frequency.</small>
         </div>
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">7.0 m</span></label>
@@ -522,10 +522,11 @@
         }
         // ===== END UX CONSTANTS ===== //
         
-        // Logarithmic slider helpers for frequency
+        // Logarithmic slider helpers for the carrier frequency.
+        // Range 92-1000 Hz (M2.3): brackets Wessels' 92 Hz and Lofstrom's 1000 Hz.
         function logSliderToFreq(sliderVal) {
-            // Maps 0-100 slider to 0.5-1000 Hz logarithmically
-            const minFreq = 0.5;
+            // Maps 0-100 slider to 92-1000 Hz logarithmically
+            const minFreq = 92;
             const maxFreq = 1000;
             const minLog = Math.log10(minFreq);
             const maxLog = Math.log10(maxFreq);
@@ -534,8 +535,8 @@
         }
 
         function freqToLogSlider(freq) {
-            // Maps 0.5-1000 Hz back to 0-100 slider value
-            const minFreq = 0.5;
+            // Maps 92-1000 Hz back to 0-100 slider value
+            const minFreq = 92;
             const maxFreq = 1000;
             const minLog = Math.log10(minFreq);
             const maxLog = Math.log10(maxFreq);
@@ -1054,20 +1055,46 @@
             }
         };
         
+        // WAVE_CALCULATORS (§2.4 / M2.3): carriers as band-limited harmonic sums.
+        // An ideal square/sawtooth needs INFINITE velocity at the jump, which §2.1's
+        // stress limit forbids — so each composite shape is a truncated Fourier series,
+        // velocity-normalized so the composite peak |v_film| = amp·omega for EVERY shape:
+        // the stress cap (A·omega ≤ v_max) applies uniformly, shape is a genuine trade of
+        // harmonic content (never a speed cheat), and the old 100x/50x velocity spikes are
+        // gone. Position is the analytic integral of velocity, so the pair stays
+        // derivative-consistent. (Displacement of a composite is smaller than amp — the
+        // stroke cap is a velocity-budget statement, conservative for the builder.)
+        const CARRIER_HARMONICS = 8;
         const WAVE_CALCULATORS = {
             sine: {
                 position: (amp, t) => amp * Math.sin(t),
                 velocity: (amp, omega, t) => amp * omega * Math.cos(t)
             },
+            // Band-limited square (odd harmonics): peaks at the edges, quiet mid-cycle.
             square: {
-                position: (amp, t) => amp * Math.sign(Math.sin(t)),
-                velocity: (amp, omega, t) => Math.abs(Math.sin(t)) < 0.01 ? amp * omega * 100 : 0
-            },
-            sawtooth: {
-                position: (amp, t) => amp * (1 - 2 * ((t / (2 * Math.PI)) % 1)),
+                position: (amp, t) => {
+                    let s = 0;
+                    for (let k = 0; k < CARRIER_HARMONICS; k++) s += Math.sin((2 * k + 1) * t) / (2 * k + 1);
+                    return amp * s / CARRIER_HARMONICS;
+                },
                 velocity: (amp, omega, t) => {
-                    const cycle = (t / (2 * Math.PI)) % 1;
-                    return cycle < 0.98 ? -amp * omega : amp * omega * 50;
+                    let s = 0;
+                    for (let k = 0; k < CARRIER_HARMONICS; k++) s += Math.cos((2 * k + 1) * t);
+                    return amp * omega * s / CARRIER_HARMONICS;
+                }
+            },
+            // Band-limited sawtooth (alternating-sign harmonics): the paper's ratchet
+            // climber — asymmetric, so the slip integral over a cycle nets directional.
+            sawtooth: {
+                position: (amp, t) => {
+                    let s = 0;
+                    for (let k = 1; k <= CARRIER_HARMONICS; k++) s += (k % 2 ? 1 : -1) * Math.sin(k * t) / k;
+                    return amp * s / CARRIER_HARMONICS;
+                },
+                velocity: (amp, omega, t) => {
+                    let s = 0;
+                    for (let k = 1; k <= CARRIER_HARMONICS; k++) s += (k % 2 ? 1 : -1) * Math.cos(k * t);
+                    return amp * omega * s / CARRIER_HARMONICS;
                 }
             }
         };
@@ -1742,7 +1769,11 @@
             };
             
             static WAVE = {
-                DEFAULT_FREQUENCY: 0.5,
+                // Carrier default: raw 44 on the 92-1000 Hz log slider ≈ 262.8 Hz (the
+                // plan's ~260 Hz) — lambda = c/f ≈ 79 m ≈ 790 px at PX_PER_M, about one
+                // wavelength on screen. Defined via the slider mapping so the shipped
+                // default can never drift from what the slider displays (sliders.test).
+                DEFAULT_FREQUENCY: logSliderToFreq(44),
                 // Real metres (M2.2): the ground stroke per cycle. The old value (70) was
                 // labelled "700 mm" but consumed as 70 px = 7 m at PX_PER_M — a 10x lie of
                 // the same family as the speed readout M1.1 fixed. 7.0 m is the honest
@@ -2061,16 +2092,13 @@
             //        (the traveling-wave / ratchet motor effect).
             // Tunables live in GameConfig.COUPLING and are initial guesses flagged for playtest.
             //
-            // INVARIANT (do not break): the square / sawtooth calculators fake their
-            // discontinuity impulse with a large velocity spike (x100 / x50 of a normal peak,
-            // WAVE_CALCULATORS). The retired legacy grab path needed an explicit velocity
-            // bound because it multiplied the raw velocity straight into momentum. THIS path
-            // needs none, because it uses the raw velocity ONLY inside `quality`, which is
-            // clamped to 1, and scales the impulse by `maxVel` (= amp*omega) rather than by
-            // the velocity itself. A spike therefore SATURATES quality instead of launching
-            // the climber. If a future change ever multiplies waveVelocity into the impulse
-            // directly, the bound has to come back. (The spikes themselves are slated for
-            // replacement by honest band-limited derivatives.)
+            // INVARIANT (do not break): raw waveVelocity may be read ONLY inside `quality`
+            // (clamped to 1) — the impulse is scaled by `maxVel` (= amp·omega), never by the
+            // velocity itself. The old square/sawtooth calculators faked their discontinuity
+            // with 100x/50x velocity spikes, which this clamping survived by saturation; the
+            // M2.3 band-limited carriers are spike-free by construction (peak |v| = amp·omega),
+            // but the rule stands: if a future change ever multiplies waveVelocity into the
+            // impulse directly, a velocity bound has to come back.
             calculateContinuousCoupling(waveSystem, monkey, gripMult, tetherMult, dt) {
                 const waveVelocity = this.calculateWaveVelocity(waveSystem);
                 const omega = waveSystem.frequency * 2 * Math.PI;
@@ -2816,6 +2844,9 @@
                 // SIM (Stage 2 / B.8): baseline wave speed at default tension/width, used to
                 // normalise the coupling modifier; refresh the derived settings readout.
                 this._refCouplingScale = couplingMomentumScale(this.vineWidth, this.vineTension);
+                // §2.1: the boot configuration must be physical — at the 262.8 Hz default
+                // carrier the 7.0 m default stroke exceeds the stress cap, so clamp it.
+                this.clampAmplitudeToStressCap();
                 this.updateDerivedReadouts();
 
                 // SIM (Stage 2 / B.11): per-run cargo delivery state
@@ -2870,7 +2901,7 @@
                 
                 // Reset HTML slider elements and labels to defaults
                 const sliderDefaults = {
-                    frequency:  { value: 0,      label: '0.5 Hz' },
+                    frequency:  { value: 44,     label: '262.8 Hz' },
                     amplitude:  { value: 7,      label: '7.0 m' },
                     width:      { value: 45,     label: '45 mm' },
                     tension:    { value: 100,    label: '100 kg' },

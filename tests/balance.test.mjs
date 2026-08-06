@@ -35,6 +35,7 @@ const SNAPSHOT_PATH = join(__dirname, 'balance.snapshot.json');
 const {
   GameConfig, WaveSystem, PhysicsEngine,
   epmChargeStep, couplingMomentumScale, thermalStep, climbSpeedKmh,
+  maxMaterialVelocityMps, maxAmplitudeM,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly: vineWidth 4.5 == 45 mm (slider
@@ -56,6 +57,13 @@ const DEFAULTS = {
 // updateContinuous() call-for-call; keep them in sync or the trace lies.
 function runClimb(dt, wallS) {
   const ws = new WaveSystem('sine');
+  // §2.1: initGame clamps amplitude to the stress cap at boot, so the harness does the
+  // same — at the 262.8 Hz default carrier the 7.0 m default stroke exceeds the cap.
+  {
+    const m = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX];
+    const vMax = maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, 0.30);
+    ws.amplitude = Math.min(ws.amplitude, maxAmplitudeM(vMax, ws.frequency * 2 * Math.PI));
+  }
   const phys = new PhysicsEngine(GameConfig, { emit() {} });
   const monkey = { x: 600, y: 0, width: 80, height: 80, velocityY: 0,
                    weight: DEFAULTS.cargoKg, isGrabbing: true, altitude: 0 };

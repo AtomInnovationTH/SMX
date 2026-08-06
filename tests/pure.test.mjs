@@ -108,23 +108,49 @@ test('sine wave position/velocity at known phases', () => {
   approx(WAVE_CALCULATORS.sine.velocity(amp, omega, Math.PI / 2), 0, 1e-12);
 });
 
-test('square wave position is ±amp by sign(sin)', () => {
-  const amp = 50;
-  approx(WAVE_CALCULATORS.square.position(amp, Math.PI / 2), amp);   // sin>0
-  approx(WAVE_CALCULATORS.square.position(amp, 3 * Math.PI / 2), -amp); // sin<0
-  // velocity spikes near the zero-crossing, zero elsewhere
-  assert.equal(WAVE_CALCULATORS.square.velocity(amp, 2, Math.PI / 2), 0);
-  assert.ok(WAVE_CALCULATORS.square.velocity(amp, 2, 0) > 0);
+test('band-limited square: no spikes, peak |velocity| = amp·omega exactly', () => {
+  const amp = 50, omega = 3;
+  // The old square faked the discontinuity with a 100x velocity spike. The M2.3 carrier
+  // is a band-limited harmonic sum, velocity-normalized: composite peak = amp·omega at
+  // the edges, and |v| never exceeds it anywhere (grid-scanned).
+  approx(WAVE_CALCULATORS.square.velocity(amp, omega, 0), amp * omega, 1e-9);
+  let peak = 0;
+  for (let i = 0; i <= 720; i++) {
+    const t = (i / 720) * 2 * Math.PI;
+    peak = Math.max(peak, Math.abs(WAVE_CALCULATORS.square.velocity(amp, omega, t)));
+  }
+  assert.ok(peak <= amp * omega * (1 + 1e-9), `square peak ${peak} must not exceed amp·omega (no spikes)`);
+  assert.ok(peak > amp * omega * 0.99, 'the edge peak must actually be reached');
+  // Position: square-ish, positive in the first half-cycle, negative in the second.
+  assert.ok(WAVE_CALCULATORS.square.position(amp, Math.PI / 2) > 0);
+  assert.ok(WAVE_CALCULATORS.square.position(amp, 3 * Math.PI / 2) < 0);
+  // Derivative-consistent (analytic pair).
+  const t0 = 0.37, h = 1e-6;
+  const numeric = (WAVE_CALCULATORS.square.position(amp, t0 + h) - WAVE_CALCULATORS.square.position(amp, t0 - h)) / (2 * h);
+  approx(numeric, WAVE_CALCULATORS.square.velocity(amp, 1, t0), 1e-3);
 });
 
-test('sawtooth wave ramps within a cycle and resets', () => {
+test('band-limited sawtooth: asymmetric ratchet shape, no 50x reset spike', () => {
   const amp = 40, omega = 2;
-  // position = amp*(1 - 2*frac(t/2pi)); at t=0 -> amp, halfway -> 0
-  approx(WAVE_CALCULATORS.sawtooth.position(amp, 0), amp);
-  approx(WAVE_CALCULATORS.sawtooth.position(amp, Math.PI), 0, 1e-12);
-  // velocity is mostly the steady down-ramp (-amp*omega), with a reset spike
-  approx(WAVE_CALCULATORS.sawtooth.velocity(amp, omega, Math.PI), -amp * omega);
-  assert.ok(WAVE_CALCULATORS.sawtooth.velocity(amp, omega, 2 * Math.PI * 0.99) > 0);
+  // The old sawtooth faked the flyback with a 50x spike. Band-limited: peak magnitude
+  // = amp·omega, reached at the flyback (t = pi), never exceeded anywhere.
+  approx(Math.abs(WAVE_CALCULATORS.sawtooth.velocity(amp, omega, Math.PI)), amp * omega, 1e-9);
+  let peak = 0, sum = 0;
+  const N = 720;
+  for (let i = 0; i < N; i++) {
+    const t = (i / N) * 2 * Math.PI;
+    const v = WAVE_CALCULATORS.sawtooth.velocity(amp, omega, t);
+    peak = Math.max(peak, Math.abs(v));
+    sum += v;
+  }
+  assert.ok(peak <= amp * omega * (1 + 1e-9), `sawtooth peak ${peak} must not exceed amp·omega (no spikes)`);
+  // Periodic position ⇒ mean velocity over a cycle is zero (no net flux).
+  approx(WAVE_CALCULATORS.sawtooth.position(amp, 0), WAVE_CALCULATORS.sawtooth.position(amp, 2 * Math.PI), 1e-9);
+  assert.ok(Math.abs(sum / N) < amp * omega * 0.05, 'mean velocity over a cycle ≈ 0');
+  // Derivative-consistent (analytic pair).
+  const t0 = 0.83, h = 1e-6;
+  const numeric = (WAVE_CALCULATORS.sawtooth.position(amp, t0 + h) - WAVE_CALCULATORS.sawtooth.position(amp, t0 - h)) / (2 * h);
+  approx(numeric, WAVE_CALCULATORS.sawtooth.velocity(amp, 1, t0), 1e-3);
 });
 
 // ---------------------------------------------------------------------------
@@ -269,8 +295,8 @@ test('camera smoothing is frame-rate independent toward a static target', () => 
 // logSliderToFreq / freqToLogSlider round-trip
 // ---------------------------------------------------------------------------
 test('logSlider <-> freq round-trips and hits endpoints', () => {
-  approx(logSliderToFreq(0), 0.5, 1e-9);
-  approx(logSliderToFreq(100), 1000, 1e-9);
+  approx(logSliderToFreq(0), 92, 1e-9);          // carrier range: Wessels' 92 Hz
+  approx(logSliderToFreq(100), 1000, 1e-9);      // ...to Lofstrom's 1000 Hz
   for (const s of [0, 12.5, 33, 50, 77, 100]) {
     approx(freqToLogSlider(logSliderToFreq(s)), s, 1e-9);
   }
