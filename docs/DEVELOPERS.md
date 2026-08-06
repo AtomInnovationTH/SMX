@@ -151,42 +151,60 @@ Rough top-to-bottom structure of `Space_Monkey_Elevator.html`:
 The climber is contactless: its hands are **electro-permanent magnets (EPMs)** that
 *pulse* to couple to traveling waves in the tether. Holding `SPACE` engages coupling.
 
-- **Continuous coupling** (`PhysicsEngine.calculateContinuousCoupling`): per-frame
-  impulse `∝ waveVelocity`, rectified upward and scaled by coupling **quality**
-  (`|waveVelocity| / (amp·ω)`), which peaks at the wave's **peak velocity** (the
-  displacement zero-crossing). Sawtooth waves add a timing-independent ratchet assist.
-  Gravity always applies, so climbing is an active energy battle.
-- **EPM energy loop** (`GameConfig.EPM`, extracted to the pure `epmChargeStep` in the
-  delimited pure-helpers block; `updateContinuous` delegates and keeps only the side
-  effects): pulsing **drains** charge (per magnet tier); a well-timed coupling
-  **regenerates** it, attenuated by altitude (`waveEnergyFactor`, Q-P3) and gated by
-  tether material. An ambient trickle makes a **brownout** recoverable by coasting. The
-  charge-sustainability curve is the difficulty curve; material choice sets how high you
-  can go. The two governing quantities (both pinned by tests):
-  - **Break-even quality** per tier = `DRAIN/REGEN` — at ground, the coupling quality
-    needed to sustain. base `3/7 ≈ 0.43`, alnico `0.50`, neodymium `≈ 0.67`, hallbach
-    `≈ 0.83`, strictly rising: stronger magnets demand better timing (S11).
-  - **Perfect-timing altitude ceiling** per tier+material =
-    `(ATTEN_BASE_M · gpa/100) · ln(REGEN / (DRAIN − TRICKLE))` — the altitude at which even
-    a `quality = 1` pulse can no longer keep charge up. Rises with material stiffness, so
-    the material slider sets reach. E.g. base on 300 GPa sustains the whole climb
-    (~185 km), while hallbach on 50 GPa tops out at ~5.8 km and is a burst-only tool there.
-
-  > **Fidelity note (this mechanism is not physical, and is slated for removal).**
-  > `waveEnergyFactor`'s altitude attenuation is fabricated. The source paper states the
-  > opposite: with a tapered ribbon, *"amplitude will adjust with 1/sqrt(A) with height to
-  > keep the transported power constant"* — transported power does **not** decay with
-  > altitude. Keying the decay to tensile *strength* is doubly wrong, since Young's modulus
-  > is ~1 TPa across the whole material ladder (see the `TETHER` comment in the source).
-  > Material's real role is a **speed ceiling**, `v_max = f_safety · strength / sqrt(Eρ)`,
-  > not a reachable-altitude ceiling. The formulas above describe the code as it stands
-  > today; do not cite them as physics.
+- **Slip coupling — the core mechanic** (`PhysicsEngine.calculateContinuousCoupling`
+  over the pure `slipThrustMeanN`): the onboard controller gates the FG40 stack ON
+  exactly when the film outruns the climber. With film peak velocity `V = A·ω`,
+  climber speed `v`, slip ratio `u = v/V` and per-pair coefficient `k`, mean thrust
+  over a cycle is closed-form for a sine carrier:
+  `F = (k·N·V / 2π) · [2√(1−u²) − u(π − 2·asin u)]`.
+  `u = 0` gives `kNV/π`; thrust fades **monotonically** to zero as `u → 1`, so
+  `v_max` is an **asymptote and there is no speed clamp anywhere in the code**.
+  `u ≥ 1` is exactly zero (the gate never opens); `u ≤ −1` is a Lenz brake `−kNv`.
+  Harmonic carriers (band-limited square/sawtooth) integrate the same gate
+  numerically over 720 sub-steps — the sawtooth ratchet is now physical, not a bonus
+  constant. Motion is `a = F/m` with the climber's real mass; gravity always applies.
+- **Hardware chain** (`GameConfig.FG40`, all values sourced or flagged ESTIMATE):
+  air gap → pole flux via FG40's **published** normalised force-vs-airgap curve
+  (`gapFluxT`, extracted point-by-point from the manual; force ∝ B²) → per-pair
+  eddy-traction coefficient `k = σ·t·B²·A_pole` (`pairCouplingK`) → × N pairs. Pretension
+  sets film flutter (`TETHER.FLUTTER_REF_MM`), flutter eats the gap's centering margin,
+  and at margin ≤ 0 the controller **unloads** (flux → 0, soft fail). Mass splits into
+  derived `dryMassKg()` (stack magnets + `STRUCTURE_MASS_FRACTION`, minus frame kits)
+  and scored `cargoKg`.
+- **Stress budget → speed ceiling** (`§2.1`): wave stress is `σ = A·ω·√(Eρ)`, so capping
+  it at a fraction of working stress gives `v_max = f_safety · strength / √(Eρ)`
+  (`maxMaterialVelocityMps`) — independent of carrier, which is why raising the carrier
+  cannot buy speed. Amplitude is clamped to `A_max = v_max/ω` (`maxAmplitudeM`) and the
+  slider label shows the **actual** post-clamp stroke, with `(capped)` when it binds. The
+  material ladder is a **strength** ladder (E and ρ are constant across carbon
+  allotropes); entries above ~130 GPa are labelled speculative.
+- **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
+  `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
+  pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
+  `F_mean · v_climber`. A brownout therefore means *switching power exceeds extraction*,
+  which happens naturally as `u → 1` (extraction collapses while drain holds flat), so the
+  engage/release **rhythm is emergent, not scripted**. Ambient trickle recovers a latched
+  brownout in `BROWNOUT_RECOVER / TRICKLE` = 5 s. The gauge shows switching kW, the share
+  of the paper's 4 MW budget, and live extraction.
+- **Governing numbers, all pinned by tests** (`tests/pure.test.mjs`,
+  `tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
+  N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
+  all to 2 s.f., and they only reproduce at the paper's ρ = 2300); `k ≈ 0.043 N/(m/s)` per
+  pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; 266 kW switching =
+  6.7% of 4 MW; and the balance harness's **target bands** (100 km in 240–480 s, mean
+  900–1300 km/h, terminal speed < `v_max`, brownout episodes 2–8 s).
 - **Units chain** (`GameConfig.TETHER`): the tether carries a **longitudinal** (compression)
-  wave, so its speed is `v = √(E/ρ)` from the material's Young's modulus and density — a
-  material constant, shown in settings. Separately, tension/width scale coupling through a
-  `√(T/μ)`-shaped *coupling-momentum proxy* (`couplingMomentumScale`); that is a tuning curve,
-  **not** the wave speed, and it is clamped to
-  `[TETHER.SPEED_FACTOR_MIN, TETHER.SPEED_FACTOR_MAX]`.
+  wave, so its speed is `v = √(E/ρ)` from Young's modulus and density — a material constant
+  (~20.9 km/s at the paper's E ≈ 1 TPa, ρ = 2300), shown in settings. Cross-section is
+  `filmCrossSectionM2(widthMm, thicknessMm)`: the paper's ribbon is 45 mm × 0.2 mm = 9 mm².
+  (The old `√(T/μ)` coupling-momentum proxy and the cylinder cross-section are deleted.)
+- **Shipped defaults after the M2.11 rebalance**: 100 GPa Polycrystalline Graphene (the
+  strongest non-speculative rung), carrier **92 Hz**, air gap 0.15 mm, 128 pairs, 30% stress
+  budget, 1.00 m stroke, 50 kg cargo → 100 km in ~390 s at a ~930 km/h mean. The carrier
+  default sits at the **low** end of the 92–1000 Hz band because switching watts grow with
+  `f` while extraction is capped by `v_max`: above ~200 Hz this film class cannot pay for
+  its own switching and the climb stalls. That trade is the point — the slider keeps the
+  whole band so a player can find the wall.
 - **Scoring** (`GameConfig.MISSION`): the Weight slider is cargo; delivering it to the
   Kármán Line scores `cargo_kg × altitude_km`, with a persisted best and a cumulative
   "bootstrap %" meter.
