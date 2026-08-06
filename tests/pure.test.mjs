@@ -475,10 +475,14 @@ test('§2.5 stack: dry mass is magnets-only and the thrust-to-weight is ~10:1', 
   const thrustPerPair = 15;   // N, from pairCouplingK's documented anchor above
   const ratio = thrustPerPair / (stackDryMassKg(1) * 9.81);
   assert.ok(ratio > 8 && ratio < 13, `magnet thrust-to-weight ${ratio} should be ~10`);
-  // Stack length: 64 pairs at 0.041 m pitch ≈ 2.6 m (decision 6) and ~0.11 λ at 260 Hz.
+  // Stack length: the shipped default is 128 pairs ≈ 5.2 m (decision 6: 64 pairs ≈ 2.6 m),
+  // a few percent of a wavelength (λ ≈ 227 m at the 92 Hz default) — compact against λ,
+  // so the stack reads the LOCAL film phase, with a real travelling firing sequence.
   approx(stackLengthM(64, GameConfig.FG40.PITCH_M), 64 * GameConfig.FG40.PITCH_M, 1e-12);
   assert.ok(stackLengthM(64, GameConfig.FG40.PITCH_M) > 2.3 && stackLengthM(64, GameConfig.FG40.PITCH_M) < 2.9);
-  approx(stackLengthM(64, GameConfig.FG40.PITCH_M) / (tetherWaveSpeed() / GameConfig.WAVE.DEFAULT_FREQUENCY), 0.033, 0.004); // ~0.03-0.04 λ
+  const lambdaDefault = tetherWaveSpeed() / GameConfig.WAVE.DEFAULT_FREQUENCY;
+  const stackFrac = stackLengthM(GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.PITCH_M) / lambdaDefault;
+  assert.ok(stackFrac > 0.01 && stackFrac < 0.06, `default stack spans ${(stackFrac * 100).toFixed(1)}% of λ`);
 });
 
 // M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.
@@ -710,9 +714,10 @@ test('switchingPowerW reproduces §2.5\'s 266 kW / 6.7% of 4 MW at the documente
   // Flat in duty by construction — and linear in carrier, pairs, and energy per switch.
   approx(switchingPowerW(520, 64, 4), 2 * switchingPowerW(260, 64, 4), 1e-9);
   approx(switchingPowerW(260, 128, 4), 2 * switchingPowerW(260, 64, 4), 1e-9);
-  // At the shipped carrier (~262.8 Hz): ≈269 kW.
+  // At the shipped defaults (92 Hz carrier, 128 pairs): ≈188 kW = 4.7% of the paper's
+  // 4 MW budget — the low carrier is what keeps the switching draw feasible (M2.11).
   const shipW = switchingPowerW(GameConfig.WAVE.DEFAULT_FREQUENCY, GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.E_SWITCH_J);
-  assert.ok(shipW > 265e3 && shipW < 275e3, `shipped default switching ${shipW} W`);
+  assert.ok(shipW > 180e3 && shipW < 200e3, `shipped default switching ${shipW} W`);
 });
 
 test('epm: coasting only trickles, and saturates at CAPACITY', () => {

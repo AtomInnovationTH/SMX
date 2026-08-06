@@ -62,23 +62,34 @@ test('width/tension/gravity slider defaults map to their plain class fields', ()
 test('air-gap slider is real millimetres (M2.4 — the grip multiplier is gone)', () => {
   // The grip slider's "field strength" was an un-physical free multiplier; M1.5's
   // interim relabel as x1.00 is superseded by the REAL control: the FG40 working
-  // air gap. Raw value IS the gap in mm; default 0.30 mm is §2.5's working point.
+  // air gap. Raw value IS the gap in mm; M2.11's default 0.15 mm is as tight as the
+  // flutter margin allows at 100 kgf pretension (flutter = 0.1 mm; at 0.10 mm the
+  // margin hits zero and the controller unloads — the constraint is real).
   const d = sliderDefaults().airGap;
-  assert.equal(scaleSettingValue('airGap', parseFloat(d.inputValue)), 0.3);
-  assert.equal(d.staticLabel, '0.30 mm', 'gap label reads millimetres');
+  assert.equal(scaleSettingValue('airGap', parseFloat(d.inputValue)), 0.15);
+  assert.equal(d.staticLabel, '0.15 mm', 'gap label reads millimetres');
   // The published FG40 force-vs-airgap curve spans 0.1-5 mm — the slider must not
   // offer gaps outside the measured domain (gapFluxT clamps, but the UI shouldn't lie).
   assert.equal(d.min, '0.1');
   assert.equal(d.max, '5');
 });
 
-test('N-pairs slider is the real scaling axis (M2.6), default 64 pairs', () => {
-  // §2.5: ~64 opposed pairs hold 50 kg at 1 g. This replaced the magnet-material ladder
-  // (an EPM contains Alnico + NdFeB together; there is no alnico -> neodymium -> hallbach
-  // progression). Raw value IS the pair count.
+test('N-pairs slider is the real scaling axis (M2.6), default 128 pairs', () => {
+  // M2.11: 128 pairs = 2× §2.5's hold-50-kg anchor, to carry stack + 50 kg cargo up
+  // 100 km. Raw value IS the pair count.
   const d = sliderDefaults().nPairs;
   assert.equal(parseFloat(d.inputValue), GameConfig.FG40.DEFAULT_N_PAIRS);
-  assert.equal(d.staticLabel, '64 pairs');
+  assert.equal(d.staticLabel, '128 pairs');
+});
+
+test('carrier default is the energy-feasible end of the band (M2.11): 92 Hz', () => {
+  // §2.5/§2.3: switching watts grow with the carrier while extraction F·v is capped by
+  // v_max, so for a 45-130 GPa film class the loop only closes at the low end. The
+  // plan's "~260 Hz" screen-fit default predates the energy loop; the physics won.
+  const d = sliderDefaults().frequency;
+  assert.equal(parseFloat(d.inputValue), 0);
+  assert.ok(Math.abs(logSliderToFreq(0) - GameConfig.WAVE.DEFAULT_FREQUENCY) < 1e-9);
+  assert.equal(d.staticLabel, '92.0 Hz');
 });
 
 test('film thickness slider is real millimetres (M2.7), default the paper\'s 0.2 mm', () => {

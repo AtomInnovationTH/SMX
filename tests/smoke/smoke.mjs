@@ -146,15 +146,15 @@ try {
   });
   record('boot: loading overlay cleared', loadingHidden);
 
-  // 2) Air-gap default (M2.4): the working gap of the FG40 sandwich is 0.30 mm, and the
-  //    label SAYS so in millimetres. (This replaced the grip slider's "field strength"
-  //    multiplier — an un-physical free parameter M1.5 had only relabelled.)
+  // 2) Air-gap default (M2.4/M2.11): the working gap of the FG40 sandwich is 0.15 mm —
+  //    as tight as the flutter margin allows at 100 kgf pretension — and the label SAYS
+  //    so in millimetres. (This replaced the grip slider's "field strength" multiplier.)
   const grip = await page.evaluate(() => {
     const g = window.__smokeGame;
     return { gap: g.airGapMm, val: document.getElementById('airGap')?.value, lbl: document.getElementById('airGapValue')?.textContent };
   });
-  record('air gap default = 0.30 mm at slider raw 0.3',
-    Math.abs(grip.gap - 0.3) < 1e-9 && grip.val === '0.3' && grip.lbl === '0.30 mm',
+  record('air gap default = 0.15 mm at slider raw 0.15',
+    Math.abs(grip.gap - 0.15) < 1e-9 && grip.val === '0.15' && grip.lbl === '0.15 mm',
     JSON.stringify(grip));
 
   //    ...and dragging it re-labels in millimetres within the published curve's domain.

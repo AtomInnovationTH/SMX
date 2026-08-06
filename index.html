@@ -306,20 +306,20 @@
 
         <h4>Tether (seed)</h4>
         <div class="slider-container">
-            <label>Material: <span id="materialValue">300 GPa CC-CNT (speculative)</span></label>
+            <label>Material: <span id="materialValue">100 GPa Polycrystalline Graphene</span></label>
             <select id="material">
                 <option value="0">50 GPa Pentalayer Rhombohedral Graphene</option>
-                <option value="1">100 GPa Polycrystalline Graphene</option>
+                <option value="1" selected>100 GPa Polycrystalline Graphene</option>
                 <option value="2">130 GPa Monocrystalline Graphene</option>
                 <option value="3">150 GPa CNT (speculative)</option>
-                <option value="4" selected>300 GPa CC-CNT (speculative)</option>
+                <option value="4">300 GPa CC-CNT (speculative)</option>
             </select>
             <small class="setting-hint">Carbon films by working STRENGTH — stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
         </div>
         <div class="slider-container">
-            <label>Carrier: <span id="frequencyValue">262.8 Hz</span></label>
-            <input type="range" id="frequency" min="0" max="100" step="1" value="44">
-            <small class="setting-hint">How fast the ground station drives the wave, 92-1000 Hz (Wessels to Lofstrom). Carrier sets the wavelength (λ = c/f) and the stroke cap — the speed ceiling comes from the stress budget, never from frequency.</small>
+            <label>Carrier: <span id="frequencyValue">92.0 Hz</span></label>
+            <input type="range" id="frequency" min="0" max="100" step="1" value="0">
+            <small class="setting-hint">How fast the ground station drives the wave, 92-1000 Hz (Wessels to Lofstrom). Carrier sets the wavelength (λ = c/f) and the stroke cap — and the SWITCHING cost: with this film class the energy loop stalls above ~200 Hz. Find the wall; that's the paper's story.</small>
         </div>
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">7.0 m</span></label>
@@ -370,13 +370,13 @@
 
         <h4>Monkey</h4>
         <div class="slider-container">
-            <label>FG40 pairs: <span id="nPairsValue">64 pairs</span></label>
-            <input type="range" id="nPairs" min="1" max="256" step="1" value="64">
+            <label>FG40 pairs: <span id="nPairsValue">128 pairs</span></label>
+            <input type="range" id="nPairs" min="1" max="256" step="1" value="128">
             <small class="setting-hint">Opposed pairs in the climber's FG40 sandwich — the REAL scaling axis (not a magnet-material ladder: Alnico + NdFeB co-exist in every unit). More pairs: more thrust, but more stack mass and more switching watts. ~64 pairs holds 50 kg at 1 g (paper §2.5).</small>
         </div>
         <div class="slider-container">
-            <label>Air gap: <span id="airGapValue">0.30 mm</span></label>
-            <input type="range" id="airGap" min="0.1" max="5" step="0.05" value="0.3">
+            <label>Air gap: <span id="airGapValue">0.15 mm</span></label>
+            <input type="range" id="airGap" min="0.1" max="5" step="0.05" value="0.15">
             <small class="setting-hint">The working gap between the opposed FG40 pairs and the film — nothing ever touches. Tighter couples MUCH harder (FG40's published force-vs-airgap curve: 100% at 0.1 mm, ~16% at 0.5 mm) but leaves less centering margin for film flutter. M1.5's field-strength multiplier was an interim label; the gap is the real control.</small>
         </div>
         <div class="slider-container">
@@ -385,7 +385,7 @@
             <small class="setting-hint">1.00 G = 9.81 m/s². Pulls the climber down; you beat it only by coupling to the wave.</small>
         </div>
         <div class="slider-container">
-            <label>Stack: <span id="stackValue">128 units · 2.6 m · dry 11.5 kg</span></label>
+            <label>Stack: <span id="stackValue">256 units · 5.2 m · dry 23.0 kg</span></label>
             <small class="setting-hint">2 FG40 units per opposed pair, 72 g each, plus 25% structure. Dry mass is dead weight you carry; cargo (below) is what scores.</small>
         </div>
         <div class="slider-container">
@@ -1864,11 +1864,13 @@
             };
             
             static WAVE = {
-                // Carrier default: raw 44 on the 92-1000 Hz log slider ≈ 262.8 Hz (the
-                // plan's ~260 Hz) — lambda = c/f ≈ 79 m ≈ 790 px at PX_PER_M, about one
-                // wavelength on screen. Defined via the slider mapping so the shipped
-                // default can never drift from what the slider displays (sliders.test).
-                DEFAULT_FREQUENCY: logSliderToFreq(44),
+                // Carrier default: raw 0 on the 92-1000 Hz log slider = 92 Hz (Wessels'
+                // number). M2.11 found the energy loop only closes at the LOW end of the
+                // band for a 45-130 GPa film class: switching watts grow with f while
+                // extraction F·v is capped by v_max, so this film stalls above ~200 Hz.
+                // That IS the paper's story — the slider keeps 92-1000 Hz so the player
+                // can find the wall themselves. λ = c/f ≈ 227 m ≈ 2.7 screens.
+                DEFAULT_FREQUENCY: logSliderToFreq(0),
                 // Real metres (M2.2): the ground stroke per cycle. The old value (70) was
                 // labelled "700 mm" but consumed as 70 px = 7 m at PX_PER_M — a 10x lie of
                 // the same family as the speed readout M1.1 fixed. 7.0 m is the honest
@@ -1935,7 +1937,9 @@
                 // full buffer bridges the low-speed extraction deficit (11 s of the default
                 // 269 kW switching draw) — the engage/release rhythm then lands in seconds.
                 CAPACITY_J: 3.0e6,
-                TRICKLE: 1.5,            // charge-points/s ambient regen (always, near tether)
+                TRICKLE: 3.0,            // charge-points/s ambient regen — tuned so a latched
+                                         // brownout recovers in RECOVER/TRICKLE = 5 s, inside
+                                         // the plan's 2-8 s engage/release rhythm band (M2.11)
                 BROWNOUT_RECOVER: 15,    // re-enable pulsing once charge climbs back above this %
                 REFERENCE_WAVE_POWER_W: 4.0e6,  // the paper's 4 MW wave budget (slide 6 / p.13)
             };
@@ -1978,8 +1982,11 @@
                 { label: '150 GPa CNT (speculative)',               strengthGpa: 150, speculative: true },
                 { label: '300 GPa CC-CNT (speculative)',            strengthGpa: 300, speculative: true },
             ].map((m) => ({ ...m, youngsPa: 1.0e12, densityKgM3: 2300, sigmaSPerM: 1.0e6 }));
-            // Default = 300 GPa CC-CNT (index 4), the shipped default; M2.11 owns rebalance.
-            static MATERIAL_DEFAULT_INDEX = 4;
+            // Default = 100 GPa Polycrystalline Graphene (index 1): the strongest
+            // NON-speculative rung. M2.11 found the 300 GPa default was a fantasy of
+            // feasibility — the paper's own operating class is 45-50 GPa, and 100 GPa
+            // at 30% budget (v_max 2252 km/h) is where the energy loop closes.
+            static MATERIAL_DEFAULT_INDEX = 1;
 
             // SIM (§2.5 / M2.4): Zubax FluxGrip FG40 constants. Datasheet-sourced except
             // where flagged ESTIMATE. FG40 is the coupling hardware: opposed pairs, one
@@ -1994,7 +2001,8 @@
                 POLE_AREA_M2: 1.2e-3,   // ESTIMATE: pole-face area (4×4 cm package)
                 UNIT_MASS_KG: 0.072,    // datasheet: 72 g
                 PITCH_M: 0.041,         // ESTIMATE: opposed-pair pitch — a 64-pair stack ≈ 2.6 m (decision 6)
-                DEFAULT_N_PAIRS: 64,    // §2.5: pairs to hold 50 kg at 1 g ≈ 64 (128 units, 9.2 kg)
+                DEFAULT_N_PAIRS: 128,   // shipped default (M2.11): 2× §2.5's 64-pair hold-50-kg
+                                        // anchor, needed to carry stack + 50 kg cargo up 100 km
                 // ESTIMATE (decision 16): structure mass around the magnets (frame, wiring,
                 // controller, film guides) as a fraction of magnet mass. §2.5's ~10:1
                 // thrust-to-weight counts magnets only; this keeps that honest. Never
@@ -2544,7 +2552,8 @@
                 this.dragMultiplier = 1.0;
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
-                this.airGapMm = 0.30;          // FG40 working gap (M2.4); ~0.3 mm is §2.5's working point
+                this.airGapMm = 0.15;          // FG40 working gap (M2.11 default): as tight as
+                                               // the flutter margin allows at 100 kgf pretension
                 this.nPairs = GameConfig.FG40.DEFAULT_N_PAIRS; // pre-run stack setting (M2.6)
                 this.filmThicknessMm = 0.2;    // paper: 45 mm × 0.2 mm = 9 mm² ribbon (M2.7)
                 this.cargoKg = GameConfig.MONKEY.WEIGHT;       // scored payload (M2.7)
@@ -2914,7 +2923,7 @@
                 // Reset physics multipliers to defaults
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
-                this.airGapMm = 0.30;
+                this.airGapMm = 0.15;
                 this.nPairs = GameConfig.FG40.DEFAULT_N_PAIRS;   // pre-run stack setting (M2.6)
                 this.filmThicknessMm = 0.2;
                 this.cargoKg = GameConfig.MONKEY.WEIGHT;
@@ -2987,14 +2996,14 @@
                 
                 // Reset HTML slider elements and labels to defaults
                 const sliderDefaults = {
-                    frequency:  { value: 44,     label: '262.8 Hz' },
+                    frequency:  { value: 0,      label: '92.0 Hz' },
                     amplitude:  { value: 7,      label: '7.0 m' },
                     width:      { value: 45,     label: '45 mm' },
                     thickness:  { value: 0.2,    label: '0.20 mm' },
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
-                    airGap:     { value: 0.3,    label: '0.30 mm' },
-                    nPairs:     { value: 64,     label: '64 pairs' },
+                    airGap:     { value: 0.15,   label: '0.15 mm' },
+                    nPairs:     { value: 128,    label: '128 pairs' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
                     weight:     { value: 50,     label: '50 kg' }
                 };
