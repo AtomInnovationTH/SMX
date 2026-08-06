@@ -1,0 +1,108 @@
+{
+  "dt": "1/60",
+  "wallS": 2000,
+  "defaults": {
+    "gripMultiplier": 1,
+    "gravityMultiplier": 1,
+    "dragMultiplier": 1,
+    "vineWidth": 4.5,
+    "vineTension": 100,
+    "materialGpa": 300,
+    "materialDamping": 1,
+    "cargoKg": 50
+  },
+  "doneAtS": 919.2,
+  "finalSpeedKmh": 883,
+  "trace": [
+    {
+      "t": 60,
+      "altM": 1221.2,
+      "speedKmh": 79,
+      "charge": 100
+    },
+    {
+      "t": 120,
+      "altM": 2513.9,
+      "speedKmh": 79.8,
+      "charge": 100
+    },
+    {
+      "t": 180,
+      "altM": 3816.1,
+      "speedKmh": 79.6,
+      "charge": 100
+    },
+    {
+      "t": 240,
+      "altM": 5189.1,
+      "speedKmh": 89.1,
+      "charge": 100
+    },
+    {
+      "t": 300,
+      "altM": 6765.7,
+      "speedKmh": 103.5,
+      "charge": 100
+    },
+    {
+      "t": 360,
+      "altM": 8633.9,
+      "speedKmh": 123.2,
+      "charge": 100
+    },
+    {
+      "t": 420,
+      "altM": 10888.1,
+      "speedKmh": 153.4,
+      "charge": 100
+    },
+    {
+      "t": 480,
+      "altM": 13857.1,
+      "speedKmh": 209.5,
+      "charge": 100
+    },
+    {
+      "t": 540,
+      "altM": 18056.8,
+      "speedKmh": 304.8,
+      "charge": 100
+    },
+    {
+      "t": 600,
+      "altM": 25812.9,
+      "speedKmh": 613.7,
+      "charge": 100
+    },
+    {
+      "t": 660,
+      "altM": 37827.8,
+      "speedKmh": 805.2,
+      "charge": 100
+    },
+    {
+      "t": 720,
+      "altM": 51837.2,
+      "speedKmh": 861.9,
+      "charge": 100
+    },
+    {
+      "t": 780,
+      "altM": 66290.3,
+      "speedKmh": 871.3,
+      "charge": 100
+    },
+    {
+      "t": 840,
+      "altM": 80817.4,
+      "speedKmh": 872.9,
+      "charge": 100
+    },
+    {
+      "t": 900,
+      "altM": 95357,
+      "speedKmh": 873.2,
+      "charge": 100
+    }
+  ]
+}
