@@ -25,6 +25,8 @@ const {
   tetherPhaseAt,
   maxMaterialVelocityMps,
   maxAmplitudeM,
+  gapFluxT,
+  pairCouplingK,
   couplingMomentumScale,
   safePersistedNumber,
   missionScore,
@@ -61,6 +63,7 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, maxMaterialVelocityMps, maxAmplitudeM,
+    gapFluxT, pairCouplingK,
     couplingMomentumScale,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
@@ -88,11 +91,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 26 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 28 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 26);
+  assert.equal(declaredPureHelpers().length, 28);
 });
 
 // ---------------------------------------------------------------------------
@@ -388,6 +391,41 @@ test('§2.2 maxAmplitudeM = v_max / omega — the stroke budget', () => {
   const a1 = maxAmplitudeM(280, 2 * Math.PI * 260);
   const a2 = maxAmplitudeM(280, 2 * Math.PI * 130);
   approx(a2, 2 * a1, 1e-9);
+});
+
+// M2.4 — FG40's published normalised-force-vs-airgap curve (extracted point-by-point
+// from the datasheet plot; static-contact holding of iron, SHAPE reused for gap->flux).
+test('gapFluxT: datasheet anchors, monotonic collapse, clamps at the table ends', () => {
+  const pole = GameConfig.FG40.POLE_FLUX_T;
+  // Force ~ B^2, so flux ratio^2 = normalised force. Table anchors (extracted points):
+  approx((gapFluxT(0.1, pole) / pole) ** 2, 1.0, 1e-9);        // 0.1 mm: 100%
+  approx((gapFluxT(0.501, pole) / pole) ** 2, 0.16243, 1e-4);  // 0.5 mm: ~16%
+  approx((gapFluxT(1.0, pole) / pole) ** 2, 0.03304, 1e-4);    // 1.0 mm: ~3%
+  // The working point: gap 0.30 mm -> ~0.44 T, ~38% force (§2.5's "~0.3 T" region).
+  const bAtDefault = gapFluxT(0.30, pole);
+  assert.ok(bAtDefault > 0.40 && bAtDefault < 0.49, `flux at 0.30 mm: ${bAtDefault} T`);
+  // Monotonically decreasing over the published domain.
+  let prev = Infinity;
+  for (let g = 0.1; g <= 5.0; g += 0.07) {
+    const b = gapFluxT(g, pole);
+    assert.ok(b < prev, `flux must fall with gap (gap ${g.toFixed(2)} mm)`);
+    prev = b;
+  }
+  // Clamps at the table ends (no extrapolation beyond the published curve).
+  approx(gapFluxT(0.02, pole), gapFluxT(0.1, pole), 1e-12);
+  approx(gapFluxT(9.9, pole), gapFluxT(5.012, pole), 1e-12);
+});
+
+test('pairCouplingK reproduces §2.5\'s per-pair k at the documented operating point', () => {
+  // k = sigma · t · B^2 · A_pole. §2.5's anchor: k ≈ 0.043 N/(m/s) at sigma = 1e6 S/m,
+  // t = 0.2 mm, B ≈ 0.42 T, A_pole = 1.2e-3 m^2 — giving ~15 N at 350 m/s slip.
+  const k = pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.2e-3, fluxT: 0.42, poleAreaM2: 1.2e-3 });
+  assert.ok(Math.abs(k - 0.043) / 0.043 < 0.05, `k ${k} must reproduce §2.5's 0.043 N/(m/s) within 5%`);
+  approx(k * 350, 15, 0.8);   // ~15 N per pair at 350 m/s slip
+  // Scales with B^2 (flux) and t (film thickness), and is zero at zero field.
+  approx(pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.2e-3, fluxT: 0.84, poleAreaM2: 1.2e-3 }), 4 * k, 1e-12);
+  approx(pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.4e-3, fluxT: 0.42, poleAreaM2: 1.2e-3 }), 2 * k, 1e-12);
+  approx(pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.2e-3, fluxT: 0, poleAreaM2: 1.2e-3 }), 0, 1e-15);
 });
 
 // M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.
@@ -948,12 +986,12 @@ test('gameover: climbing above the min then returning to ground ends the run, on
 // scaleSettingValue — slider raw -> sim value for the divided scales
 // ---------------------------------------------------------------------------
 test('scaleSettingValue: divided scales use SETTINGS_SCALE, others pass through', () => {
-  const { WIDTH, GRIP, STRESS_BUDGET } = GameConfig.SETTINGS_SCALE;
+  const { WIDTH, STRESS_BUDGET } = GameConfig.SETTINGS_SCALE;
   approx(scaleSettingValue('width', 45), 45 / WIDTH, 1e-12);
-  approx(scaleSettingValue('grip', 20), 20 / GRIP, 1e-12);
   approx(scaleSettingValue('stressBudget', 30), 30 / STRESS_BUDGET, 1e-12);
-  // Amplitude is real metres since M2.2 — raw passes through unscaled.
+  // Amplitude (real metres) and air gap (real mm) pass through unscaled (M2.2/M2.4).
   assert.equal(scaleSettingValue('amplitude', 7), 7);
+  assert.equal(scaleSettingValue('airGap', 0.3), 0.3);
   // Unscaled keys and unknown keys are returned unchanged.
   assert.equal(scaleSettingValue('tension', 123), 123);
   assert.equal(scaleSettingValue('gravity', 1.5), 1.5);

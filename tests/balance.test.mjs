@@ -35,23 +35,32 @@ const SNAPSHOT_PATH = join(__dirname, 'balance.snapshot.json');
 const {
   GameConfig, WaveSystem, PhysicsEngine,
   epmChargeStep, couplingMomentumScale, thermalStep, climbSpeedKmh,
-  maxMaterialVelocityMps, maxAmplitudeM,
+  maxMaterialVelocityMps, maxAmplitudeM, gapFluxT,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly: vineWidth 4.5 == 45 mm (slider
 // raw / SETTINGS_SCALE.WIDTH), tension 100 kgf, material 300 GPa CC-CNT (speculative,
-// MATERIAL_DEFAULT_INDEX), field x1.00, gravity x1.00, cargo 50 kg, sine carrier at
-// WAVE.DEFAULT_FREQUENCY / DEFAULT_AMPLITUDE (7.0 m — the honest equivalent of the old
-// 70 px). Wave power does not attenuate with altitude (paper p.9), so energyFactor is
-// 1.0; the fabricated material damping multiplier went with it (both M2.2 deletions).
+// MATERIAL_DEFAULT_INDEX), air gap 0.30 mm (M2.4 — the coupling multiplier follows
+// FG40's published force-vs-airgap curve), gravity x1.00, cargo 50 kg, sine carrier
+// at WAVE.DEFAULT_FREQUENCY / DEFAULT_AMPLITUDE clamped to the stress cap. Wave power
+// does not attenuate with altitude (paper p.9), so energyFactor is 1.0.
 const DEFAULTS = {
-  gripMultiplier: 1.0,
   gravityMultiplier: 1.0,
   dragMultiplier: 1.0,
   vineWidth: 4.5,
   vineTension: 100,
+  airGapMm: 0.30,
   cargoKg: GameConfig.MONKEY.WEIGHT,
 };
+
+// M2.4: coupling multiplier at the default gap = FG40's normalised force there.
+// Mirrors updateContinuous (tension 100 kgf keeps flutter well clear of the gap).
+function gapCouplingMult(gapMm) {
+  const pole = GameConfig.FG40.POLE_FLUX_T;
+  const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / DEFAULTS.vineTension);
+  if (gapMm - flutterMm <= 0) return 0;
+  return Math.pow(gapFluxT(gapMm, pole) / pole, 2);
+}
 
 // One climb at fixed dt. The step order below mirrors Game.update() ->
 // updateContinuous() call-for-call; keep them in sync or the trace lies.
@@ -89,10 +98,11 @@ function runClimb(dt, wallS) {
     const engaged = monkey.isGrabbing && !brownout;
     let quality = 0;
     if (engaged) {
-      const c = phys.calculateContinuousCoupling(ws, monkey, DEFAULTS.gripMultiplier,
+      const gapMult = gapCouplingMult(DEFAULTS.airGapMm);
+      const c = phys.calculateContinuousCoupling(ws, monkey, gapMult,
         GameConfig.PHYSICS.MOMENTUM_MULTIPLIER, dt);
       monkey.velocityY += c.impulse * waveSpeedFactor() * coldFactor;
-      phys.applyEddyDrag(monkey, dt, DEFAULTS.gripMultiplier);
+      phys.applyEddyDrag(monkey, dt, gapMult);
       quality = c.quality;
     }
     const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,

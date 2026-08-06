@@ -47,22 +47,29 @@ test('amplitude/frequency slider defaults map to the wave config', () => {
   assert.equal(logSliderToFreq(parseFloat(f.inputValue)), GameConfig.WAVE.DEFAULT_FREQUENCY);
 });
 
-test('width/tension/grip/gravity slider defaults map to their plain class fields', () => {
-  // These four have no GameConfig entry yet; they are plain class fields read by
+test('width/tension/gravity slider defaults map to their plain class fields', () => {
+  // These three have no GameConfig entry yet; they are plain class fields read by
   // updateDerivedReadouts/updateContinuous. Follow-up opportunity: move them into
   // GameConfig so this assert can be compared against the config (out of scope this shift).
   const width = sliderDefaults().width;
   assert.equal(scaleSettingValue('width', parseFloat(width.inputValue)), 4.5);
   const tension = sliderDefaults().tension;
   assert.equal(scaleSettingValue('tension', parseFloat(tension.inputValue)), 100);
-  const grip = sliderDefaults().grip;
-  assert.equal(scaleSettingValue('grip', parseFloat(grip.inputValue)), 1.0);
-  // ...and the label must SAY the multiplier, not a percentage. The old "20%" label was
-  // simply false: raw 20 is the x1.00 reference field, and raw 100 is x5.00.
-  assert.equal(grip.staticLabel, '×1.00', 'grip label states the field multiplier');
-  assert.equal(scaleSettingValue('grip', parseFloat(grip.max)), 5.0, 'slider max is x5.00');
   const gravity = sliderDefaults().gravity;
   assert.equal(scaleSettingValue('gravity', parseFloat(gravity.inputValue)), 1.0);
+});
+
+test('air-gap slider is real millimetres (M2.4 — the grip multiplier is gone)', () => {
+  // The grip slider's "field strength" was an un-physical free multiplier; M1.5's
+  // interim relabel as x1.00 is superseded by the REAL control: the FG40 working
+  // air gap. Raw value IS the gap in mm; default 0.30 mm is §2.5's working point.
+  const d = sliderDefaults().airGap;
+  assert.equal(scaleSettingValue('airGap', parseFloat(d.inputValue)), 0.3);
+  assert.equal(d.staticLabel, '0.30 mm', 'gap label reads millimetres');
+  // The published FG40 force-vs-airgap curve spans 0.1-5 mm — the slider must not
+  // offer gaps outside the measured domain (gapFluxT clamps, but the UI shouldn't lie).
+  assert.equal(d.min, '0.1');
+  assert.equal(d.max, '5');
 });
 
 test('stress-budget slider default maps to the DECIDED §2.1 safety fraction (30%)', () => {

@@ -146,32 +146,32 @@ try {
   });
   record('boot: loading overlay cleared', loadingHidden);
 
-  // 2) Field-strength default: fresh gripMultiplier is the tuned reference 1.0, and the label
-  //    SAYS so. The slider's raw value is 20 and gets divided by SETTINGS_SCALE.GRIP, so the
-  //    old "20%" label was false in the live DOM too, not just in the static HTML.
+  // 2) Air-gap default (M2.4): the working gap of the FG40 sandwich is 0.30 mm, and the
+  //    label SAYS so in millimetres. (This replaced the grip slider's "field strength"
+  //    multiplier — an un-physical free parameter M1.5 had only relabelled.)
   const grip = await page.evaluate(() => {
     const g = window.__smokeGame;
-    return { mult: g.gripMultiplier, val: document.getElementById('grip')?.value, lbl: document.getElementById('gripValue')?.textContent };
+    return { gap: g.airGapMm, val: document.getElementById('airGap')?.value, lbl: document.getElementById('airGapValue')?.textContent };
   });
-  record('field strength default = x1.00 at slider raw 20',
-    Math.abs(grip.mult - 1) < 1e-9 && grip.val === '20' && grip.lbl === '\u00d71.00',
+  record('air gap default = 0.30 mm at slider raw 0.3',
+    Math.abs(grip.gap - 0.3) < 1e-9 && grip.val === '0.3' && grip.lbl === '0.30 mm',
     JSON.stringify(grip));
 
-  //    ...and dragging it re-labels as a multiplier, never a percentage.
+  //    ...and dragging it re-labels in millimetres within the published curve's domain.
   const gripDrag = await page.evaluate(async () => {
-    const el = document.getElementById('grip');
+    const el = document.getElementById('airGap');
     const before = el.value;
-    el.value = '100';
+    el.value = '5';
     el.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 40));
-    const out = { lbl: document.getElementById('gripValue').textContent, mult: window.__smokeGame.gripMultiplier };
+    const out = { lbl: document.getElementById('airGapValue').textContent, gap: window.__smokeGame.airGapMm };
     el.value = before;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 40));
-    return { ...out, restored: window.__smokeGame.gripMultiplier };
+    return { ...out, restored: window.__smokeGame.airGapMm };
   });
-  record('field strength slider max reads x5.00 (not "100%")',
-    gripDrag.lbl === '\u00d75.00' && Math.abs(gripDrag.mult - 5) < 1e-9 && Math.abs(gripDrag.restored - 1) < 1e-9,
+  record('air gap slider max reads 5.00 mm (edge of the published curve)',
+    gripDrag.lbl === '5.00 mm' && Math.abs(gripDrag.gap - 5) < 1e-9 && Math.abs(gripDrag.restored - 0.3) < 1e-9,
     JSON.stringify(gripDrag));
 
   // 3) EPM loop: engaging via the real SPACE key drains charge and drives the net readout.

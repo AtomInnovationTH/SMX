@@ -85,7 +85,7 @@
         input[type="range"] { width: 200px; }
         
         /* Style monkey sliders brown to match monkey */
-        #grip, #gravity, #weight { accent-color: #8B4513; }
+        #airGap, #gravity, #weight { accent-color: #8B4513; }
         
         /* Style tether sliders green to match tether */
         #frequency, #amplitude, #width, #tension, #stressBudget { accent-color: #22C55E; }
@@ -361,9 +361,9 @@
 
         <h4>Monkey</h4>
         <div class="slider-container">
-            <label>EPM field strength: <span id="gripValue">×1.00</span></label>
-            <input type="range" id="grip" min="1" max="100" step="1" value="20">
-            <small class="setting-hint">Coupling field, as a multiple of the reference field. ×1.00 is the reference; the slider reaches ×5.00.</small>
+            <label>Air gap: <span id="airGapValue">0.30 mm</span></label>
+            <input type="range" id="airGap" min="0.1" max="5" step="0.05" value="0.3">
+            <small class="setting-hint">The working gap between the opposed FG40 pairs and the film — nothing ever touches. Tighter couples MUCH harder (FG40's published force-vs-airgap curve: 100% at 0.1 mm, ~16% at 0.5 mm) but leaves less centering margin for film flutter. M1.5's field-strength multiplier was an interim label; the gap is the real control.</small>
         </div>
         <div class="slider-container">
             <label>Gravity: <span id="gravityValue">1.00 G</span></label>
@@ -614,6 +614,42 @@
             return vMaxMps / omegaRadS;
         }
 
+        // SIM (§2.5 / M2.4): FG40's PUBLISHED normalised-holding-force-vs-airgap curve
+        // (FluxGrip reference manual, fg40_normalized_force_vs_airgap.svg; measured against
+        // a 4 mm polished iron sheet in full contact). Extracted point-by-point from the
+        // published plot (log-log axes, 0.1-5 mm). NOTE: this curve describes STATIC
+        // CONTACT HOLDING OF IRON — a different operating mode from our contactless eddy
+        // traction; we use its SHAPE for gap -> flux, a defensible approximation, not a
+        // measurement. Log-log interpolation, clamped at the table ends.
+        const FG40_NORM_FORCE_VS_GAP = [
+            [0.100, 1.00000], [0.126, 0.89276], [0.158, 0.77271], [0.200, 0.63715],
+            [0.251, 0.49809], [0.316, 0.35227], [0.398, 0.24965], [0.501, 0.16243],
+            [0.631, 0.09632], [0.794, 0.05864], [1.000, 0.03304], [1.259, 0.01682],
+            [1.585, 0.00813], [1.995, 0.00367], [2.512, 0.00130], [3.162, 0.00039],
+            [3.981, 0.00009], [5.012, 0.00002]
+        ];
+        // Flux density across the working air gap: B(gap) = B_pole * sqrt(F_norm), because
+        // magnetostatic force scales with B^2.
+        function gapFluxT(gapMm, poleFluxT) {
+            const T = FG40_NORM_FORCE_VS_GAP;
+            const g = Math.max(T[0][0], Math.min(T[T.length - 1][0], gapMm));
+            let i = 0;
+            while (i < T.length - 2 && g > T[i + 1][0]) i++;
+            const [g0, f0] = T[i];
+            const [g1, f1] = T[i + 1];
+            const f = (Math.log(g) - Math.log(g0)) / (Math.log(g1) - Math.log(g0));
+            const norm = Math.exp(Math.log(f0) + f * (Math.log(f1) - Math.log(f0)));
+            return poleFluxT * Math.sqrt(norm);
+        }
+
+        // SIM (§2.5 / M2.4): the eddy-traction coefficient of ONE opposed FG40 pair,
+        // F = k · v_rel (induction braking/traction on the conductive film). All four
+        // inputs carry ESTIMATE flags in GameConfig.FG40 — treat k as order-of-magnitude;
+        // the sensitivity lives here and nowhere else.
+        function pairCouplingK({ sigmaSPerM, thicknessM, fluxT, poleAreaM2 }) {
+            return sigmaSPerM * thicknessM * fluxT * fluxT * poleAreaM2;
+        }
+
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
         // negatives so a corrupted localStorage entry can't poison scoring/altitude state.
         function safePersistedNumber(raw) {
@@ -766,7 +802,6 @@
         function scaleSettingValue(name, raw) {
             switch (name) {
                 case 'width':        return raw / GameConfig.SETTINGS_SCALE.WIDTH;
-                case 'grip':         return raw / GameConfig.SETTINGS_SCALE.GRIP;
                 case 'stressBudget': return raw / GameConfig.SETTINGS_SCALE.STRESS_BUDGET;
                 default:             return raw;
             }
@@ -1791,7 +1826,7 @@
                 AIR_DRAG: 0.985,
                 // B.14: share of the sea-level damping attributed to magnetic (eddy) coupling
                 // rather than to air. The aero and eddy factors multiply back to exactly AIR_DRAG
-                // at sea level with the EPMs engaged at reference field (gripMultiplier = 1).
+                // at sea level with the EPMs engaged at the reference coupling (gapMult = 1).
                 // This is a LINEARISED SLIP COEFFICIENT (arcade stand-in for the induction-motor
                 // slip curve), not a measured physical induction constant.
                 // 0.08 => full climb ~10-12 min. Higher = slower
@@ -1866,7 +1901,12 @@
                 YOUNGS_MODULUS: 1.0e12, // Pa (~1 TPa), representative for graphene / CNT
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
-                SPEED_FACTOR_MAX: 2.0
+                SPEED_FACTOR_MAX: 2.0,
+                // ESTIMATE (order-of-magnitude placeholder): film flutter amplitude at
+                // 100 kgf pretension, scaling as 1/sqrt(tension) for fixed buffeting energy.
+                // Flutter eats the FG40 gap's centering margin (M2.4). Sensitivity unknown
+                // a priori — NEVER quote this as measured in UI copy.
+                FLUTTER_REF_MM: 0.1
             };
 
             // SIM (§2.1 / M2.2): the material ladder is a STRENGTH ladder — E and rho are
@@ -1885,11 +1925,24 @@
             // Default = 300 GPa CC-CNT (index 4), the shipped default; M2.11 owns rebalance.
             static MATERIAL_DEFAULT_INDEX = 4;
 
+            // SIM (§2.5 / M2.4): Zubax FluxGrip FG40 constants. Datasheet-sourced except
+            // where flagged ESTIMATE. FG40 is the coupling hardware: opposed pairs, one
+            // unit per film face, NO PHYSICAL CONTACT — momentum crosses the air gap by
+            // pulsed eddy-current traction. The datasheet's 250 N and force-vs-airgap
+            // curve describe STATIC CONTACT HOLDING OF IRON — a different operating mode;
+            // only the curve's SHAPE is reused (see gapFluxT).
+            static FG40 = {
+                E_SWITCH_J: 4,          // datasheet: ~4 J per (de-)magnetization transition
+                HOLDING_FORCE_N: 250,   // datasheet: 250 N (25 kgf) against 4 mm polished iron, full contact
+                POLE_FLUX_T: 0.72,      // ESTIMATE: contact flux from F = B^2·A / 2μ₀ with the datasheet 250 N
+                POLE_AREA_M2: 1.2e-3,   // ESTIMATE: pole-face area (4×4 cm package)
+                UNIT_MASS_KG: 0.072,    // datasheet: 72 g
+                PITCH_M: 0.041          // ESTIMATE: opposed-pair pitch — a 64-pair stack ≈ 2.6 m (decision 6)
+            };
+
             // SIM: slider raw-value -> model-value scalings (see setupEventListeners).
             static SETTINGS_SCALE = {
                 WIDTH: 10,          // width slider raw / 10 (mm)
-                GRIP: 20,           // grip slider raw / 20 -> gripMultiplier (raw 20 => x1.00, raw 100 => x5.00,
-                                    //   which is why the label is a multiplier and not the raw "%" it used to read)
                 STRESS_BUDGET: 100  // stress-budget slider raw % / 100 -> safetyFraction (§2.1)
             };
 
@@ -2152,7 +2205,8 @@
             // the climber runs at high SLIP behind it, and the braking term grows with speed
             // (Lenz: induced currents oppose relative motion). Needs NO air, so this is what limits
             // speed once the atmosphere is gone. EPMs latch OFF at zero power, so releasing removes
-            // it entirely -> true frictionless coasting. fieldFactor = gripMultiplier.
+            // it entirely -> true frictionless coasting. fieldFactor = the gap coupling multiplier
+            // (FG40 force-vs-airgap curve; M2.4).
             applyEddyDrag(monkey, dt, fieldFactor) {
                 const eddyRef = Math.pow(GameConfig.PHYSICS.AIR_DRAG, GameConfig.PHYSICS.EDDY_FRACTION);
                 monkey.velocityY *= frameDecay(Math.pow(eddyRef, Math.max(0, fieldFactor)), dt);
@@ -2276,10 +2330,9 @@
                         const pct = parseFloat(v);
                         return pct + '% of stress (' + (pct * pct / 100).toFixed(1) + '% of power)';
                     } },
-                    // The raw slider value is NOT a percentage: it is divided by
-                    // SETTINGS_SCALE.GRIP (20) to get the field multiplier, so raw 20 is x1.00
-                    // and raw 100 is x5.00. Label it as the multiplier the sim actually uses.
-                    grip: { unit: '', formatter: (v) => '×' + (parseFloat(v) / GameConfig.SETTINGS_SCALE.GRIP).toFixed(2) },
+                    // Air gap is real millimetres (M2.4) — the working clearance of the
+                    // FG40 sandwich. Coupling follows FG40's published force-vs-airgap curve.
+                    airGap: { unit: ' mm', formatter: (v) => parseFloat(v).toFixed(2) },
                     gravity: { unit: ' G', formatter: (v) => parseFloat(v).toFixed(2) },
                     weight: { unit: ' kg', formatter: null }
                 };
@@ -2464,6 +2517,8 @@
                 this.tetherMultiplier = GameConfig.PHYSICS.MOMENTUM_MULTIPLIER;
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
+                this.airGapMm = 0.30;          // FG40 working gap (M2.4); ~0.3 mm is §2.5's working point
+                this.upgradeGripMult = 1.0;    // legacy magnet-pickup path; retired with it in M2.6
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget slider default (M2.2)
                 
@@ -2830,6 +2885,8 @@
                 // Reset physics multipliers to defaults
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
+                this.airGapMm = 0.30;
+                this.upgradeGripMult = 1.0;
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
                 this.gripMultiplier = 1.0;
@@ -2906,7 +2963,7 @@
                     width:      { value: 45,     label: '45 mm' },
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
-                    grip:       { value: 20,     label: '×1.00' },
+                    airGap:     { value: 0.3,    label: '0.30 mm' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
                     weight:     { value: 50,     label: '50 kg' }
                 };
@@ -2998,7 +3055,7 @@
                 this.eventBus.on('settings:width', (data) => { this.vineWidth = scaleSettingValue('width', data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:stressBudget', (data) => { this.safetyFraction = scaleSettingValue('stressBudget', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
-                this.eventBus.on('settings:grip', (data) => { this.gripMultiplier = scaleSettingValue('grip', data.value); });
+                this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
                 
@@ -3048,7 +3105,7 @@
                 upgrade.collected = true;
                 const config = upgrade.config;
                 const {gripMult, weight, dragMult} = config;
-                if (gripMult) { this.monkey.equipment.magnet = upgrade.type; this.gripMultiplier *= gripMult; }
+                if (gripMult) { this.monkey.equipment.magnet = upgrade.type; this.upgradeGripMult *= gripMult; }
                 if (weight) { this.monkey.equipment.frame = upgrade.type; this.monkey.weight += weight; }
                 if (dragMult) { this.monkey.equipment.aero = upgrade.type; this.dragMultiplier *= dragMult; }
                 
@@ -3311,13 +3368,26 @@
                 const engaged = this.monkey.isGrabbing && !this.epmBrownout;
                 let quality = 0;
                 if (engaged) {
-                    const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, this.gripMultiplier, this.tetherMultiplier, dt);
+                    // M2.4: the working air gap sets the coupling field through FG40's
+                    // PUBLISHED normalised force-vs-airgap curve (its shape reused for
+                    // gap -> flux; force ~ B^2, so the coupling multiplier is the
+                    // normalised force itself). Static-contact curve, eddy traction —
+                    // shape is a defensible approximation, not a measurement.
+                    const poleFlux = GameConfig.FG40.POLE_FLUX_T;
+                    let gapMult = Math.pow(gapFluxT(this.airGapMm, poleFlux) / poleFlux, 2) * this.upgradeGripMult;
+                    // Tension's honest role: pretension sets film flutter amplitude, and
+                    // flutter eats the gap's centering margin. Margin <= 0 means the film
+                    // touches a pole — the controller UNLOADS rather than scrape (soft
+                    // fail: thrust vanishes, nothing breaks; widen the gap or tension up).
+                    const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / Math.max(1e-9, this.vineTension));
+                    if (this.airGapMm - flutterMm <= 0) gapMult = 0;
+                    const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, gapMult, this.tetherMultiplier, dt);
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this.waveSpeedFactor() * this._coldFactor;
                     // B.14: the same magnetic interaction that couples to the wave also brakes
                     // against the tether. Present only while the EPMs are on; releasing latches
                     // them off (zero power) and the climber coasts.
-                    this.physics.applyEddyDrag(this.monkey, dt, this.gripMultiplier);
+                    this.physics.applyEddyDrag(this.monkey, dt, gapMult);
                     quality = c.quality;
 
                     this.lastGrabQuality = c.quality;
