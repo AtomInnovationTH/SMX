@@ -210,10 +210,12 @@ try {
     window.__cue = 0;
     const orig = g.audio.brownout.bind(g.audio);
     g.audio.brownout = () => { window.__cue++; orig(); };
-    g.monkey.equipment.magnet = 'hallbach';   // largest drain
+    // The magnet ladder is gone (M2.6): drain is the base tier, so trip the latch from a
+    // small charge instead of a large drain — deterministic: 0.2 / (DRAIN 3 - TRICKLE 1.5)
+    // = 133 ms to brownout.
     g.waveSystem.amplitude = 0;               // quality 0 -> pure drain
-    g.epmCharge = 1.0; g.epmBrownout = false; g.monkey.isGrabbing = true;
-    await new Promise((r) => setTimeout(r, 200));
+    g.epmCharge = 0.2; g.epmBrownout = false; g.monkey.isGrabbing = true;
+    await new Promise((r) => setTimeout(r, 400));
     const latched = g.epmBrownout, cueAtLatch = window.__cue;
     await new Promise((r) => setTimeout(r, 300));
     const cueHeld = window.__cue;
