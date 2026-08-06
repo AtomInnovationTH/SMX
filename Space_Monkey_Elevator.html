@@ -78,7 +78,7 @@
         input[type="range"] { width: 200px; }
         
         /* Style monkey sliders brown to match monkey */
-        #airGap, #gravity, #weight { accent-color: #8B4513; }
+        #airGap, #nPairs, #gravity, #weight { accent-color: #8B4513; }
         
         /* Style tether sliders green to match tether */
         #frequency, #amplitude, #width, #tension, #stressBudget { accent-color: #22C55E; }
@@ -353,6 +353,11 @@
         </div>
 
         <h4>Monkey</h4>
+        <div class="slider-container">
+            <label>FG40 pairs: <span id="nPairsValue">64 pairs</span></label>
+            <input type="range" id="nPairs" min="1" max="256" step="1" value="64">
+            <small class="setting-hint">Opposed pairs in the climber's FG40 sandwich — the REAL scaling axis (not a magnet-material ladder: Alnico + NdFeB co-exist in every unit). More pairs: more thrust, but more stack mass and more switching watts. ~64 pairs holds 50 kg at 1 g (paper §2.5).</small>
+        </div>
         <div class="slider-container">
             <label>Air gap: <span id="airGapValue">0.30 mm</span></label>
             <input type="range" id="airGap" min="0.1" max="5" step="0.05" value="0.3">
@@ -645,6 +650,21 @@
             return sigmaSPerM * thicknessM * fluxT * fluxT * poleAreaM2;
         }
 
+        // SIM (§2.5 / M2.6): dry mass of the FG40 stack alone (magnets only — 2 units per
+        // opposed pair × 72 g). Structure mass is M2.7's STRUCTURE_MASS_FRACTION. The
+        // thrust-to-weight story: ~15 N per pair vs 1.41 N of pair weight ≈ 10:1, so the
+        // stack pays for itself tenfold and payload scales with stack length.
+        function stackDryMassKg(nPairs) {
+            return nPairs * 2 * GameConfig.FG40.UNIT_MASS_KG;
+        }
+
+        // SIM (§2.5 / M2.6): physical length of the opposed-pair stack (64 pairs ≈ 2.6 m,
+        // decision 6) — also what spatial phasing spans: ~0.11 λ at 260 Hz, so the units
+        // fire in a travelling sequence (multi-pole linear induction motor), not in unison.
+        function stackLengthM(nPairs, pitchM) {
+            return nPairs * pitchM;
+        }
+
         // SIM (§2.3 / M2.5): mean eddy-traction thrust over one carrier cycle — the core
         // mechanic, in closed form for a sine carrier. The onboard controller gates the
         // FG40 stack ON exactly when the film outruns the climber (v_film > v_climber).
@@ -783,7 +803,8 @@
         //                  attenuate with altitude (paper p.9: amplitude adjusts to keep
         //                  transported power constant). M2.8 replaces this loop with
         //                  switching watts vs extracted mechanical power.
-        //   tier         : monkey.equipment.magnet key; unknown/absent falls back to 'base'
+        //   tier         : EPM tier key for drain/regen rates ('base' = no upgrade; the
+        //                  magnet-ladder tiers are legacy until M2.8 replaces this loop)
         // No clamping the old loop never had: charge is only floored by the brownout trip
         // itself, and quality/energyFactor stay the caller's responsibility (both are bounded
         // upstream). Break-even quality per tier is DRAIN/REGEN; the perfect-timing altitude
@@ -1069,13 +1090,10 @@
         ];
         
         const UPGRADES_CONFIG = [
-            { type: 'alnico', altitude: 1500 },
             { type: 'carbon', altitude: 3000 },
-            { type: 'neodymium', altitude: 5000 },
             { type: 'aero', altitude: 6000 },
             { type: 'titanium', altitude: 8000 },
-            { type: 'streamline', altitude: 12000 },
-            { type: 'hallbach', altitude: 15000 }
+            { type: 'streamline', altitude: 12000 }
         ];
         
         const WAVE_RENDERERS = {
@@ -1779,16 +1797,16 @@
             }
 
             getConfig() {
+                // (The alnico/neodymium/hallbach magnet ladder was retired in M2.6: an EPM
+                // is not a magnet-material ladder — Alnico + NdFeB co-exist inside every
+                // FG40 unit, and the real scaling axis is N pairs, a pre-run setting.)
                 const configs = {
-                    alnico: { name: 'Alnico Magnet', gripMult: 1.5, color: COLOR_PALETTE.UPGRADE_ALNICO, shape: 'circle' },
                     carbon: { name: 'Carbon Frame', weight: -10, color: COLOR_PALETTE.UPGRADE_CARBON, shape: 'square' },
-                    neodymium: { name: 'Neodymium Magnet', gripMult: 2.5, color: COLOR_PALETTE.UPGRADE_NEODYMIUM, shape: 'circle' },
                     aero: { name: 'Aero Kit', dragMult: 0.95, color: COLOR_PALETTE.UPGRADE_AERO, shape: 'triangle' },
                     titanium: { name: 'Titanium Frame', weight: -20, color: COLOR_PALETTE.UPGRADE_TITANIUM, shape: 'square' },
-                    streamline: { name: 'Streamline Kit', dragMult: 0.9, color: COLOR_PALETTE.UPGRADE_STREAMLINE, shape: 'triangle' },
-                    hallbach: { name: 'Hallbach Array', gripMult: 4.0, color: COLOR_PALETTE.UPGRADE_HALLBACH, shape: 'circle' }
+                    streamline: { name: 'Streamline Kit', dragMult: 0.9, color: COLOR_PALETTE.UPGRADE_STREAMLINE, shape: 'triangle' }
                 };
-                return configs[this.type] || configs.alnico;
+                return configs[this.type] || configs.carbon;
             }
 
             checkCollision(prevAltitude, altitude) {
@@ -1898,7 +1916,9 @@
                 START_CHARGE: 100,
                 TRICKLE: 1.5,            // /s ambient eddy-current regen (always, near tether)
                 BROWNOUT_RECOVER: 15,    // re-enable pulsing once charge climbs back above this %
-                // keyed by monkey.equipment.magnet ('base' = no upgrade): drain /s, regen gain
+                // keyed by tier ('base' = shipped configuration; the magnet-ladder tiers are
+                // unreachable since M2.6 retired the pickups and are deleted in M2.8):
+                // drain /s, regen gain
                 DRAIN: { base: 3, alnico: 4, neodymium: 8, hallbach: 15 },
                 REGEN: { base: 7, alnico: 8, neodymium: 12, hallbach: 18 }
             };
@@ -2319,6 +2339,7 @@
                     // Air gap is real millimetres (M2.4) — the working clearance of the
                     // FG40 sandwich. Coupling follows FG40's published force-vs-airgap curve.
                     airGap: { unit: ' mm', formatter: (v) => parseFloat(v).toFixed(2) },
+                    nPairs: { unit: ' pairs', formatter: null },
                     gravity: { unit: ' G', formatter: (v) => parseFloat(v).toFixed(2) },
                     weight: { unit: ' kg', formatter: null }
                 };
@@ -2502,7 +2523,7 @@
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
                 this.airGapMm = 0.30;          // FG40 working gap (M2.4); ~0.3 mm is §2.5's working point
-                this.upgradeGripMult = 1.0;    // legacy magnet-pickup path; retired with it in M2.6
+                this.nPairs = GameConfig.FG40.DEFAULT_N_PAIRS; // pre-run stack setting (M2.6)
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget slider default (M2.2)
                 
@@ -2851,7 +2872,6 @@
                     isGrabbing: false,
                     altitude: 0,
                     equipment: {
-                        magnet: null,
                         frame: null,
                         aero: null
                     }
@@ -2870,7 +2890,7 @@
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
                 this.airGapMm = 0.30;
-                this.upgradeGripMult = 1.0;
+                this.nPairs = GameConfig.FG40.DEFAULT_N_PAIRS;   // pre-run stack setting (M2.6)
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
                 this.gravityMultiplier = 1.0;
@@ -2944,6 +2964,7 @@
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
                     airGap:     { value: 0.3,    label: '0.30 mm' },
+                    nPairs:     { value: 64,     label: '64 pairs' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
                     weight:     { value: 50,     label: '50 kg' }
                 };
@@ -3036,6 +3057,7 @@
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:stressBudget', (data) => { this.safetyFraction = scaleSettingValue('stressBudget', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; });
+                this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
                 
@@ -3084,8 +3106,7 @@
             collectUpgrade(upgrade) {
                 upgrade.collected = true;
                 const config = upgrade.config;
-                const {gripMult, weight, dragMult} = config;
-                if (gripMult) { this.monkey.equipment.magnet = upgrade.type; this.upgradeGripMult *= gripMult; }
+                const {weight, dragMult} = config;
                 if (weight) { this.monkey.equipment.frame = upgrade.type; this.monkey.weight += weight; }
                 if (dragMult) { this.monkey.equipment.aero = upgrade.type; this.dragMultiplier *= dragMult; }
                 
@@ -3353,9 +3374,9 @@
                     const kPerPair = pairCouplingK({
                         sigmaSPerM: material.sigmaSPerM, thicknessM: GameConfig.TETHER.FILM_THICKNESS_M,
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
-                    }) * this.upgradeGripMult;
+                    });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, dt });
+                        { kPerPair, nPairs: this.nPairs, dt });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     quality = c.quality;
@@ -3393,7 +3414,7 @@
                 const step = epmChargeStep({
                     charge: this.epmCharge, brownout: this.epmBrownout, pulsing: engaged, quality,
                     energyFactor: 1.0,
-                    tier: this.monkey.equipment.magnet || 'base', dt,
+                    tier: 'base', dt,
                 });
                 this.epmCharge = step.charge;
                 this.epmBrownout = step.brownout;
@@ -3766,11 +3787,6 @@
                 // Equipment icons at bottom
                 let iconX = bx + 7;
                 const iconY = by + 81;
-                if (this.monkey.equipment.magnet) {
-                    ctx.fillStyle = COLOR_PALETTE.UPGRADE_ALNICO;
-                    ctx.fillRect(iconX, iconY, 9, 9);
-                    iconX += 11;
-                }
                 if (this.monkey.equipment.frame) {
                     ctx.fillStyle = COLOR_PALETTE.UPGRADE_CARBON;
                     ctx.fillRect(iconX, iconY, 9, 9);

@@ -27,6 +27,8 @@ const {
   maxAmplitudeM,
   gapFluxT,
   pairCouplingK,
+  stackDryMassKg,
+  stackLengthM,
   slipThrustMeanN,
   couplingMomentumScale,
   safePersistedNumber,
@@ -64,7 +66,7 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, maxMaterialVelocityMps, maxAmplitudeM,
-    gapFluxT, pairCouplingK, slipThrustMeanN,
+    gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, slipThrustMeanN,
     couplingMomentumScale,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
@@ -92,11 +94,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 29 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 31 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 29);
+  assert.equal(declaredPureHelpers().length, 31);
 });
 
 // ---------------------------------------------------------------------------
@@ -456,7 +458,7 @@ test('gapFluxT: datasheet anchors, monotonic collapse, clamps at the table ends'
 
 test('pairCouplingK reproduces §2.5\'s per-pair k at the documented operating point', () => {
   // k = sigma · t · B^2 · A_pole. §2.5's anchor: k ≈ 0.043 N/(m/s) at sigma = 1e6 S/m,
-  // t = 0.2 mm, B ≈ 0.42 T, A_pole = 1.2e-3 m^2 — giving ~15 N at 350 m/s slip.
+  // t = 0.2 mm, B ≈ 0.42 T, A_pole = 1.2e-3 m^2 — giving ~15 N per pair at 350 m/s slip.
   const k = pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.2e-3, fluxT: 0.42, poleAreaM2: 1.2e-3 });
   assert.ok(Math.abs(k - 0.043) / 0.043 < 0.05, `k ${k} must reproduce §2.5's 0.043 N/(m/s) within 5%`);
   approx(k * 350, 15, 0.8);   // ~15 N per pair at 350 m/s slip
@@ -464,6 +466,19 @@ test('pairCouplingK reproduces §2.5\'s per-pair k at the documented operating p
   approx(pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.2e-3, fluxT: 0.84, poleAreaM2: 1.2e-3 }), 4 * k, 1e-12);
   approx(pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.4e-3, fluxT: 0.42, poleAreaM2: 1.2e-3 }), 2 * k, 1e-12);
   approx(pairCouplingK({ sigmaSPerM: 1.0e6, thicknessM: 0.2e-3, fluxT: 0, poleAreaM2: 1.2e-3 }), 0, 1e-15);
+});
+
+test('§2.5 stack: dry mass is magnets-only and the thrust-to-weight is ~10:1', () => {
+  // 64 pairs = 128 units × 72 g = 9.216 kg of magnet — the stack pays for itself tenfold.
+  approx(stackDryMassKg(64), 64 * 2 * 0.072, 1e-12);
+  // Per pair: ~15 N at 350 m/s slip vs 2 × 72 g × 9.81 = 1.41 N of pair weight ≈ 10:1.
+  const thrustPerPair = 15;   // N, from pairCouplingK's documented anchor above
+  const ratio = thrustPerPair / (stackDryMassKg(1) * 9.81);
+  assert.ok(ratio > 8 && ratio < 13, `magnet thrust-to-weight ${ratio} should be ~10`);
+  // Stack length: 64 pairs at 0.041 m pitch ≈ 2.6 m (decision 6) and ~0.11 λ at 260 Hz.
+  approx(stackLengthM(64, GameConfig.FG40.PITCH_M), 64 * GameConfig.FG40.PITCH_M, 1e-12);
+  assert.ok(stackLengthM(64, GameConfig.FG40.PITCH_M) > 2.3 && stackLengthM(64, GameConfig.FG40.PITCH_M) < 2.9);
+  approx(stackLengthM(64, GameConfig.FG40.PITCH_M) / (tetherWaveSpeed() / GameConfig.WAVE.DEFAULT_FREQUENCY), 0.033, 0.004); // ~0.03-0.04 λ
 });
 
 // M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.

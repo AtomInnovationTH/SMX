@@ -72,6 +72,15 @@ test('air-gap slider is real millimetres (M2.4 — the grip multiplier is gone)'
   assert.equal(d.max, '5');
 });
 
+test('N-pairs slider is the real scaling axis (M2.6), default 64 pairs', () => {
+  // §2.5: ~64 opposed pairs hold 50 kg at 1 g. This replaced the magnet-material ladder
+  // (an EPM contains Alnico + NdFeB together; there is no alnico -> neodymium -> hallbach
+  // progression). Raw value IS the pair count.
+  const d = sliderDefaults().nPairs;
+  assert.equal(parseFloat(d.inputValue), GameConfig.FG40.DEFAULT_N_PAIRS);
+  assert.equal(d.staticLabel, '64 pairs');
+});
+
 test('stress-budget slider default maps to the DECIDED §2.1 safety fraction (30%)', () => {
   // The paper's "10% of tether strength" is a fraction of stress-limited POWER, not of
   // stress (P ∝ σ²): read as a stress fraction, 10% forbids the paper's own 1000 km/h

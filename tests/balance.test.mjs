@@ -102,8 +102,7 @@ function runClimb(dt, wallS) {
         { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, dt });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
-    }
-    const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,
+    }    const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,
       energyFactor: 1.0, tier: 'base', dt });
     charge = step.charge; brownout = step.brownout;
     phys.updatePosition(monkey, dt);
