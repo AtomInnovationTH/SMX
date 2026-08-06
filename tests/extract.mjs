@@ -33,6 +33,7 @@ const EXPORTED_SYMBOLS = [
   'frameDecay',
   'climbSpeedKmh',
   'tetherWaveSpeed',
+  'tetherPhaseAt',
   'couplingMomentumScale',
   'waveEnergyFactor',
   'safePersistedNumber',

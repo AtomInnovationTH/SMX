@@ -558,6 +558,17 @@
             return Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY);
         }
 
+        // SIM (§2.1 / M2.1): phase of the ground-driven longitudinal carrier at a given
+        // altitude and time, for an UP-travelling wave: φ = ωt − k·y with k = ω/c.
+        // Constant phase ⇒ y = (ωt − φ)/k grows with time at speed c — the wave travels
+        // UP the film. One shared spatial phase feeds both the coupling physics (M2.5
+        // slip) and the renderer (M2.10 renderVine), so what the player sees is exactly
+        // what the physics computes.
+        function tetherPhaseAt(altitudeM, timeS, freqHz, waveSpeedMps) {
+            const omega = 2 * Math.PI * freqHz;
+            return omega * timeS - (omega / waveSpeedMps) * altitudeM;
+        }
+
         // GAMEPLAY (not the wave's propagation speed): a coupling-momentum modifier. A tauter,
         // thinner tether couples the EPM to the wave more effectively, so it scales the per-pulse
         // momentum within [SPEED_FACTOR_MIN, SPEED_FACTOR_MAX]. Uses the transverse-style sqrt(T/mu)

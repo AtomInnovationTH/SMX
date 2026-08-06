@@ -22,6 +22,7 @@ const {
   frameDecay,
   climbSpeedKmh,
   tetherWaveSpeed,
+  tetherPhaseAt,
   couplingMomentumScale,
   waveEnergyFactor,
   safePersistedNumber,
@@ -59,7 +60,7 @@ test('extraction exposes the core pure symbols', () => {
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
-    tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor,
+    tetherWaveSpeed, tetherPhaseAt, couplingMomentumScale, waveEnergyFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -86,11 +87,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 25 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 26 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 25);
+  assert.equal(declaredPureHelpers().length, 26);
 });
 
 // ---------------------------------------------------------------------------
@@ -310,6 +311,36 @@ test('tetherWaveSpeed = sqrt(E/rho), a material constant (longitudinal wave)', (
   approx(v, Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY), 1e-9);
   // ~23.6 km/s for E=1 TPa, rho=1800 — far above orbital velocity.
   assert.ok(v > 20000 && v < 25000);
+});
+
+// M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.
+test('tetherPhaseAt: constant phase requires altitude INCREASING with time (the wave travels up)', () => {
+  const c = tetherWaveSpeed();
+  const f = 260;                       // Hz carrier (paper's reference band)
+  const omega = 2 * Math.PI * f;
+  const k = omega / c;
+  const PHI = 1.234;                   // any fixed phase
+  // Solve tetherPhaseAt(y, t) === PHI for y at two times.
+  const yAt = (t) => (omega * t - PHI) / k;
+  const t1 = 3.2, t2 = 4.7;
+  // Sanity: the helper itself reproduces the fixed phase at those (y, t) pairs.
+  approx(tetherPhaseAt(yAt(t1), t1, f, c), PHI, 1e-6);
+  approx(tetherPhaseAt(yAt(t2), t2, f, c), PHI, 1e-6);
+  // The invariant: constant phase ⇒ altitude grows with time (up-travelling wave)...
+  assert.ok(yAt(t2) > yAt(t1), 'constant phase must move UP the film as time passes');
+  // ...at exactly the wave speed c.
+  approx((yAt(t2) - yAt(t1)) / (t2 - t1), c, 1e-6);
+});
+
+test('tetherPhaseAt: one wavelength of altitude costs exactly one cycle of phase', () => {
+  const c = tetherWaveSpeed();
+  const f = 260;
+  const lambda = c / f;
+  // At fixed time, going UP one wavelength changes phase by exactly −2π (higher
+  // points see an earlier phase of the up-travelling wave).
+  approx(tetherPhaseAt(1000 + lambda, 7.7, f, c) - tetherPhaseAt(1000, 7.7, f, c), -2 * Math.PI, 1e-6);
+  // At ground level the phase is just ωt.
+  approx(tetherPhaseAt(0, 0.013, f, c), 2 * Math.PI * f * 0.013, 1e-12);
 });
 
 test('couplingMomentumScale = sqrt(T/mu); rises with tension, falls with width', () => {
