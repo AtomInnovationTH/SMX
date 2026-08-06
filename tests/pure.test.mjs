@@ -23,6 +23,7 @@ const {
   climbSpeedKmh,
   tetherWaveSpeed,
   tetherPhaseAt,
+  filmCrossSectionM2,
   maxMaterialVelocityMps,
   maxAmplitudeM,
   gapFluxT,
@@ -30,7 +31,6 @@ const {
   stackDryMassKg,
   stackLengthM,
   slipThrustMeanN,
-  couplingMomentumScale,
   safePersistedNumber,
   missionScore,
   bootstrapPct,
@@ -65,9 +65,8 @@ test('extraction exposes the core pure symbols', () => {
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
-    tetherWaveSpeed, tetherPhaseAt, maxMaterialVelocityMps, maxAmplitudeM,
+    tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, slipThrustMeanN,
-    couplingMomentumScale,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -187,8 +186,8 @@ test('WaveSystem.setType only accepts known types', () => {
 // ---------------------------------------------------------------------------
 test('calculateContinuousCoupling: slip thrust fades with speed, impulse always upward', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const monkey = { weight: 50, velocityY: 0 };
-  const args = { kPerPair: 0.043, nPairs: 64, dt: 1 / 60 };
+  const monkey = { velocityY: 0 };
+  const args = { kPerPair: 0.043, nPairs: 64, massKg: 61.5, dt: 1 / 60 };
   for (const type of ['sine', 'square', 'sawtooth']) {
     const ws = new WaveSystem(type);
     ws.frequency = 260;
@@ -205,21 +204,21 @@ test('calculateContinuousCoupling: slip thrust fades with speed, impulse always 
 
 test('calculateContinuousCoupling: thrust -> 0 as the climber approaches film peak speed (no clamp)', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const args = { kPerPair: 0.043, nPairs: 64, dt: 1 / 60 };
+  const args = { kPerPair: 0.043, nPairs: 64, massKg: 61.5, dt: 1 / 60 };
   const ws = new WaveSystem('sine');
   ws.frequency = 260;
   ws.amplitude = 1.1;
   const vFilmPeak = ws.amplitude * ws.frequency * 2 * Math.PI;   // m/s
   let prev = Infinity;
   for (const u of [0, 0.2, 0.4, 0.6, 0.8, 0.95]) {
-    const monkey = { weight: 50, velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
     const c = p.calculateContinuousCoupling(ws, monkey, args);
     assert.ok(c.thrustN < prev, `thrust must fade as slip closes (u=${u})`);
     prev = c.thrustN;
   }
   // Outrunning the crest: the gate is empty and thrust is exactly 0 (not clamped mid-fade).
   for (const u of [1.0, 1.2]) {
-    const monkey = { weight: 50, velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
     const c = p.calculateContinuousCoupling(ws, monkey, args);
     assert.equal(c.thrustN, 0, `u=${u}: gate empty, thrust exactly 0`);
   }
@@ -372,7 +371,7 @@ test('climbSpeedKmh replaces the old 0.036 badge factor, which under-reported 10
 });
 
 // ---------------------------------------------------------------------------
-// tetherWaveSpeed / couplingMomentumScale
+// tetherWaveSpeed / filmCrossSectionM2
 // ---------------------------------------------------------------------------
 test('tetherWaveSpeed = sqrt(E/rho), a material constant (longitudinal wave)', () => {
   const v = tetherWaveSpeed();
@@ -511,19 +510,13 @@ test('tetherPhaseAt: one wavelength of altitude costs exactly one cycle of phase
   approx(tetherPhaseAt(0, 0.013, f, c), 2 * Math.PI * f * 0.013, 1e-12);
 });
 
-test('couplingMomentumScale = sqrt(T/mu); rises with tension, falls with width', () => {
-  const baseScale = couplingMomentumScale(4.5, 100);
-  assert.ok(baseScale > 0);
-  // Higher tension -> stronger coupling (gameplay proxy).
-  assert.ok(couplingMomentumScale(4.5, 200) > baseScale);
-  // Thicker tether (more mass per length) -> weaker coupling.
-  assert.ok(couplingMomentumScale(9.0, 100) < baseScale);
-  // Exact formula check.
-  const diameter = 4.5 / 100;
-  const area = Math.PI * (diameter / 2) ** 2;
-  const mu = GameConfig.TETHER.CARBON_DENSITY * area;
-  const tensionN = 100 * GameConfig.TETHER.KGF_TO_N;
-  approx(baseScale, Math.sqrt(tensionN / mu), 1e-9);
+test('filmCrossSectionM2: the paper\'s ribbon is 45 mm × 0.2 mm = 9 mm² (M2.7)', () => {
+  // The tether is a paper-thin FILM, not a cable — the old π(d/2)² cylinder is gone.
+  approx(filmCrossSectionM2(45, 0.2) * 1e6, 9.0, 1e-9);     // mm^2
+  approx(filmCrossSectionM2(45, 0.2), 9e-6, 1e-12);        // m^2
+  approx(filmCrossSectionM2(90, 0.2), 2 * filmCrossSectionM2(45, 0.2), 1e-15);
+  approx(filmCrossSectionM2(45, 0.4), 2 * filmCrossSectionM2(45, 0.2), 1e-15);
+  assert.equal(game.couplingMomentumScale, undefined, 'couplingMomentumScale (cylinder) was deleted');
 });
 
 test('the transverse-string "sag" fiction is gone', () => {

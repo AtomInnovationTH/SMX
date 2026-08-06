@@ -35,7 +35,7 @@ const SNAPSHOT_PATH = join(__dirname, 'balance.snapshot.json');
 const {
   GameConfig, WaveSystem, PhysicsEngine,
   epmChargeStep, thermalStep, climbSpeedKmh,
-  maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK,
+  maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK, stackDryMassKg,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly: vineWidth 4.5 == 45 mm (slider
@@ -50,6 +50,7 @@ const DEFAULTS = {
   vineWidth: 4.5,
   vineTension: 100,
   airGapMm: 0.30,
+  filmThicknessMm: 0.2,
   cargoKg: GameConfig.MONKEY.WEIGHT,
 };
 
@@ -61,8 +62,14 @@ function defaultKPerPair() {
   const pole = GameConfig.FG40.POLE_FLUX_T;
   const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / DEFAULTS.vineTension);
   const fluxT = DEFAULTS.airGapMm - flutterMm <= 0 ? 0 : gapFluxT(DEFAULTS.airGapMm, pole);
-  return pairCouplingK({ sigmaSPerM: material.sigmaSPerM, thicknessM: GameConfig.TETHER.FILM_THICKNESS_M,
+  return pairCouplingK({ sigmaSPerM: material.sigmaSPerM, thicknessM: DEFAULTS.filmThicknessMm / 1000,
                          fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2 });
+}
+
+// M2.7: total mass = dry stack (magnets + structure fraction) + scored cargo.
+function defaultTotalMassKg() {
+  return stackDryMassKg(GameConfig.FG40.DEFAULT_N_PAIRS) * (1 + GameConfig.FG40.STRUCTURE_MASS_FRACTION)
+       + DEFAULTS.cargoKg;
 }
 
 // One climb at fixed dt. The step order below mirrors Game.update() ->
@@ -78,8 +85,9 @@ function runClimb(dt, wallS) {
   }
   const phys = new PhysicsEngine(GameConfig, { emit() {} });
   const monkey = { x: 600, y: 0, width: 80, height: 80, velocityY: 0,
-                   weight: DEFAULTS.cargoKg, isGrabbing: true, altitude: 0 };
+                   isGrabbing: true, altitude: 0 };
   const kPerPair = defaultKPerPair();
+  const massKg = defaultTotalMassKg();
   let charge = GameConfig.EPM.START_CHARGE, brownout = false, thermalTier = -1;
   let coldFactor = 1;
 
@@ -99,7 +107,7 @@ function runClimb(dt, wallS) {
     let quality = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
-        { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, dt });
+        { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, massKg, dt });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
     }    const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,

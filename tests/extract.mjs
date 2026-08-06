@@ -34,6 +34,7 @@ const EXPORTED_SYMBOLS = [
   'climbSpeedKmh',
   'tetherWaveSpeed',
   'tetherPhaseAt',
+  'filmCrossSectionM2',
   'maxMaterialVelocityMps',
   'maxAmplitudeM',
   'gapFluxT',
@@ -41,7 +42,6 @@ const EXPORTED_SYMBOLS = [
   'stackDryMassKg',
   'stackLengthM',
   'slipThrustMeanN',
-  'couplingMomentumScale',
   'safePersistedNumber',
   'missionScore',
   'bootstrapPct',
@@ -201,7 +201,7 @@ export function exportedSymbols() {
 // back onto the simulation default, so the next drifted default fails loudly.
 export function sliderDefaults() {
   const html = readFileSync(SOURCE_HTML, 'utf8');
-  const ids = ['frequency', 'amplitude', 'width', 'tension', 'stressBudget', 'airGap', 'nPairs', 'gravity', 'weight'];
+  const ids = ['frequency', 'amplitude', 'width', 'thickness', 'tension', 'stressBudget', 'airGap', 'nPairs', 'gravity', 'weight'];
   const out = {};
   for (const id of ids) {
     const inputMatch = html.match(new RegExp(`<input type="range" id="${id}"([^>]*)>`));

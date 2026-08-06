@@ -81,6 +81,13 @@ test('N-pairs slider is the real scaling axis (M2.6), default 64 pairs', () => {
   assert.equal(d.staticLabel, '64 pairs');
 });
 
+test('film thickness slider is real millimetres (M2.7), default the paper\'s 0.2 mm', () => {
+  // 45 mm × 0.2 mm = the paper's 9 mm² ribbon. Raw value IS the thickness in mm.
+  const d = sliderDefaults().thickness;
+  assert.equal(parseFloat(d.inputValue), 0.2);
+  assert.equal(d.staticLabel, '0.20 mm');
+});
+
 test('stress-budget slider default maps to the DECIDED §2.1 safety fraction (30%)', () => {
   // The paper's "10% of tether strength" is a fraction of stress-limited POWER, not of
   // stress (P ∝ σ²): read as a stress fraction, 10% forbids the paper's own 1000 km/h

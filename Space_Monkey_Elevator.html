@@ -81,7 +81,7 @@
         #airGap, #nPairs, #gravity, #weight { accent-color: #8B4513; }
         
         /* Style tether sliders green to match tether */
-        #frequency, #amplitude, #width, #tension, #stressBudget { accent-color: #22C55E; }
+        #frequency, #amplitude, #width, #tension, #thickness, #stressBudget { accent-color: #22C55E; }
         
         select { width: 210px; padding: 5px; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 3px; font-size: 11px; }
         
@@ -325,9 +325,18 @@
             <small class="setting-hint">Fraction of the film's working stress the wave may use: v_max = budget × strength ÷ √(Eρ). The paper's "10% of tether strength at 1000 km/h" is a share of stress-limited POWER (P ∝ σ²) — at 30% stress you use 9% of it, which is why both numbers are shown.</small>
         </div>
         <div class="slider-container">
-            <label>Width: <span id="widthValue">45 mm</span></label>
+            <label>Film width: <span id="widthValue">45 mm</span></label>
             <input type="range" id="width" min="10" max="1000" step="5" value="45">
-            <small class="setting-hint">Tether diameter. With material density it sets the linear mass μ.</small>
+            <small class="setting-hint">The ribbon is a paper-thin conductive FILM, not a cable — 45 mm × 0.2 mm = the paper's 9 mm².</small>
+        </div>
+        <div class="slider-container">
+            <label>Film thickness: <span id="thicknessValue">0.20 mm</span></label>
+            <input type="range" id="thickness" min="0.05" max="1" step="0.05" value="0.2">
+            <small class="setting-hint">Thicker film couples harder per pair (k ∝ t) but adds mass per metre. 0.2 mm is the paper's ribbon.</small>
+        </div>
+        <div class="slider-container">
+            <label>Film section: <span id="filmSectionValue">9.0 mm²</span></label>
+            <small class="setting-hint">width × thickness, the conductor the eddy currents flow in.</small>
         </div>
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
@@ -369,9 +378,13 @@
             <small class="setting-hint">Pulls the climber down; you beat it only by coupling to the wave.</small>
         </div>
         <div class="slider-container">
-            <label>Weight: <span id="weightValue">50 kg</span></label>
+            <label>Stack: <span id="stackValue">128 units · 2.6 m · dry 11.5 kg</span></label>
+            <small class="setting-hint">2 FG40 units per opposed pair, 72 g each, plus 25% structure. Dry mass is dead weight you carry; cargo (below) is what scores.</small>
+        </div>
+        <div class="slider-container">
+            <label>Cargo: <span id="weightValue">50 kg</span></label>
             <input type="range" id="weight" min="0.2" max="200" step="0.2" value="50">
-            <small class="setting-hint">Climber + cargo. Heavier needs more momentum per metre, but cargo delivered to 100 km is your score.</small>
+            <small class="setting-hint">Scored payload, kg. More cargo: more inertia (a = F/m), but cargo delivered to 100 km is your score.</small>
         </div>
 
         <h4>Accessibility</h4>
@@ -586,17 +599,11 @@
             return omega * timeS - (omega / waveSpeedMps) * altitudeM;
         }
 
-        // GAMEPLAY (not the wave's propagation speed): a coupling-momentum modifier. A tauter,
-        // thinner tether couples the EPM to the wave more effectively, so it scales the per-pulse
-        // momentum within [SPEED_FACTOR_MIN, SPEED_FACTOR_MAX]. Uses the transverse-style sqrt(T/mu)
-        // shape purely as a convenient, monotonic tuning curve — it is a coupling-stiffness proxy,
-        // not a physical wave speed. vineWidth 4.5 == 45 mm diameter (slider mm / 10).
-        function couplingMomentumScale(vineWidth, vineTension) {
-            const diameter = vineWidth / 100;                            // metres
-            const area = Math.PI * (diameter / 2) * (diameter / 2);      // m^2
-            const mu = GameConfig.TETHER.CARBON_DENSITY * area;          // kg/m
-            const tensionN = vineTension * GameConfig.TETHER.KGF_TO_N;
-            return Math.sqrt(tensionN / Math.max(1e-9, mu));
+        // SIM (§2.1 / M2.7): film cross-section from width × thickness — the paper's
+        // ribbon is 45 mm × 0.2 mm = 9 mm² (replaces the old π(d/2)² cylinder fiction:
+        // the tether is a paper-thin FILM, not a cable).
+        function filmCrossSectionM2(widthMm, thicknessMm) {
+            return (widthMm / 1000) * (thicknessMm / 1000);
         }
 
         // SIM (§2.1 / M2.2): the material-only speed ceiling of a wave-driven film.
@@ -1840,7 +1847,8 @@
             static MONKEY = {
                 WIDTH: 100,
                 HEIGHT: 160,
-                WEIGHT: 50,
+                WEIGHT: 50,   // DEFAULT CARGO (kg) — the scored payload. Total mass = cargo
+                              // + dry stack (magnets + structure); see M2.7's dryMassKg().
                 COLOR: COLOR_PALETTE.MONKEY_BROWN,
                 INITIAL_Y_OFFSET: 200,
                 BADGE_WIDTH: 80,  // Smaller to fit on chest patch
@@ -1941,7 +1949,6 @@
                 CARBON_DENSITY: 2300,   // kg/m^3 (paper, slide 3)
                 YOUNGS_MODULUS: 1.0e12, // Pa (~1 TPa), representative for graphene / CNT
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
-                FILM_THICKNESS_M: 0.2e-3, // paper: 45 mm × 0.2 mm = 9 mm² ribbon (M2.7 adds the slider)
                 // ESTIMATE (order-of-magnitude placeholder): film flutter amplitude at
                 // 100 kgf pretension, scaling as 1/sqrt(tension) for fixed buffeting energy.
                 // Flutter eats the FG40 gap's centering margin (M2.4). Sensitivity unknown
@@ -1978,7 +1985,12 @@
                 POLE_AREA_M2: 1.2e-3,   // ESTIMATE: pole-face area (4×4 cm package)
                 UNIT_MASS_KG: 0.072,    // datasheet: 72 g
                 PITCH_M: 0.041,         // ESTIMATE: opposed-pair pitch — a 64-pair stack ≈ 2.6 m (decision 6)
-                DEFAULT_N_PAIRS: 64     // §2.5: pairs to hold 50 kg at 1 g ≈ 64 (128 units, 9.2 kg)
+                DEFAULT_N_PAIRS: 64,    // §2.5: pairs to hold 50 kg at 1 g ≈ 64 (128 units, 9.2 kg)
+                // ESTIMATE (decision 16): structure mass around the magnets (frame, wiring,
+                // controller, film guides) as a fraction of magnet mass. §2.5's ~10:1
+                // thrust-to-weight counts magnets only; this keeps that honest. Never
+                // quote as measured.
+                STRUCTURE_MASS_FRACTION: 0.25
             };
 
             // SIM: slider raw-value -> model-value scalings (see setupEventListeners).
@@ -2181,8 +2193,9 @@
             // from a = F/m with the climber's real mass), a coupling quality in [0,1] for
             // the UI (thrust relative to the stationary-climber sine reference kV/π), and
             // the flash colour. There is NO speed clamp anywhere: thrust fades as slip
-            // closes and v_max is approached asymptotically.
-            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, dt }) {
+            // closes and v_max is approached asymptotically. massKg is the climber's TOTAL
+            // mass (dry stack + cargo, M2.7) — a = F/m is the real inertia law now.
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
                 // Film peak velocity in m/s (amplitude is real metres, already ≤ v_max/ω
                 // via the §2.1 stress cap). Climber speed in m/s, up-positive.
@@ -2193,8 +2206,7 @@
                 const filmVelocityAt = type === 'sine' ? null
                     : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude, omega, phi);
                 const thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
-                const massKg = Math.max(1e-9, monkey.weight);
-                const impulse = -(thrustN / massKg) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
+                const impulse = -(thrustN / Math.max(1e-9, massKg)) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
                 const fRef = kPerPair * nPairs * vFilmPeakMps / Math.PI;   // sine thrust at u = 0
                 const quality = fRef > 0 ? Math.max(0, Math.min(1, thrustN / fRef)) : 0;
                 return { impulse, thrustN, quality, flashColor: couplingColor(quality) };
@@ -2328,6 +2340,7 @@
                     frequency: { unit: ' Hz', formatter: null },
                     amplitude: { unit: ' m', formatter: (v) => parseFloat(v).toFixed(1) },
                     width: { unit: ' mm', formatter: null },
+                    thickness: { unit: ' mm', formatter: (v) => parseFloat(v).toFixed(2) },
                     tension: { unit: ' kg', formatter: null },
                     // Dual display (M2.2): the budget is a STRESS fraction; the paper's
                     // "10% of tether strength" is a POWER fraction (P ∝ σ²), so both are
@@ -2524,6 +2537,10 @@
                 this.vineTension = 100;
                 this.airGapMm = 0.30;          // FG40 working gap (M2.4); ~0.3 mm is §2.5's working point
                 this.nPairs = GameConfig.FG40.DEFAULT_N_PAIRS; // pre-run stack setting (M2.6)
+                this.filmThicknessMm = 0.2;    // paper: 45 mm × 0.2 mm = 9 mm² ribbon (M2.7)
+                this.cargoKg = GameConfig.MONKEY.WEIGHT;       // scored payload (M2.7)
+                this.structureMassFraction = GameConfig.FG40.STRUCTURE_MASS_FRACTION;
+                this.frameMassDeltaKg = 0;     // Carbon/Titanium frame kits reduce DRY mass
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget slider default (M2.2)
                 
@@ -2867,7 +2884,6 @@
                     width: GameConfig.MONKEY.WIDTH,
                     height: GameConfig.MONKEY.HEIGHT,
                     velocityY: 0,
-                    weight: GameConfig.MONKEY.WEIGHT,
                     color: GameConfig.MONKEY.COLOR,
                     isGrabbing: false,
                     altitude: 0,
@@ -2891,6 +2907,10 @@
                 this.vineTension = 100;
                 this.airGapMm = 0.30;
                 this.nPairs = GameConfig.FG40.DEFAULT_N_PAIRS;   // pre-run stack setting (M2.6)
+                this.filmThicknessMm = 0.2;
+                this.cargoKg = GameConfig.MONKEY.WEIGHT;
+                this.structureMassFraction = GameConfig.FG40.STRUCTURE_MASS_FRACTION;
+                this.frameMassDeltaKg = 0;
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
                 this.gravityMultiplier = 1.0;
@@ -2961,6 +2981,7 @@
                     frequency:  { value: 44,     label: '262.8 Hz' },
                     amplitude:  { value: 7,      label: '7.0 m' },
                     width:      { value: 45,     label: '45 mm' },
+                    thickness:  { value: 0.2,    label: '0.20 mm' },
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
                     airGap:     { value: 0.3,    label: '0.30 mm' },
@@ -3057,9 +3078,10 @@
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:stressBudget', (data) => { this.safetyFraction = scaleSettingValue('stressBudget', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; });
-                this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); });
+                this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
-                this.eventBus.on('settings:weight', (data) => { if (this.monkey) this.monkey.weight = data.value; });
+                this.eventBus.on('settings:weight', (data) => { this.cargoKg = data.value; this.updateDerivedReadouts(); });
+                this.eventBus.on('settings:thickness', (data) => { this.filmThicknessMm = data.value; this.updateDerivedReadouts(); });
                 
                 this.eventBus.on('settings:material', (data) => {
                     // The ladder is a STRENGTH ladder (E, rho constant) — material choice moves
@@ -3107,7 +3129,7 @@
                 upgrade.collected = true;
                 const config = upgrade.config;
                 const {weight, dragMult} = config;
-                if (weight) { this.monkey.equipment.frame = upgrade.type; this.monkey.weight += weight; }
+                if (weight) { this.monkey.equipment.frame = upgrade.type; this.frameMassDeltaKg += weight; }
                 if (dragMult) { this.monkey.equipment.aero = upgrade.type; this.dragMultiplier *= dragMult; }
                 
                 this.particleSystem.spawnParticles(
@@ -3140,6 +3162,16 @@
                 return maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, this.safetyFraction);
             }
 
+            // M2.7 (decision 12): dry mass vs scored cargo. Dry = FG40 stack magnets +
+            // structure fraction, minus frame-kit reductions (the Carbon/Titanium pickups
+            // used to cut the CARGO — i.e. your score — because weight was both inertia
+            // and payload). Cargo is the slider and the score.
+            dryMassKg() {
+                const structureKg = Math.max(0, stackDryMassKg(this.nPairs) * this.structureMassFraction + this.frameMassDeltaKg);
+                return stackDryMassKg(this.nPairs) + structureKg;
+            }
+            totalMassKg() { return this.dryMassKg() + this.cargoKg; }
+
             // SIM (§2.2 / M2.2): the stroke budget at the current carrier — the largest
             // amplitude the stress budget permits (A·ω ≤ v_max).
             strokeCapM() {
@@ -3163,10 +3195,14 @@
             }
 
             // Refresh derived settings readouts (wave speed, v_max, stroke cap, live wave
-            // stress). Safe before the DOM exists.
+            // stress, film section, stack). Safe before the DOM exists.
             updateDerivedReadouts() {
                 const el = document.getElementById('waveSpeedValue');
                 if (el) el.textContent = (this.tetherWaveSpeed() / 1000).toFixed(1) + ' km/s';
+                const fsEl = document.getElementById('filmSectionValue');
+                if (fsEl) fsEl.textContent = (filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm) * 1e6).toFixed(1) + ' mm²';
+                const stEl = document.getElementById('stackValue');
+                if (stEl) stEl.textContent = `${this.nPairs * 2} units · ${stackLengthM(this.nPairs, GameConfig.FG40.PITCH_M).toFixed(1)} m · dry ${this.dryMassKg().toFixed(1)} kg`;
                 const vMax = this.vMaxMps();
                 const vEl = document.getElementById('vmaxValue');
                 if (vEl) vEl.textContent = Math.round(vMax * 3.6) + ' km/h';
@@ -3372,11 +3408,11 @@
                     const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / Math.max(1e-9, this.vineTension));
                     if (this.airGapMm - flutterMm <= 0) fluxT = 0;
                     const kPerPair = pairCouplingK({
-                        sigmaSPerM: material.sigmaSPerM, thicknessM: GameConfig.TETHER.FILM_THICKNESS_M,
+                        sigmaSPerM: material.sigmaSPerM, thicknessM: this.filmThicknessMm / 1000,
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: this.nPairs, dt });
+                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     quality = c.quality;
@@ -3469,7 +3505,7 @@
                 const credit = cargoDeliveryCredit({
                     delivered: this.cargoDelivered,
                     altitude: this.monkey.altitude,
-                    cargoKg: this.monkey.weight,
+                    cargoKg: this.cargoKg,
                     bootstrapKg: this.bootstrapKg,
                 });
                 if (credit) {
@@ -3900,7 +3936,7 @@
             // SIM (Stage 2 / B.11): persistent mission HUD — surface the same cargo / mission-score
             // and bootstrap metrics shown at game-over so the player tracks them during the climb.
             renderMissionHud(ctx, width) {
-                const cargoKg = this.monkey ? this.monkey.weight : 0;
+                const cargoKg = this.cargoKg || 0;
                 // Live mission score = cargo kg × current altitude km (locks in at Kármán delivery).
                 const km = this.monkey ? this.monkey.altitude / 1000 : 0;
                 const liveScore = cargoKg * km;
