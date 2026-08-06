@@ -17,6 +17,17 @@ You play an up-climber riding a graphene space-elevator seed tether from sea lev
 
 The cute monkey is intentional: it keeps people open-minded about a genuinely novel propulsion concept. The playable climb stops at the **Kármán Line (100 km)**; in reality the seed tether continues to **geostationary orbit (35,786 km)** and a counterweight beyond, where effective gravity flips outward — that part is shown as context on the finish screen, not simulated.
 
+### Whose idea this is
+
+The concept is **not ours**. This game is a delivery vehicle for published work:
+
+- **Blaise Gassend**, *Powering Climbers Using Mechanical Waves*, ISDC 2025 — the primary source ([slides](https://gassend.net/spaceelevator/isdc2025/), [ISEC mirror](https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf)).
+- **Mark A. Wessels**, *Space Elevator Propulsion with Mechanical Waves*, [arXiv:1802.07443](https://arxiv.org/abs/1802.07443) (2018); patent US 8,196,867 B1.
+- **Keith Lofstrom**, *Acoustic Wave Powered Climbers* ([related wiki](http://www.launchloop.com/AcousticClimber)).
+- **Zubax Robotics [FluxGrip FG40](https://fluxgrip.zubax.com/)** — the real electro-permanent-magnet hardware the coupling stack is modelled on. No affiliation or endorsement implied.
+
+Full citations, and which numbers are published versus estimated, are in [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
+
 ---
 
 ## Quick start

@@ -1,16 +1,75 @@
 # Attributions
 
-All artwork shipped in this repository is **original to this project**. Nothing in
-`assets/` or inlined into `index.html` is sourced from neal.fun or any other
-third party. This file records how each piece was made; the licence position is
-at the bottom.
+Two kinds of credit live here. **Ideas** — the published research this simulation
+illustrates — come first, because they are the part that is not ours. **Art** — all
+of it original to this project; nothing in `assets/` or inlined into `index.html`
+is sourced from neal.fun or any other third party — follows, with a record of how
+each piece was made. The licence position is at the bottom.
 
 ---
 
-## Concept credit
+## Concept and prior art (the physics)
 
-The *concept* — climbing past real-world landmarks toward the Kármán Line — is a
-tribute to ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/).
+This file used to be meticulous about art and silent about ideas. The propulsion
+concept this game illustrates is **not ours** — it is published work by named
+researchers, and the game exists to make that work legible to people who have
+never heard of it.
+
+**Blaise Gassend**, *Powering Climbers Using Mechanical Waves: Fundamental Limits,
+Getting Around Them, and One Climber Concept* — the primary source. Presented at
+the National Space Society **International Space Development Conference (ISDC)
+2025**, Space Elevator Technical Session, Orlando FL, 21 June 2025. Author's link,
+printed on the slides themselves: <https://gassend.net/spaceelevator/isdc2025/>.
+Also mirrored by ISEC at
+<https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf>
+(item 05 on <https://www.isec.org/recent-publications>, with an animated version
+and presentation video). Everything this simulation is *about* — powering a space
+elevator climber with mechanical waves in the ribbon rather than with lasers, and
+the impedance, frequency, stroke, drag, taper, resonance and reflection trade-offs
+that follow — comes from here.
+
+**Mark A. Wessels**, *Space Elevator Propulsion with Mechanical Waves*,
+arXiv:1802.07443 (2018) — <https://arxiv.org/abs/1802.07443>. Proposes
+ground-driven opposing reciprocating pistons exciting **transverse** waves on the
+cable, driven at λ/4 from the anchor, with energy extracted by tuned masses and
+electromagnetic induction. The 60 cm stroke and 92 Hz carrier the game uses as
+reference points are Wessels', via Gassend's summary of them.
+
+> **A citation correction, recorded rather than silently propagated.** Gassend's
+> slide 4 gives Wessels' patent as `US-11149719-B2`. That number is in fact
+> "EdDrive propellantless propulsion system", inventor Edward Von Bargen —
+> unrelated. Wessels' actual patent is **US 8,196,867 B1**, *"Space elevator
+> propulsion system using mechanical waves"*, Mark Wessels, filed 2010-06-24,
+> granted 2012-06-12. Slide 4 also gives the arXiv title as "Propulsion **by**
+> Mechanical Waves"; arXiv's own record says "**with**". Both checked against
+> Google Patents and arXiv directly.
+
+**Keith Lofstrom**, *Acoustic Wave Powered Climbers* (c. 2015 — Gassend's slide 4
+marks the year uncertain), cited there as available on spaceelevatorwiki.com;
+related material and a submitted paper are on Lofstrom's own wiki at
+<http://www.launchloop.com/AcousticClimber>. Independent prior work: 100–1000 Hz
+longitudinal waves, 2–6 MW, 25–250 m wavelengths, 1.2–18 cm displacements — the
+low end of the game's stroke range. Also the source of the observation that
+descending climbers dissipate energy into ribbon vibrations.
+
+**Zubax Robotics FluxGrip FG40** — the electro-permanent-magnet (EPM) hardware
+the climber's coupling stack is modelled on. <https://fluxgrip.zubax.com/> and
+<https://zubax.com/products/fluxgrip>. FG40 is the product family; FG401M and
+FG401MA are shipping models. Zubax has published measurements this project reads
+directly, including force versus airgap and current consumption during
+magnetization, on <https://forum.zubax.com>. No affiliation with or endorsement
+by Zubax is claimed or implied.
+
+Deriving constants from these sources is our own work and may contain our own
+errors; where the game's numbers are estimates rather than published figures,
+that is stated in the code beside the constant.
+
+---
+
+## Concept credit (the game)
+
+The *game* concept — climbing past real-world landmarks toward the Kármán Line —
+is a tribute to ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/).
 Game mechanics and concepts are not themselves copyrightable; Neal's specific
 assets are, and **none of them are used here**. See the shader note below for the
 one place the two projects meet in code.
