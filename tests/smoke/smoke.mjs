@@ -171,7 +171,7 @@ try {
     return { ...out, restored: window.__smokeGame.airGapMm };
   });
   record('air gap slider max reads 5.00 mm (edge of the published curve)',
-    gripDrag.lbl === '5.00 mm' && Math.abs(gripDrag.gap - 5) < 1e-9 && Math.abs(gripDrag.restored - 0.3) < 1e-9,
+    gripDrag.lbl === '5.00 mm' && Math.abs(gripDrag.gap - 5) < 1e-9 && Math.abs(gripDrag.restored - 0.15) < 1e-9,
     JSON.stringify(gripDrag));
 
   // 3) EPM loop: engaging via the real SPACE key drains charge and drives the net readout.
