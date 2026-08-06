@@ -72,6 +72,7 @@
         .slider-container label { display: block; margin-bottom: 5px; }
         .setting-hint { display: block; font-size: 10px; color: #9bb6c9; opacity: 0.85; margin-top: 3px; line-height: 1.35; }
         .settings-concept { font-size: 11px; color: #cfe6f5; background: rgba(0, 90, 130, 0.22); border-left: 3px solid #00b4e6; padding: 7px 9px; margin: 6px 0 12px; line-height: 1.45; max-width: 320px; }
+        #settingsPanel a { color: #6bc8ff; }
         .wave-explainer { font-size: 10px; color: #cfe6f5; background: rgba(0, 90, 130, 0.18); border-radius: 4px; padding: 6px 8px; margin: 6px 0 4px; line-height: 1.4; max-width: 320px; }
         .wave-explainer b { color: #ffe08a; }
         input[type="range"] { width: 200px; }
@@ -96,6 +97,13 @@
             font-family: monospace; font-size: 28px; color: #bef0ff;
             text-shadow: 0 0 20px rgba(100, 200, 255, 0.5); margin-bottom: 30px; letter-spacing: 2px;
         }
+        /* Quiet, permanent credit line in the title area — the science's source,
+           visible on every load before any controls are taught (M1.9). */
+        #loading-overlay .loading-credit {
+            font-family: monospace; font-size: 11px; color: #6f95ab;
+            margin: -18px 0 26px; letter-spacing: 0.5px;
+        }
+        #loading-overlay .loading-credit a { color: #9fc7de; text-decoration: none; border-bottom: 1px dotted rgba(159, 199, 222, 0.5); }
         #loading-overlay .loading-spinner {
             font-size: 48px; animation: pulse-spin 1.5s ease-in-out infinite; margin-bottom: 20px;
         }
@@ -168,6 +176,7 @@
         .go-bootstrap { font-size: 15px; color: #9fd4a0; margin-bottom: 14px; }
         .go-geo { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 460px; line-height: 1.5; text-align: left; }
         .go-geo b { color: #ffe08a; }
+        .go-geo a { color: #6bc8ff; }
         .go-prompt { font-size: 15px; color: #aaa; margin-bottom: 20px; animation: pulse-spin 2s ease-in-out infinite; }
         .go-settings { font-size: 12px; color: #6bc8ff; cursor: pointer; text-decoration: underline; }
         
@@ -212,6 +221,7 @@
     <!-- Loading Overlay -->
     <div id="loading-overlay">
         <div class="loading-title">Space Monkey Elevator</div>
+        <div class="loading-credit">Based on Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>, ISDC 2025 — <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a></div>
         <div class="loading-spinner">🐵</div>
         <div id="loading-progress">Loading... 0%</div>
     </div>
@@ -240,7 +250,10 @@
                 concept it points to.<br><br>
                 You flew the <b>up-climber</b>: carry cargo up, ride the beamed waves, manage EPM charge.
                 The <b>down-climber</b> — which would brake regeneratively on the way down and reinforce the
-                tether — is the next chapter.
+                tether — is the next chapter.<br><br>
+                The physics you just rode: Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>,
+                ISDC 2025 — <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
+                (author's page: <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">gassend.net/spaceelevator/isdc2025</a>).
             </div>
             <div class="go-new-best" id="go-new-best" style="display:none;">🎉 NEW BEST! 🎉</div>
             <div class="go-prompt" id="go-prompt">Press SPACE or Tap to restart</div>
@@ -276,7 +289,12 @@
             <b>Zero static power is the enabling technology</b>; without it the climber would
             spend more energy holding on than climbing.<br><br>
             Above ~40 km there is effectively no air &mdash; let go and you keep your speed.
-            Your magnets latch off at zero power, so coasting costs nothing.
+            Your magnets latch off at zero power, so coasting costs nothing.<br><br>
+            Based on Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>, ISDC 2025
+            &mdash; <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
+            (author&rsquo;s page: <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">gassend.net/spaceelevator/isdc2025</a>).<br>
+            Coupling hardware modelled on <a href="https://fluxgrip.zubax.com/" target="_blank" rel="noopener">Zubax FluxGrip FG40</a>
+            electro-permanent magnets &mdash; no affiliation or endorsement implied.
         </div>
 
         <h4>Tether (seed)</h4>
