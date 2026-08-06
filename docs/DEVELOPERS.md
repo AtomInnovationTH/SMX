@@ -171,6 +171,16 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     a `quality = 1` pulse can no longer keep charge up. Rises with material stiffness, so
     the material slider sets reach. E.g. base on 300 GPa sustains the whole climb
     (~185 km), while hallbach on 50 GPa tops out at ~5.8 km and is a burst-only tool there.
+
+  > **Fidelity note (this mechanism is not physical, and is slated for removal).**
+  > `waveEnergyFactor`'s altitude attenuation is fabricated. The source paper states the
+  > opposite: with a tapered ribbon, *"amplitude will adjust with 1/sqrt(A) with height to
+  > keep the transported power constant"* — transported power does **not** decay with
+  > altitude. Keying the decay to tensile *strength* is doubly wrong, since Young's modulus
+  > is ~1 TPa across the whole material ladder (see the `TETHER` comment in the source).
+  > Material's real role is a **speed ceiling**, `v_max = f_safety · strength / sqrt(Eρ)`,
+  > not a reachable-altitude ceiling. The formulas above describe the code as it stands
+  > today; do not cite them as physics.
 - **Units chain** (`GameConfig.TETHER`): the tether carries a **longitudinal** (compression)
   wave, so its speed is `v = √(E/ρ)` from the material's Young's modulus and density — a
   material constant, shown in settings. Separately, tension/width scale coupling through a
