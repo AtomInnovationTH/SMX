@@ -539,6 +539,15 @@
             return Math.pow(base, dt * 60);
         }
 
+        // Climb speed readout in km/h from the monkey's vertical velocity in px/s.
+        // The world scale is PHYSICS.ALTITUDE_CONVERSION = 10 px per metre (see there),
+        // so m/s = px/s / 10 and km/h = m/s * 3.6. Screen y grows downward, hence the
+        // sign flip: a climbing monkey has velocityY < 0 and a positive speed here.
+        // Descending returns a negative value; the caller decides how to present it.
+        function climbSpeedKmh(velocityYPx) {
+            return (-velocityYPx / GameConfig.PHYSICS.ALTITUDE_CONVERSION) * 3.6;
+        }
+
         // SIM (Stage 2 / B.8): LONGITUDINAL (compression) wave speed v = sqrt(E/rho).
         // Set by the material's Young's modulus and density — independent of tension and width.
         // For the carbon materials in the ladder E ~ 1 TPa and rho ~ 1800 kg/m^3, giving
@@ -1734,12 +1743,22 @@
                 // at sea level with the EPMs engaged at reference field (gripMultiplier = 1).
                 // This is a LINEARISED SLIP COEFFICIENT (arcade stand-in for the induction-motor
                 // slip curve), not a measured physical induction constant.
-                // 0.08 => peak ~770 km/h, full climb ~10-12 min. Higher = slower
-                // (0.10 -> ~600 km/h/15 min; 0.25+ -> climb never completes). Flagged for playtest.
+                // 0.08 => full climb ~10-12 min. Higher = slower
+                // (0.10 -> ~15 min; 0.25+ -> climb never completes). Flagged for playtest.
+                // NOTE: the peak-speed figures once recorded here (and in
+                // docs/v1.0-roadmap.md) were read off a badge that divided by 100 px/m
+                // instead of ALTITUDE_CONVERSION's 10, so they under-reported by 10x.
+                // The "~770 km/h" peak is really ~7,700 km/h. Fixed at the badge; the
+                // physics is untouched, only the readout was wrong.
                 EDDY_FRACTION: 0.08,
                 HORIZONTAL_SPEED: 150,
                 MOMENTUM_MULTIPLIER: 3.6,
                 DRIFT_DECAY: 0.9,
+                // PX_PER_M: the authoritative world scale, 10 pixels per metre.
+                // DERIVED, not chosen: one carrier wavelength must fit on screen
+                // (lambda = c/f ~ 91 m at 260 Hz -> ~910 px), and it is what the five
+                // existing consumers (parallax, landmarks, altimeter, ghost, altitude)
+                // already assume. Altitude in metres = -y_px / PX_PER_M.
                 ALTITUDE_CONVERSION: 10
             };
             
@@ -3659,7 +3678,7 @@
                 // Speed - show 0 kph when on ground
                 ctx.font = 'bold 13px monospace';
                 ctx.fillStyle = '#333'; // Dark gray text
-                const speedKph = this.monkey.altitude < 1 ? 0 : (-this.monkey.velocityY * 0.036).toFixed(0);
+                const speedKph = this.monkey.altitude < 1 ? 0 : climbSpeedKmh(this.monkey.velocityY).toFixed(0);
                 ctx.fillText(`${speedKph}kph`, bx + 7, by + 46);
                 
                 // Wave name

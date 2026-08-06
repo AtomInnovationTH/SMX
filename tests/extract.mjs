@@ -31,6 +31,7 @@ const EXPORTED_SYMBOLS = [
   'logSliderToFreq',
   'freqToLogSlider',
   'frameDecay',
+  'climbSpeedKmh',
   'tetherWaveSpeed',
   'couplingMomentumScale',
   'waveEnergyFactor',

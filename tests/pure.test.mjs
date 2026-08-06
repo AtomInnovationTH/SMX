@@ -20,6 +20,7 @@ const {
   logSliderToFreq,
   freqToLogSlider,
   frameDecay,
+  climbSpeedKmh,
   tetherWaveSpeed,
   couplingMomentumScale,
   waveEnergyFactor,
@@ -58,6 +59,7 @@ test('extraction exposes the core pure symbols', () => {
   for (const [name, val] of Object.entries({
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
+    climbSpeedKmh,
     tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
@@ -85,11 +87,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 25 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 26 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 25);
+  assert.equal(declaredPureHelpers().length, 26);
 });
 
 // ---------------------------------------------------------------------------
@@ -267,6 +269,32 @@ test('logSlider <-> freq round-trips and hits endpoints', () => {
   for (const s of [0, 12.5, 33, 50, 77, 100]) {
     approx(freqToLogSlider(logSliderToFreq(s)), s, 1e-9);
   }
+});
+
+// ---------------------------------------------------------------------------
+// climbSpeedKmh — the world scale, pinned
+// ---------------------------------------------------------------------------
+test('climbSpeedKmh round-trips against PX_PER_M (ALTITUDE_CONVERSION)', () => {
+  const pxPerM = GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+  assert.equal(pxPerM, 10, 'PX_PER_M is authoritative at 10 px/m (plan decision 5)');
+  // Screen y grows downward, so climbing is velocityY < 0 and reads positive.
+  approx(climbSpeedKmh(0), 0);
+  approx(climbSpeedKmh(-pxPerM), 3.6);          // 1 m/s = 3.6 km/h
+  approx(climbSpeedKmh(-100 * pxPerM), 360);    // 100 m/s = 360 km/h
+  // Round-trip: km/h -> m/s -> px/s -> km/h.
+  for (const kmh of [1, 42, 382, 708 * 3.6, 2550]) {
+    const velocityYPx = -(kmh / 3.6) * pxPerM;
+    approx(climbSpeedKmh(velocityYPx), kmh, 1e-9);
+  }
+  // Descending is negative; the badge, not the helper, decides presentation.
+  approx(climbSpeedKmh(pxPerM), -3.6);
+});
+
+test('climbSpeedKmh replaces the old 0.036 badge factor, which under-reported 10x', () => {
+  // The retired badge expression was `-velocityY * 0.036`, which is
+  // (-v / 100) * 3.6 — i.e. it assumed 100 px/m while the world uses 10.
+  const v = -5000; // px/s
+  approx(climbSpeedKmh(v) / (-v * 0.036), 10);
 });
 
 // ---------------------------------------------------------------------------
