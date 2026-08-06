@@ -27,6 +27,7 @@ const {
   maxAmplitudeM,
   gapFluxT,
   pairCouplingK,
+  slipThrustMeanN,
   couplingMomentumScale,
   safePersistedNumber,
   missionScore,
@@ -63,7 +64,7 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, maxMaterialVelocityMps, maxAmplitudeM,
-    gapFluxT, pairCouplingK,
+    gapFluxT, pairCouplingK, slipThrustMeanN,
     couplingMomentumScale,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
@@ -91,11 +92,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 28 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 29 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 28);
+  assert.equal(declaredPureHelpers().length, 29);
 });
 
 // ---------------------------------------------------------------------------
@@ -182,50 +183,87 @@ test('WaveSystem.setType only accepts known types', () => {
 // ---------------------------------------------------------------------------
 // PhysicsEngine
 // ---------------------------------------------------------------------------
-test('weightFactor is monotonically decreasing in weight and in (0,1]', () => {
+test('calculateContinuousCoupling: slip thrust fades with speed, impulse always upward', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const light = p.weightFactor({ weight: 0 });
-  const mid = p.weightFactor({ weight: 50 });
-  const heavy = p.weightFactor({ weight: 500 });
-  assert.equal(light, 1.0);
-  assert.ok(light > mid && mid > heavy);
-  assert.ok(heavy > 0);
-});
-
-test('calculateContinuousCoupling: quality in [0,1], impulse always upward', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const monkey = { weight: 50 };
+  const monkey = { weight: 50, velocityY: 0 };
+  const args = { kPerPair: 0.043, nPairs: 64, dt: 1 / 60 };
   for (const type of ['sine', 'square', 'sawtooth']) {
     const ws = new WaveSystem(type);
-    ws.frequency = 0.5;
-    ws.amplitude = 70;
+    ws.frequency = 260;
+    ws.amplitude = 1.1;
     for (const t of [0, 0.1, 0.25, 0.5, 0.9, 1.3]) {
       ws.time = t;
-      const c = p.calculateContinuousCoupling(ws, monkey, 1, 1, 1 / 60);
+      const c = p.calculateContinuousCoupling(ws, monkey, args);
       assert.ok(c.quality >= 0 && c.quality <= 1, `quality ${c.quality} out of range (${type}@${t})`);
       assert.ok(c.impulse <= 0, `impulse should be upward (<=0), got ${c.impulse} (${type}@${t})`);
+      assert.ok(c.thrustN >= 0, `thrust should be >= 0 for a stationary climber (${type}@${t})`);
     }
   }
 });
 
-test('sawtooth ratchet adds extra upward bias vs sine at matched quality', () => {
+test('calculateContinuousCoupling: thrust -> 0 as the climber approaches film peak speed (no clamp)', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const monkey = { weight: 50 };
-  // Force identical wave velocity magnitude by using same amp/freq/time; the only
-  // difference is the sawtooth ratchet term, which must make |impulse| larger.
-  const sine = new WaveSystem('sine');
-  const saw = new WaveSystem('sawtooth');
-  for (const ws of [sine, saw]) { ws.frequency = 0.5; ws.amplitude = 70; ws.time = 0.3; }
-  const cSine = p.calculateContinuousCoupling(sine, monkey, 1, 1, 1 / 60);
-  const cSaw = p.calculateContinuousCoupling(saw, monkey, 1, 1, 1 / 60);
-  // Not a strict per-phase comparison (positions differ), but the ratchet guarantees
-  // the sawtooth path includes the RATCHET_GAIN term: verify it is present in code-path
-  // by checking the ratchet contributes nonzero extra thrust when quality is ~0.
-  saw.time = 0.0; // sawtooth velocity here is the steady down-ramp, quality ~ moderate
-  const cSawRatchet = p.calculateContinuousCoupling(saw, monkey, 1, 1, 1 / 60);
-  assert.ok(cSawRatchet.impulse < 0);
-  // Ratchet gain configured and positive.
-  assert.ok(GameConfig.COUPLING.RATCHET_GAIN > 0);
+  const args = { kPerPair: 0.043, nPairs: 64, dt: 1 / 60 };
+  const ws = new WaveSystem('sine');
+  ws.frequency = 260;
+  ws.amplitude = 1.1;
+  const vFilmPeak = ws.amplitude * ws.frequency * 2 * Math.PI;   // m/s
+  let prev = Infinity;
+  for (const u of [0, 0.2, 0.4, 0.6, 0.8, 0.95]) {
+    const monkey = { weight: 50, velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const c = p.calculateContinuousCoupling(ws, monkey, args);
+    assert.ok(c.thrustN < prev, `thrust must fade as slip closes (u=${u})`);
+    prev = c.thrustN;
+  }
+  // Outrunning the crest: the gate is empty and thrust is exactly 0 (not clamped mid-fade).
+  for (const u of [1.0, 1.2]) {
+    const monkey = { weight: 50, velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const c = p.calculateContinuousCoupling(ws, monkey, args);
+    assert.equal(c.thrustN, 0, `u=${u}: gate empty, thrust exactly 0`);
+  }
+});
+
+// §2.3 — the slip integral: the plan's headline mechanic, proven against both endpoints
+// and its own numeric shadow.
+test('slipThrustMeanN: closed form, endpoints, monotonic fade, no clamp anywhere', () => {
+  const kPerPair = 0.043, nPairs = 64, V = 1877;
+  const k = kPerPair * nPairs;
+  // u = 0 -> kV/π (mean of a rectified sine).
+  approx(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: 0 }), k * V / Math.PI, 1e-9);
+  // Closed form == direct numeric integration of the gate {v_film > v_climber}.
+  for (const u of [0, 0.25, 0.5, 0.75, 0.9]) {
+    const v = u * V;
+    const closed = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: v });
+    let acc = 0; const N = 720000;
+    for (let i = 0; i < N; i++) {
+      const phi = (i + 0.5) * 2 * Math.PI / N;
+      const vf = V * Math.sin(phi);
+      if (vf > v) acc += vf - v;
+    }
+    approx(closed, k * acc / N, Math.max(1e-9, k * V * 1e-6));
+  }
+  // Monotonically decreasing, strictly positive at u = 0.9999 (no clamp: v_max is an
+  // asymptote, never a wall).
+  let prev = Infinity;
+  for (const u of [0, 0.25, 0.5, 0.75, 0.9, 0.99, 0.9999]) {
+    const f = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: u * V });
+    assert.ok(f < prev, `thrust must fade monotonically (u=${u})`);
+    assert.ok(f > 0, `thrust must be strictly positive short of u = 1 (u=${u})`);
+    prev = f;
+  }
+  // u >= 1: the gate is empty -> exactly 0. u <= -1 (fast descent): Lenz brake = -k·v.
+  assert.equal(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: V }), 0);
+  assert.equal(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: 2 * V }), 0);
+  const vDesc = -2 * V;
+  approx(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: vDesc }), -k * vDesc, 1e-9);
+  // Harmonic carriers take the numeric sub-step path: it must reproduce the closed form
+  // for a sine, and give positive thrust for the band-limited sawtooth (paper's ratchet, p.5).
+  const sineViaNumeric = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: 0.5 * V,
+    filmVelocityAt: (phi) => V * Math.sin(phi) });
+  approx(sineViaNumeric, slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: 0.5 * V }), k * V * 1e-4);
+  assert.ok(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: 0,
+    filmVelocityAt: (phi) => WAVE_CALCULATORS.sawtooth.velocity(1, V, phi) }) > 0,
+    'the sawtooth ratchet must thrust a stationary climber');
 });
 
 test('applyGravityAndDrag always applies gravity — there is no attached state', () => {
@@ -562,15 +600,16 @@ test('densityRatio: 1.0 at sea level, ~2.2e6x lower at the Karman line', () => {
   }
 });
 
-test('B.14 split: aero x eddy == AIR_DRAG at sea level, reference field', () => {
-  // Drive both shipped methods and require the combined damping to collapse to
-  // exactly AIR_DRAG per 60 Hz frame at sea level with the EPM at reference field
-  // — the constraint AIR_DRAG = 0.985 / EDDY_FRACTION = 0.08 were split under.
+test('B.14 split is gone: aero drag alone is the full AIR_DRAG retention at sea level', () => {
+  // The eddy half of the split (applyEddyDrag, EDDY_FRACTION) was deleted in M2.5 — the
+  // §2.3 slip integral IS the eddy interaction now, both traction and braking, so the
+  // two never coexist. Aero drag keeps the whole AIR_DRAG retention.
   const p = new PhysicsEngine(GameConfig, { emit() {} });
+  assert.equal(GameConfig.PHYSICS.EDDY_FRACTION, undefined, 'EDDY_FRACTION was deleted');
+  assert.equal(p.applyEddyDrag, undefined, 'applyEddyDrag was deleted');
   const dt = 1 / 60;
   const m = { velocityY: -1000, altitude: 0 };
   p.applyGravityAndDrag(m, dt, 0, 1);   // gravityMult 0: isolate drag
-  p.applyEddyDrag(m, dt, 1.0);                  // fieldFactor 1 = reference field
   approx(m.velocityY, -1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt), 1e-9);
 });
 
@@ -585,49 +624,6 @@ test('B.15: an aero kit REDUCES drag, and drag vanishes with altitude', () => {
   assert.ok(run(0.855, 0) > run(1.0, 0), 'aero kits must reduce drag, not increase it');
   // and aerodynamic drag must be negligible at 100 km
   approx(run(1.0, 100000), 1000, 1e-3);
-});
-
-test('applyEddyDrag brakes with no air at 100 km (the whole point of the B.14 split)', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const dt = 1 / 60;
-  // Gravity off, aero ~ a no-op at 100 km (densityRatio ~ 4.6e-7): any residual
-  // damping has to be the eddy term braking against the tether's field.
-  const m = { velocityY: -1000, altitude: 100000 };
-  p.applyGravityAndDrag(m, dt, 0, 1);
-  const afterAero = m.velocityY;
-  p.applyEddyDrag(m, dt, 1.0);
-  assert.ok(Math.abs(m.velocityY) < Math.abs(afterAero),
-    `eddy braking must slow the climber with no air, ${afterAero} -> ${m.velocityY}`);
-  assert.ok(Math.abs(m.velocityY) < 1000);
-});
-
-test('applyEddyDrag at fieldFactor 0 is a true frictionless coaster', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const dt = 1 / 60;
-  // Run at 100 km so aero drag is a no-op; the eddy term is the only damping left.
-  const m = { velocityY: -1000, altitude: 100000 };
-  p.applyGravityAndDrag(m, dt, 0, 1);
-  const beforeEddy = m.velocityY;
-  p.applyEddyDrag(m, dt, 0);   // EPMs latch OFF at zero power: eddyRef ** 0 === 1
-  approx(m.velocityY, beforeEddy, 1e-9);   // eddy leaves it exactly unchanged
-});
-
-test('applyEddyDrag is frame-rate independent (one 1/60 step ~ four 1/240 steps)', () => {
-  const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const oneShot = () => {
-    const m = { velocityY: -1000, altitude: 100000 };
-    p.applyGravityAndDrag(m, 1 / 60, 0, 1);
-    p.applyEddyDrag(m, 1 / 60, 1.0);
-    return m.velocityY;
-  };
-  let v = -1000;
-  for (let i = 0; i < 4; i++) {
-    const m = { velocityY: v, altitude: 100000 };
-    p.applyGravityAndDrag(m, 1 / 240, 0, 1);
-    p.applyEddyDrag(m, 1 / 240, 1.0);
-    v = m.velocityY;
-  }
-  approx(v, oneShot(), 1e-6);
 });
 
 test('updatePosition: integrates altitude only — x is untouched (no lateral axis)', () => {

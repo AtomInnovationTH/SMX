@@ -6,9 +6,9 @@
 //
 //   - the climb completes 100 km within a generous wall of simulated time (fail = stall)
 //   - altitude is monotonically non-decreasing while engaged (see NOTE below)
-//   - terminal speed is finite — and M2.5 must tighten this to `< v_max` HERE: when
-//     applyEddyDrag (EDDY_FRACTION, the shipped game's only speed ceiling) is deleted,
-//     a missing/wrong slip term shows up as runaway speed and this assertion turns red
+//   - terminal speed is finite and strictly below v_max (the tripwire for the EDDY_FRACTION
+//     deletion: with the old decay ceiling gone, a missing/wrong slip term shows up as
+//     runaway speed and this assertion turns red)
 //   - the trace is frame-rate independent: dt = 1/60 vs dt = 1/240 agree to tolerance
 //   - charge stays within [0, CAPACITY]; brownout recovers via ambient trickle
 //
@@ -34,8 +34,8 @@ const SNAPSHOT_PATH = join(__dirname, 'balance.snapshot.json');
 
 const {
   GameConfig, WaveSystem, PhysicsEngine,
-  epmChargeStep, couplingMomentumScale, thermalStep, climbSpeedKmh,
-  maxMaterialVelocityMps, maxAmplitudeM, gapFluxT,
+  epmChargeStep, thermalStep, climbSpeedKmh,
+  maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly: vineWidth 4.5 == 45 mm (slider
@@ -53,13 +53,16 @@ const DEFAULTS = {
   cargoKg: GameConfig.MONKEY.WEIGHT,
 };
 
-// M2.4: coupling multiplier at the default gap = FG40's normalised force there.
-// Mirrors updateContinuous (tension 100 kgf keeps flutter well clear of the gap).
-function gapCouplingMult(gapMm) {
+// M2.4/M2.5: the hardware chain at documented defaults — air gap -> pole flux (FG40's
+// published curve), flux -> per-pair traction coefficient (§2.5). Tension 100 kgf keeps
+// flutter (0.1 mm) well clear of the 0.30 mm gap; a margin <= 0 unloads the stack.
+function defaultKPerPair() {
+  const material = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX];
   const pole = GameConfig.FG40.POLE_FLUX_T;
   const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / DEFAULTS.vineTension);
-  if (gapMm - flutterMm <= 0) return 0;
-  return Math.pow(gapFluxT(gapMm, pole) / pole, 2);
+  const fluxT = DEFAULTS.airGapMm - flutterMm <= 0 ? 0 : gapFluxT(DEFAULTS.airGapMm, pole);
+  return pairCouplingK({ sigmaSPerM: material.sigmaSPerM, thicknessM: GameConfig.TETHER.FILM_THICKNESS_M,
+                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2 });
 }
 
 // One climb at fixed dt. The step order below mirrors Game.update() ->
@@ -76,10 +79,7 @@ function runClimb(dt, wallS) {
   const phys = new PhysicsEngine(GameConfig, { emit() {} });
   const monkey = { x: 600, y: 0, width: 80, height: 80, velocityY: 0,
                    weight: DEFAULTS.cargoKg, isGrabbing: true, altitude: 0 };
-  const refScale = couplingMomentumScale(DEFAULTS.vineWidth, DEFAULTS.vineTension);
-  const waveSpeedFactor = () => Math.max(GameConfig.TETHER.SPEED_FACTOR_MIN,
-    Math.min(GameConfig.TETHER.SPEED_FACTOR_MAX,
-      couplingMomentumScale(DEFAULTS.vineWidth, DEFAULTS.vineTension) / refScale));
+  const kPerPair = defaultKPerPair();
   let charge = GameConfig.EPM.START_CHARGE, brownout = false, thermalTier = -1;
   let coldFactor = 1;
 
@@ -98,11 +98,9 @@ function runClimb(dt, wallS) {
     const engaged = monkey.isGrabbing && !brownout;
     let quality = 0;
     if (engaged) {
-      const gapMult = gapCouplingMult(DEFAULTS.airGapMm);
-      const c = phys.calculateContinuousCoupling(ws, monkey, gapMult,
-        GameConfig.PHYSICS.MOMENTUM_MULTIPLIER, dt);
-      monkey.velocityY += c.impulse * waveSpeedFactor() * coldFactor;
-      phys.applyEddyDrag(monkey, dt, gapMult);
+      const c = phys.calculateContinuousCoupling(ws, monkey,
+        { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, dt });
+      monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
     }
     const step = epmChargeStep({ charge, brownout, pulsing: engaged, quality,
@@ -143,8 +141,13 @@ test('climb completes within a generous wall; altitude monotonic; speed finite; 
   assert.ok(r.chargeInRange, `charge left [0, ${GameConfig.EPM.CAPACITY}]`);
   assert.ok(Number.isFinite(r.finalSpeedKmh) && r.finalSpeedKmh > 0,
     `terminal speed not finite and positive: ${r.finalSpeedKmh} km/h`);
-  // M2.5: assert r.finalSpeedKmh < v_max here once §2.1's v_max exists. The EDDY_FRACTION
-  // deletion removes the game's only speed ceiling; this line is the tripwire.
+  // M2.5 tripwire, armed: terminal speed must sit strictly BELOW v_max. applyEddyDrag
+  // (EDDY_FRACTION, the shipped game's only speed ceiling) is deleted; the slip model's
+  // u → 1 asymptote is the ceiling now — runaway speed turns this red.
+  const mDef = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX];
+  const vMaxKmh = maxMaterialVelocityMps(mDef.strengthGpa, mDef.youngsPa, mDef.densityKgM3, 0.30) * 3.6;
+  assert.ok(r.finalSpeedKmh < vMaxKmh,
+    `terminal speed ${r.finalSpeedKmh.toFixed(0)} km/h must sit strictly below v_max ${vMaxKmh.toFixed(0)} km/h`);
 });
 
 test('trace is frame-rate independent (dt = 1/60 vs 1/240)', () => {

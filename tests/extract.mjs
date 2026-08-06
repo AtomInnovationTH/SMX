@@ -38,6 +38,7 @@ const EXPORTED_SYMBOLS = [
   'maxAmplitudeM',
   'gapFluxT',
   'pairCouplingK',
+  'slipThrustMeanN',
   'couplingMomentumScale',
   'safePersistedNumber',
   'missionScore',

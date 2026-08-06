@@ -650,6 +650,39 @@
             return sigmaSPerM * thicknessM * fluxT * fluxT * poleAreaM2;
         }
 
+        // SIM (§2.3 / M2.5): mean eddy-traction thrust over one carrier cycle — the core
+        // mechanic, in closed form for a sine carrier. The onboard controller gates the
+        // FG40 stack ON exactly when the film outruns the climber (v_film > v_climber).
+        // With v_film = V·sin φ and u = v_climber/V, the gate spans φ ∈ [asin u, π − asin u]:
+        //   F_mean = (k·V / 2π) · [ 2√(1−u²) − u(π − 2·asin u) ]
+        //   u = 0  → kV/π (mean of a rectified sine);  u → 1 → 0, MONOTONIC, with NO CLAMP
+        // anywhere: v_max is approached asymptotically as thrust fades. u ≥ 1 means the
+        // climber outruns the crest — the gate is empty, thrust is exactly 0. u ≤ −1 (fast
+        // descent) means the gate never closes — thrust = −k·v_climber, a Lenz brake.
+        // Harmonic carriers (§2.4) pass filmVelocityAt and integrate numerically (720
+        // sub-steps per cycle, midpoint rule); the closed form is sine-only.
+        function slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt = null }) {
+            const k = kPerPair * nPairs;
+            const V = vFilmPeakMps;
+            const v = vClimberMps;
+            if (k <= 0 || V <= 0) return 0;
+            const u = v / V;
+            if (u >= 1) return 0;        // gate never opens
+            if (u <= -1) return -k * v;  // gate never closes: brake the descent
+            if (filmVelocityAt) {
+                let acc = 0;
+                const N = 720;
+                for (let i = 0; i < N; i++) {
+                    const phi = (i + 0.5) * 2 * Math.PI / N;
+                    const vf = filmVelocityAt(phi);
+                    if (vf > v) acc += vf - v;
+                }
+                return k * acc / N;
+            }
+            const bracket = 2 * Math.sqrt(1 - u * u) - u * (Math.PI - 2 * Math.asin(u));
+            return (k * V / (2 * Math.PI)) * bracket;
+        }
+
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
         // negatives so a corrupted localStorage entry can't poison scoring/altitude state.
         function safePersistedNumber(raw) {
@@ -1824,20 +1857,14 @@
             static PHYSICS = {
                 GRAVITY: 160,
                 AIR_DRAG: 0.985,
-                // B.14: share of the sea-level damping attributed to magnetic (eddy) coupling
-                // rather than to air. The aero and eddy factors multiply back to exactly AIR_DRAG
-                // at sea level with the EPMs engaged at the reference coupling (gapMult = 1).
-                // This is a LINEARISED SLIP COEFFICIENT (arcade stand-in for the induction-motor
-                // slip curve), not a measured physical induction constant.
-                // 0.08 => full climb ~10-12 min. Higher = slower
-                // (0.10 -> ~15 min; 0.25+ -> climb never completes). Flagged for playtest.
-                // NOTE: the peak-speed figures once recorded here (and in
-                // docs/v1.0-roadmap.md) were read off a badge that divided by 100 px/m
-                // instead of ALTITUDE_CONVERSION's 10, so they under-reported by 10x.
-                // The "~770 km/h" peak is really ~7,700 km/h. Fixed at the badge; the
-                // physics is untouched, only the readout was wrong.
-                EDDY_FRACTION: 0.08,
-                MOMENTUM_MULTIPLIER: 3.6,
+                // B.14: aerodynamic (aero) drag retention per 60 Hz frame at sea level.
+                // (The old EDDY_FRACTION split a share off for applyEddyDrag — that flat
+                // velocity decay was the game's ONLY speed ceiling, and it is DELETED in
+                // M2.5: the slip model's u → 1 asymptote is the ceiling now. Aero drag is
+                // the full AIR_DRAG retention again. The 3.6x MOMENTUM_MULTIPLIER fudge and
+                // the waveSpeedFactor tuning curve went with it: the slip thrust is a
+                // physical force and carries no gameplay multipliers — M2.11 tunes via the
+                // real knobs, not a constant.)
                 // PX_PER_M: the authoritative world scale, 10 pixels per metre.
                 // DERIVED, not chosen: one carrier wavelength must fit on screen
                 // (lambda = c/f ~ 91 m at 260 Hz -> ~910 px), and it is what the five
@@ -1853,12 +1880,11 @@
                 POOR_COLOR: COLOR_PALETTE.GRAB_POOR
             };
 
-            // SIM (Stage 2 / B.10): continuous-coupling integrator tunables.
-            // All values are INITIAL GUESSES flagged for playtest (see roadmap B.5/B.6/S12).
+            // SIM (Stage 2 / B.10): continuous-coupling presentation tunables.
+            // (GAIN and RATCHET_GAIN were deleted in M2.5 — thrust is the §2.3 slip
+            // integral now, a derived quantity, not a tuned force.)
             static COUPLING = {
-                GAIN: 1.0,            // per-frame coupling force scale: impulse = -waveVelocity * GAIN * tetherMult * gripMult * dt
-                RATCHET_GAIN: 0.18,   // S12: steady net up-assist for asymmetric (sawtooth) waves, timing-independent
-                PERFECT_QUALITY: 0.85,// |waveVel|/(amp*omega) above this reads as a perfect coupling (peak-velocity timing, B.6)
+                PERFECT_QUALITY: 0.85,// thrust ratio above this reads as a perfect coupling (B.6)
                 GOOD_QUALITY: 0.45,   // above this reads as a good coupling
                 PARTICLE_INTERVAL: 0.08, // seconds between coupling particle bursts while pulsing (throttle)
                 AUDIO_PULSE_INTERVAL: 0.16 // seconds between rhythmic pulse tones while coupling
@@ -1900,8 +1926,7 @@
                 CARBON_DENSITY: 2300,   // kg/m^3 (paper, slide 3)
                 YOUNGS_MODULUS: 1.0e12, // Pa (~1 TPa), representative for graphene / CNT
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
-                SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
-                SPEED_FACTOR_MAX: 2.0,
+                FILM_THICKNESS_M: 0.2e-3, // paper: 45 mm × 0.2 mm = 9 mm² ribbon (M2.7 adds the slider)
                 // ESTIMATE (order-of-magnitude placeholder): film flutter amplitude at
                 // 100 kgf pretension, scaling as 1/sqrt(tension) for fixed buffeting energy.
                 // Flutter eats the FG40 gap's centering margin (M2.4). Sensitivity unknown
@@ -1937,7 +1962,8 @@
                 POLE_FLUX_T: 0.72,      // ESTIMATE: contact flux from F = B^2·A / 2μ₀ with the datasheet 250 N
                 POLE_AREA_M2: 1.2e-3,   // ESTIMATE: pole-face area (4×4 cm package)
                 UNIT_MASS_KG: 0.072,    // datasheet: 72 g
-                PITCH_M: 0.041          // ESTIMATE: opposed-pair pitch — a 64-pair stack ≈ 2.6 m (decision 6)
+                PITCH_M: 0.041,         // ESTIMATE: opposed-pair pitch — a 64-pair stack ≈ 2.6 m (decision 6)
+                DEFAULT_N_PAIRS: 64     // §2.5: pairs to hold 50 kg at 1 g ≈ 64 (128 units, 9.2 kg)
             };
 
             // SIM: slider raw-value -> model-value scalings (see setupEventListeners).
@@ -2133,52 +2159,30 @@
             
             calculateWaveVelocity(waveSystem) { return waveSystem.calculateVelocity(waveSystem.time); }
 
-            // Heavier climber (+ cargo) accelerates less per unit coupling momentum.
-            weightFactor(monkey) { return 1.0 / (1.0 + monkey.weight / 100); }
-
-            // SIM (Stage 2 / B.10): continuous coupling integrator — coupling(t) x waveVelocity(t)
-            // applied per-frame while the EPM is pulsing. Returns a per-frame impulse (already
-            // scaled by dt), a coupling quality in [0,1], and a feedback flash colour.
-            //   B.6: coupling efficiency peaks at PEAK longitudinal wave velocity (the displacement
-            //        zero-crossing), not at the crest — quality = |waveVel| / (amp*omega).
-            //   S12: an asymmetric (sawtooth) wave adds a small timing-independent net up-assist
-            //        (the traveling-wave / ratchet motor effect).
-            // Tunables live in GameConfig.COUPLING and are initial guesses flagged for playtest.
-            //
-            // INVARIANT (do not break): raw waveVelocity may be read ONLY inside `quality`
-            // (clamped to 1) — the impulse is scaled by `maxVel` (= amp·omega), never by the
-            // velocity itself. The old square/sawtooth calculators faked their discontinuity
-            // with 100x/50x velocity spikes, which this clamping survived by saturation; the
-            // M2.3 band-limited carriers are spike-free by construction (peak |v| = amp·omega),
-            // but the rule stands: if a future change ever multiplies waveVelocity into the
-            // impulse directly, a velocity bound has to come back.
-            calculateContinuousCoupling(waveSystem, monkey, gripMult, tetherMult, dt) {
-                const waveVelocity = this.calculateWaveVelocity(waveSystem);
+            // SIM (§2.3 / M2.5): the slip coupling — the load-bearing model. The FG40 stack
+            // gates ON exactly when the film outruns the climber; mean thrust over a cycle
+            // is slipThrustMeanN (closed form for sine, numeric for harmonic carriers).
+            // Returns the mean thrust in NEWTONS, the per-frame velocity impulse (px/s,
+            // from a = F/m with the climber's real mass), a coupling quality in [0,1] for
+            // the UI (thrust relative to the stationary-climber sine reference kV/π), and
+            // the flash colour. There is NO speed clamp anywhere: thrust fades as slip
+            // closes and v_max is approached asymptotically.
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, dt }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
-                // Amplitude is real METRES (M2.2): quality normalises against the film's
-                // peak velocity in m/s; the impulse needs it in px/s (× PX_PER_M), which
-                // keeps the impulse scale identical to the pre-metres code at the honest
-                // default (7.0 m × PX_PER_M = the old 70 px).
-                const maxVelMps = (waveSystem.amplitude * omega) || 1e-9;
-                const quality = Math.min(1, Math.abs(waveVelocity) / maxVelMps);
-                const maxVel = maxVelMps * GameConfig.PHYSICS.ALTITUDE_CONVERSION;
-
-                // Rectified timing coupling: always imparts UP momentum (negative velocityY),
-                // with magnitude proportional to how close the pulse lands to peak wave velocity.
-                let impulse = -GameConfig.COUPLING.GAIN * maxVel * quality * tetherMult * gripMult * dt;
-
-                // S12 ratchet: asymmetric waveform yields net directional thrust without timing.
-                if (waveSystem.type === 'sawtooth') {
-                    impulse += -GameConfig.COUPLING.RATCHET_GAIN * maxVel * tetherMult * gripMult * dt;
-                }
-
-                const weightFactor = this.weightFactor(monkey);
-                impulse *= weightFactor;
-
-                let flashColor;
-                flashColor = couplingColor(quality);
-
-                return { impulse, quality, flashColor };
+                // Film peak velocity in m/s (amplitude is real metres, already ≤ v_max/ω
+                // via the §2.1 stress cap). Climber speed in m/s, up-positive.
+                const vFilmPeakMps = waveSystem.amplitude * omega;
+                const vClimberMps = -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+                const type = waveSystem.type;
+                // Harmonic carriers integrate the gate numerically (the closed form is sine-only).
+                const filmVelocityAt = type === 'sine' ? null
+                    : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude, omega, phi);
+                const thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
+                const massKg = Math.max(1e-9, monkey.weight);
+                const impulse = -(thrustN / massKg) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
+                const fRef = kPerPair * nPairs * vFilmPeakMps / Math.PI;   // sine thrust at u = 0
+                const quality = fRef > 0 ? Math.max(0, Math.min(1, thrustN / fRef)) : 0;
+                return { impulse, thrustN, quality, flashColor: couplingColor(quality) };
             }
 
             // Gravity ALWAYS applies: the climber is never mechanically attached to the film,
@@ -2188,30 +2192,17 @@
             applyGravityAndDrag(monkey, dt, gravityMult, dragMult) {
                 monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
                 // B.14: AERODYNAMIC drag only. Scales with air density, so it fades to nothing
-                // in the upper climb; the magnetic (eddy) term lives in applyEddyDrag and
-                // applies only while the EPMs are engaged.
+                // in the upper climb. (The magnetic braking term — the old applyEddyDrag —
+                // is gone: the §2.3 slip integral IS the eddy interaction, both traction and
+                // braking, so the two never coexist.)
                 // B.15: dragMult scales the drag LOSS, not the retention factor, so an
                 // Aero/Streamline kit REDUCES drag (it previously multiplied the retention
                 // factor, which made the kits dramatically worse -- see B.15 below).
-                const ef = GameConfig.PHYSICS.EDDY_FRACTION;
-                const aeroLossSeaLevel = (1 - Math.pow(GameConfig.PHYSICS.AIR_DRAG, 1 - ef)) * dragMult;
+                const aeroLossSeaLevel = (1 - GameConfig.PHYSICS.AIR_DRAG) * dragMult;
                 const aero = 1 - aeroLossSeaLevel * densityRatio(monkey.altitude);
                 monkey.velocityY *= frameDecay(aero, dt);
             }
 
-            // SIM (B.14): magnetic drag from the EPM's coupling to the tether -- the same
-            // linear-induction interaction that drives the climb also brakes it. The traveling
-            // compression wave is a moving field pattern with phase velocity sqrt(E/rho) ~ 23.6 km/s;
-            // the climber runs at high SLIP behind it, and the braking term grows with speed
-            // (Lenz: induced currents oppose relative motion). Needs NO air, so this is what limits
-            // speed once the atmosphere is gone. EPMs latch OFF at zero power, so releasing removes
-            // it entirely -> true frictionless coasting. fieldFactor = the gap coupling multiplier
-            // (FG40 force-vs-airgap curve; M2.4).
-            applyEddyDrag(monkey, dt, fieldFactor) {
-                const eddyRef = Math.pow(GameConfig.PHYSICS.AIR_DRAG, GameConfig.PHYSICS.EDDY_FRACTION);
-                monkey.velocityY *= frameDecay(Math.pow(eddyRef, Math.max(0, fieldFactor)), dt);
-            }
-            
             // The climber has no lateral axis. Steering and centering in the FG40 gap are the
             // onboard controller's job (opposed pairs cancel laterally only at exact centre,
             // and that equilibrium has negative stiffness — genuinely hard, and genuinely not
@@ -2511,10 +2502,8 @@
                 this.inputManager = new InputManager(this.eventBus);
                 this.particleSystem = new ParticleSystem(GameConfig, this.eventBus, this.particlePool, this.speedLinePool);
                 
-                this.gripMultiplier = 1.0;
                 this.gravityMultiplier = 1.0;
                 this.dragMultiplier = 1.0;
-                this.tetherMultiplier = GameConfig.PHYSICS.MOMENTUM_MULTIPLIER;
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
                 this.airGapMm = 0.30;          // FG40 working gap (M2.4); ~0.3 mm is §2.5's working point
@@ -2889,7 +2878,6 @@
                 this.upgradeGripMult = 1.0;
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
-                this.gripMultiplier = 1.0;
                 this.gravityMultiplier = 1.0;
                 this.dragMultiplier = 1.0;
 
@@ -2898,9 +2886,6 @@
                 this.epmBrownout = false;
                 this.epmNetPerSec = 0;
 
-                // SIM (Stage 2 / B.8): baseline wave speed at default tension/width, used to
-                // normalise the coupling modifier; refresh the derived settings readout.
-                this._refCouplingScale = couplingMomentumScale(this.vineWidth, this.vineTension);
                 // §2.1: the boot configuration must be physical — at the 262.8 Hz default
                 // carrier the 7.0 m default stroke exceeds the stress cap, so clamp it.
                 this.clampAmplitudeToStressCap();
@@ -3161,16 +3146,6 @@
                 return tetherWaveSpeed();
             }
 
-            // Normalised coupling modifier: a tauter / thinner tether couples the EPM more
-            // effectively, so continuous coupling scales with the coupling-momentum proxy relative
-            // to its default. (Gameplay tuning curve, not the wave's propagation speed.)
-            waveSpeedFactor() {
-                const ref = this._refCouplingScale || couplingMomentumScale(this.vineWidth, this.vineTension);
-                return Math.max(GameConfig.TETHER.SPEED_FACTOR_MIN,
-                       Math.min(GameConfig.TETHER.SPEED_FACTOR_MAX,
-                                couplingMomentumScale(this.vineWidth, this.vineTension) / ref));
-            }
-
             // Refresh derived settings readouts (wave speed, v_max, stroke cap, live wave
             // stress). Safe before the DOM exists.
             updateDerivedReadouts() {
@@ -3368,26 +3343,26 @@
                 const engaged = this.monkey.isGrabbing && !this.epmBrownout;
                 let quality = 0;
                 if (engaged) {
-                    // M2.4: the working air gap sets the coupling field through FG40's
-                    // PUBLISHED normalised force-vs-airgap curve (its shape reused for
-                    // gap -> flux; force ~ B^2, so the coupling multiplier is the
-                    // normalised force itself). Static-contact curve, eddy traction —
-                    // shape is a defensible approximation, not a measurement.
+                    // §2.5 hardware chain (M2.4 gap -> flux, M2.5 flux -> traction):
+                    // air gap sets pole flux via FG40's published curve; flux sets the
+                    // per-pair eddy-traction coefficient k; k and slip set the thrust.
+                    const material = GameConfig.MATERIALS[this.materialIndex];
                     const poleFlux = GameConfig.FG40.POLE_FLUX_T;
-                    let gapMult = Math.pow(gapFluxT(this.airGapMm, poleFlux) / poleFlux, 2) * this.upgradeGripMult;
+                    let fluxT = gapFluxT(this.airGapMm, poleFlux);
                     // Tension's honest role: pretension sets film flutter amplitude, and
                     // flutter eats the gap's centering margin. Margin <= 0 means the film
-                    // touches a pole — the controller UNLOADS rather than scrape (soft
-                    // fail: thrust vanishes, nothing breaks; widen the gap or tension up).
+                    // touches a pole — the controller UNLOADS (flux -> 0) rather than
+                    // scrape. Soft fail: widen the gap or tension up.
                     const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / Math.max(1e-9, this.vineTension));
-                    if (this.airGapMm - flutterMm <= 0) gapMult = 0;
-                    const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey, gapMult, this.tetherMultiplier, dt);
+                    if (this.airGapMm - flutterMm <= 0) fluxT = 0;
+                    const kPerPair = pairCouplingK({
+                        sigmaSPerM: material.sigmaSPerM, thicknessM: GameConfig.TETHER.FILM_THICKNESS_M,
+                        fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
+                    }) * this.upgradeGripMult;
+                    const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
+                        { kPerPair, nPairs: GameConfig.FG40.DEFAULT_N_PAIRS, dt });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
-                    this.monkey.velocityY += c.impulse * this.waveSpeedFactor() * this._coldFactor;
-                    // B.14: the same magnetic interaction that couples to the wave also brakes
-                    // against the tether. Present only while the EPMs are on; releasing latches
-                    // them off (zero power) and the climber coasts.
-                    this.physics.applyEddyDrag(this.monkey, dt, gapMult);
+                    this.monkey.velocityY += c.impulse * this._coldFactor;
                     quality = c.quality;
 
                     this.lastGrabQuality = c.quality;
