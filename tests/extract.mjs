@@ -35,7 +35,6 @@ const EXPORTED_SYMBOLS = [
   'tetherWaveSpeed',
   'couplingMomentumScale',
   'waveEnergyFactor',
-  'tensionSagFactor',
   'safePersistedNumber',
   'missionScore',
   'bootstrapPct',

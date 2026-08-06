@@ -24,7 +24,6 @@ const {
   tetherWaveSpeed,
   couplingMomentumScale,
   waveEnergyFactor,
-  tensionSagFactor,
   safePersistedNumber,
   missionScore,
   bootstrapPct,
@@ -60,7 +59,7 @@ test('extraction exposes the core pure symbols', () => {
     GameConfig, WAVE_CALCULATORS, WaveSystem, PhysicsEngine, Camera,
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
-    tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor, tensionSagFactor,
+    tetherWaveSpeed, couplingMomentumScale, waveEnergyFactor,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, materialDampingFor, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -87,11 +86,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 26 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 25 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 26);
+  assert.equal(declaredPureHelpers().length, 25);
 });
 
 // ---------------------------------------------------------------------------
@@ -302,7 +301,7 @@ test('climbSpeedKmh replaces the old 0.036 badge factor, which under-reported 10
 });
 
 // ---------------------------------------------------------------------------
-// tetherWaveSpeed / couplingMomentumScale / waveEnergyFactor / tensionSagFactor
+// tetherWaveSpeed / couplingMomentumScale / waveEnergyFactor
 // ---------------------------------------------------------------------------
 test('tetherWaveSpeed = sqrt(E/rho), a material constant (longitudinal wave)', () => {
   const v = tetherWaveSpeed();
@@ -337,18 +336,18 @@ test('waveEnergyFactor decays with altitude (exp), 1.0 at ground', () => {
   approx(waveEnergyFactor(-1000, 300), 1.0);
 });
 
-test('tensionSagFactor shrinks with tension using configured factor', () => {
-  approx(tensionSagFactor(0), 1.0);
-  approx(tensionSagFactor(100), 1.0 - 100 * GameConfig.TETHER.TENSION_SAG_FACTOR);
-  assert.ok(tensionSagFactor(200) < tensionSagFactor(100));
-  // Clamp: high tension flattens toward the floor and never inverts (slider reaches 20000).
-  const { TENSION_SAG_MIN } = GameConfig.TETHER;
-  approx(tensionSagFactor(20000), TENSION_SAG_MIN);
-  for (const t of [0, 100, 125, 500, 20000]) {
-    const f = tensionSagFactor(t);
-    assert.ok(f >= TENSION_SAG_MIN, `tensionSagFactor(${t})=${f} must not drop below the floor`);
-    assert.ok(f <= 1.0, `tensionSagFactor(${t})=${f} must not exceed 1`);
-  }
+test('the transverse-string "sag" fiction is gone', () => {
+  // tensionSagFactor scaled the rendered wave displacement by (1 - tension*0.008),
+  // i.e. a taut transverse STRING sagging less. The tether carries a LONGITUDINAL
+  // (compression) wave, which has no sag to reduce, and the factor reached nothing
+  // but shadowBlur. Its two config constants went with it.
+  assert.equal(game.tensionSagFactor, undefined, 'tensionSagFactor was deleted');
+  assert.equal(GameConfig.TETHER.TENSION_SAG_FACTOR, undefined);
+  assert.equal(GameConfig.TETHER.TENSION_SAG_MIN, undefined);
+  // The dead glow constants it kept company with are gone too (nothing ever read them).
+  assert.equal(GameConfig.WAVE.GLOW_THRESHOLD, undefined);
+  assert.equal(GameConfig.WAVE.GLOW_BASE_RADIUS, undefined);
+  assert.equal(GameConfig.WAVE.GLOW_VELOCITY_FACTOR, undefined);
 });
 
 test('safePersistedNumber rejects NaN/Infinity/negatives, passes valid values', () => {

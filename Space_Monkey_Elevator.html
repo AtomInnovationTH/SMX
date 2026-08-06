@@ -302,7 +302,7 @@
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
             <input type="range" id="tension" min="1" max="20000" step="1" value="100">
-            <small class="setting-hint">Keeps the tether taut so the compression wave can travel up it; a slack tether can't carry the wave against gravity.</small>
+            <small class="setting-hint">Pretension keeps the film taut and flat as it runs through the gap between the opposed magnet pairs. A slack film flutters, and flutter eats the clearance the coupling needs.</small>
         </div>
         <div class="slider-container">
             <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">— m/s</span></label>
@@ -564,17 +564,6 @@
         function waveEnergyFactor(altitude, materialGpa) {
             const attenLength = GameConfig.EPM.ATTEN_BASE_M * (materialGpa / 100);
             return Math.exp(-Math.max(0, altitude) / attenLength);
-        }
-
-        // Visual: rendered wave displacement shrinks as tension rises (the tether sags
-        // less). Floored at TENSION_SAG_MIN so a high tension flattens the wave toward a
-        // thin line instead of crossing zero and re-growing inverted (the slider reaches
-        // 20000, where the unclamped 1 - t*0.008 would be about -159).
-        function tensionSagFactor(vineTension) {
-            return Math.max(
-                GameConfig.TETHER.TENSION_SAG_MIN,
-                1.0 - vineTension * GameConfig.TETHER.TENSION_SAG_FACTOR
-            );
         }
 
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
@@ -1715,9 +1704,6 @@
                 WIDTH: 4,
                 SEGMENTS: 40,
                 SEGMENT_WIDTH: 12,
-                GLOW_THRESHOLD: 0.2,
-                GLOW_BASE_RADIUS: 30,
-                GLOW_VELOCITY_FACTOR: 20,
                 TYPES: { SINE: 'sine', SQUARE: 'square', SAWTOOTH: 'sawtooth' },
                 COLORS: { sine: COLOR_PALETTE.VINE_SINE, square: COLOR_PALETTE.VINE_SQUARE, sawtooth: COLOR_PALETTE.VINE_SAWTOOTH }
             };
@@ -1800,8 +1786,6 @@
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 SPEED_FACTOR_MIN: 0.5,  // clamp how far tension/width can scale coupling momentum
                 SPEED_FACTOR_MAX: 2.0,
-                TENSION_SAG_FACTOR: 0.008, // visual: each tension unit shrinks rendered wave displacement
-                TENSION_SAG_MIN: 0.05,     // visual: floor so a high tension flattens (never inverts) the wave
                 DAMPING_BASE: 1.3,      // materialDamping = DAMPING_BASE - gpa * DAMPING_PER_GPA
                 DAMPING_PER_GPA: 0.001  // stiffer material (higher GPa) = lower damping multiplier
             };
@@ -3238,7 +3222,7 @@
                 dt = Math.min(dt, 0.1);
                 
                 this.waveSystem.time += dt;
-                this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * tensionSagFactor(this.vineTension);
+                this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time);
                 this.updateThermal();
                 this.updateAirDensityReadout();
                 this.updateContinuous(dt);
@@ -3352,6 +3336,11 @@
             
             renderVine(ctx, width, height) {
                 const wv = this._cachedWavePos;
+                // Normalised wave value in [-1,1]. Feeds shadowBlur only. It used to be
+                // scaled by a "tension sag" factor — transverse-string sag applied to a
+                // longitudinal wave, which is not a thing — so at the default tension of
+                // 100 kg it was pinned to ±0.2 and the glow barely moved. Now it reflects
+                // the wave.
                 const nw = wv / this.waveSystem.amplitude;
                 const wc = this.waveSystem.getColor();
                 const rgb = this.waveSystem.getRGB();
