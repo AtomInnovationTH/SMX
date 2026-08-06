@@ -3484,7 +3484,6 @@
                 dt = Math.min(dt, 0.1);
                 
                 this.waveSystem.time += dt;
-                this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time);
                 this.updateThermal();
                 this.updateAirDensityReadout();
                 this.updateContinuous(dt);
@@ -3597,40 +3596,36 @@
             }
             
             renderVine(ctx, width, height) {
-                const wv = this._cachedWavePos;
-                // Normalised wave value in [-1,1]. Feeds shadowBlur only. It used to be
-                // scaled by a "tension sag" factor — transverse-string sag applied to a
-                // longitudinal wave, which is not a thing — so at the default tension of
-                // 100 kg it was pinned to ±0.2 and the glow barely moved. Now it reflects
-                // the wave.
-                const nw = wv / this.waveSystem.amplitude;
+                // M2.10: the film drawn from the SHARED phase (decision 3): φ = ωt − k·y
+                // via tetherPhaseAt, world-anchored — a fixed point of film oscillates in
+                // place as the camera passes, and the bands travel UP (a feature of
+                // constant phase sits at altitude (ωt − φ)/k, which grows with time at c).
+                // What moves is phase, not a screen-space pattern.
                 const wc = this.waveSystem.getColor();
                 const rgb = this.waveSystem.getRGB();
+                const cMps = this.tetherWaveSpeed();
+                const freq = this.waveSystem.frequency;
+                const ampPx = this.waveSystem.amplitude * GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+                const t = this.waveSystem.time;
+                const cameraY = this.camera.getY();
+                const pxPerM = GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+                const cy = this.monkey.y - cameraY + this.monkey.height / 2;   // climber centre, screen px
+                const altAt = (screenY) => this.monkey.altitude + (cy - screenY) / pxPerM;
+
                 const maxLineWidth = this.vineWidth * 3;
                 const baseSpacing = height / this.wave.segments;
-                
-                // Number of visible wavelengths along the vine height
-                const wavelengthsVisible = 3;
-                const phasePerSegment = (2 * Math.PI * wavelengthsVisible) / this.wave.segments;
-                const timePhase = this.waveSystem.time * this.waveSystem.frequency * 2 * Math.PI;
-                
                 for (let i = 0; i < this.wave.segments; i++) {
-                    // Each segment has its own phase — creates traveling compression wave
-                    const segPhase = timePhase - i * phasePerSegment;
-                    const segNw = Math.sin(segPhase); // Normalized wave value for this segment (-1 to 1)
-                    
-                    // Vertical offset creates visible compression/rarefaction
-                    const yOffset = segNw * baseSpacing * 0.3;
-                    const y = i * baseSpacing + yOffset;
-                    
+                    const yBase = i * baseSpacing;
+                    const phi = tetherPhaseAt(altAt(yBase), t, freq, cMps);
+                    // Real longitudinal displacement, real amplitude (A ≤ ~1.1 m = ≤11 px
+                    // at the stress-capped carrier — small and honest, not exaggerated).
+                    const y = yBase - ampPx * Math.sin(phi);
                     if (y > height || y < 0) continue;
-                    
-                    // Brightness: brighter in compressed zones (where segments are close together)
-                    const opacity = 0.5 + (segNw + 1) * 0.25; // ranges 0.5 to 1.0
-                    
-                    // Width: thicker in compressed zones
-                    const segWidth = this.vineWidth + Math.max(0, segNw) * this.vineWidth * 0.67;
-                    
+                    // Brightness/width track STRAIN (cos φ): compression vs rarefaction is
+                    // what carries the stress. The depth of the modulation is presentation.
+                    const strain = Math.cos(phi);
+                    const opacity = 0.5 + (strain + 1) * 0.25;
+                    const segWidth = this.vineWidth + Math.max(0, strain) * this.vineWidth * 0.67;
                     ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
                     ctx.lineWidth = Math.min(segWidth, maxLineWidth);
                     ctx.beginPath();
@@ -3638,9 +3633,9 @@
                     ctx.lineTo(this.wave.x + GameConfig.WAVE.SEGMENT_WIDTH, y);
                     ctx.stroke();
                 }
-                
+
                 ctx.save();
-                ctx.shadowBlur = Math.min(10 + Math.abs(nw) * 10, 25);
+                ctx.shadowBlur = 12;
                 ctx.shadowColor = wc;
                 ctx.strokeStyle = wc;
                 ctx.lineWidth = Math.min(this.vineWidth * 2, maxLineWidth);
@@ -3655,34 +3650,65 @@
                 ctx.moveTo(this.wave.x - 1, 0);
                 ctx.lineTo(this.wave.x - 1, height);
                 ctx.stroke();
-                if (this.monkey.isGrabbing) {
+
+                // §2.6 slip halo: where the stack grips, the film is slowed and locally
+                // stretched. Halo strength tracks (1 − u): maximum at low speed, fading as
+                // slip closes — the physical reason thrust fades, made visible.
+                const vFilmPeak = this.waveSystem.amplitude * freq * 2 * Math.PI;
+                const vClimb = Math.max(0, -this.monkey.velocityY / pxPerM);
+                const u = vFilmPeak > 0 ? Math.min(1, vClimb / vFilmPeak) : 0;
+                if (this.monkey.isGrabbing && !this.epmBrownout) {
+                    const halo = (1 - u);
+                    if (halo > 0.02) {
+                        const grad = ctx.createRadialGradient(this.wave.x, cy, 2, this.wave.x, cy, 60);
+                        grad.addColorStop(0, `rgba(255, 210, 120, ${0.35 * halo})`);
+                        grad.addColorStop(1, 'rgba(255, 210, 120, 0)');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(this.wave.x - 60, cy - 60, 120, 120);
+                    }
+                    // The FG40 sandwich: opposed pairs flanking the film over the stack
+                    // length. SMALL AND DELIBERATELY NOT TO SCALE (one unit is 4 cm = 0.4 px);
+                    // the label says what it is (decision 6).
+                    const stackPx = stackLengthM(this.nPairs, GameConfig.FG40.PITCH_M) * pxPerM;
+                    const sy0 = cy - stackPx / 2, sy1 = cy + stackPx / 2;
+                    ctx.strokeStyle = 'rgba(159, 212, 160, 0.95)';
+                    ctx.lineWidth = 2;
+                    for (const side of [-1, 1]) {
+                        const bx = this.wave.x + side * 9;
+                        ctx.beginPath();
+                        ctx.moveTo(bx + side * 5, sy0);
+                        ctx.lineTo(bx, sy0);
+                        ctx.lineTo(bx, sy1);
+                        ctx.lineTo(bx + side * 5, sy1);
+                        ctx.stroke();
+                    }
+                    ctx.fillStyle = 'rgba(159, 212, 160, 0.8)';
+                    ctx.font = '9px monospace';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`${this.nPairs} pr · ${(stackPx / pxPerM).toFixed(1)} m (not to scale)`, this.wave.x + 14, sy1 + 10);
+                    // Engaged marker.
                     ctx.fillStyle = COLOR_PALETTE.GRAB_GOLD;
                     ctx.shadowBlur = 15;
                     ctx.shadowColor = COLOR_PALETTE.GRAB_GOLD;
                     ctx.beginPath();
-                    ctx.arc(this.wave.x, this.monkey.y - this.camera.getY() + this.monkey.height / 2, 5, 0, Math.PI * 2);
+                    ctx.arc(this.wave.x, cy, 5, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.shadowBlur = 0;
                 }
-                // Grab timing indicator — pulses brightest at peak upward velocity
+                // Film-velocity indicator at the climber's own phase (world-anchored): the
+                // film HERE is moving up fast exactly when cos(φ) is near 1. It reads the
+                // same phase the slip physics uses — what you see is what couples.
                 if (!this.monkey.isGrabbing) {
-                    const monkeyScreenY = this.monkey.y - this.camera.getY() + this.monkey.height * 0.3;
-                    const waveVelocity = this.waveSystem.calculateVelocity(this.waveSystem.time);
-                    const maxVelocity = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI;
-                    
-                    // Normalize: -1 (worst) to +1 (best). Negative velocity = upward = good for climbing
-                    const normalizedVel = maxVelocity > 0 ? -waveVelocity / maxVelocity : 0;
-                    
-                    // Only show indicator when velocity is favorable (upward / negative)
-                    if (normalizedVel > 0.2) {
-                        const intensity = Math.pow(normalizedVel, 2); // Quadratic for sharper peak
-                        const radius = 8 + intensity * 12; // 8-20px radius
-                        const alpha = 0.2 + intensity * 0.6; // 0.2-0.8 alpha
-                        
+                    const filmVelFrac = Math.cos(tetherPhaseAt(altAt(cy), t, freq, cMps));
+                    if (filmVelFrac > 0.2) {
+                        const intensity = Math.pow(filmVelFrac, 2);
+                        const radius = 8 + intensity * 12;
+                        const alpha = 0.2 + intensity * 0.6;
                         ctx.fillStyle = `rgba(0, 255, 100, ${alpha})`;
                         ctx.shadowBlur = 15 + intensity * 20;
                         ctx.shadowColor = `rgba(0, 255, 100, ${alpha})`;
                         ctx.beginPath();
-                        ctx.arc(this.wave.x, monkeyScreenY, radius, 0, Math.PI * 2);
+                        ctx.arc(this.wave.x, cy, radius, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.shadowBlur = 0;
                     }
