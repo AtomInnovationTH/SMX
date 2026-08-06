@@ -242,26 +242,42 @@ try {
   });
   record('loop: single RAF chain after pause/unpause burst', raf.paused === false && raf.ratio < 1.4, JSON.stringify(raf));
 
-  // 7) Focus loss releases the grab and clears held keys.
+  // 7) Focus loss releases the engage latch and clears held keys. SPACE is the only
+  //    gameplay key now that the lateral axis is gone, so this presses SPACE plus an inert
+  //    key: blur must clear BOTH the isGrabbing latch and the whole keys map, or a
+  //    suppressed keyup would leave the stack engaged forever.
   const blur = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' })); // inert: no handler
     await new Promise((r) => setTimeout(r, 60));
-    const before = { grab: g.monkey.isGrabbing, left: g.inputManager.isLeft() };
+    const before = {
+      grab: g.monkey.isGrabbing,
+      space: g.inputManager.isKeyPressed(' '),
+      inert: g.inputManager.isKeyPressed('x'),
+    };
     window.dispatchEvent(new Event('blur'));
     await new Promise((r) => setTimeout(r, 60));
-    const after = { grab: g.monkey.isGrabbing, left: g.inputManager.isLeft(), keys: Object.keys(g.inputManager.keys).length };
+    const after = {
+      grab: g.monkey.isGrabbing,
+      space: g.inputManager.isKeyPressed(' '),
+      inert: g.inputManager.isKeyPressed('x'),
+      keys: Object.keys(g.inputManager.keys).length,
+    };
     return { before, after };
   });
-  record('blur: releases grab + clears keys', blur.before.grab === true && blur.after.grab === false && blur.after.left === false && blur.after.keys === 0, JSON.stringify(blur));
+  record('blur: releases the engage latch + clears keys',
+    blur.before.grab === true && blur.before.space === true && blur.before.inert === true &&
+    blur.after.grab === false && blur.after.space === false && blur.after.inert === false &&
+    blur.after.keys === 0,
+    JSON.stringify(blur));
 
   // 8) Gear button opens Settings via a REAL mouse click, drops focus afterwards, and the
   //    in-panel colorblind label stays in sync via either route (task 2).
   //    A programmatic element.click() is NOT sufficient here: it bypasses hit-testing (so it
   //    cannot see the loading overlay still swallowing clicks mid-fade) and it does not move
-  //    focus (so it cannot see a focused <button> gating SPACE/arrows via _isFormTarget).
+  //    focus (so it cannot see a focused <button> gating SPACE via _isFormTarget).
   await page.waitForFunction(() => {
     const o = document.getElementById('loading-overlay');
     return !o || getComputedStyle(o).display === 'none';
@@ -284,10 +300,13 @@ try {
   await page.waitForTimeout(120);
   const pulseAfterGear = await page.evaluate(() => window.__smokeGame.monkey.isGrabbing);
   await page.keyboard.up(' ');
-  await page.keyboard.down('ArrowLeft');
-  await page.waitForTimeout(140);
-  const moveAfterGear = await page.evaluate(() => window.__smokeGame.inputManager.isLeft());
-  await page.keyboard.up('ArrowLeft');
+  // A second, non-SPACE gameplay key must also reach the game. Arrows used to serve here;
+  // with the lateral axis gone, the wave-type keys are the surviving observable input.
+  await page.evaluate(() => window.__smokeGame.waveSystem.setType('sine'));
+  await page.keyboard.press('2');
+  await page.waitForTimeout(80);
+  const waveAfterGear = await page.evaluate(() => window.__smokeGame.waveSystem.getType());
+  await page.evaluate(() => window.__smokeGame.waveSystem.setType('sine'));
   const labels = await page.evaluate(async () => {
     const btn = document.getElementById('colorblindToggle');
     const initial = btn.textContent;
@@ -300,11 +319,11 @@ try {
   });
   record('gear opens Settings (real click), drops focus, colorblind label in sync',
     gearState.panelVisible === true && gearState.activeTag !== 'BUTTON' &&
-    pulseAfterGear === true && moveAfterGear === true &&
+    pulseAfterGear === true && waveAfterGear === 'square' &&
     labels.initial === 'Colorblind palette: Off' &&
     labels.afterC === 'Colorblind palette: On' &&
     labels.afterBtn === 'Colorblind palette: Off',
-    JSON.stringify({ gearState, pulseAfterGear, moveAfterGear, labels }));
+    JSON.stringify({ gearState, pulseAfterGear, waveAfterGear, labels }));
 
   // 9) Restart latch (task 10): a single R arms (no restart); a second R within the window
   //    restarts and clears the latch; and initGame clears it (D1) so a fresh run needs a

@@ -494,55 +494,37 @@ test('applyEddyDrag is frame-rate independent (one 1/60 step ~ four 1/240 steps)
   approx(v, oneShot(), 1e-6);
 });
 
-test('updatePosition: clamps x to vine ±150 (minus width), y/altitude to ground', () => {
+test('updatePosition: integrates altitude only — x is untouched (no lateral axis)', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const MAX_H = 150;   // hardcoded as `maxDistance` at Space_Monkey_Elevator.html:1900
-  const vineX = 400;
 
-  const m = { x: 10000, y: 500, velocityX: 0, velocityY: 0, width: 40 };
-  p.updatePosition(m, 1 / 60, 800, vineX);
-  assert.equal(m.x, vineX + MAX_H - m.width); // maxX subtracts monkey.width
+  // The climber is pinned centred on the film; staying centred in the FG40 gap is the
+  // onboard controller's job. updatePosition must therefore never write monkey.x, and
+  // there is no velocityX to integrate.
+  const m = { x: 12345, y: 500, velocityY: 0, width: 40 };
+  p.updatePosition(m, 1 / 60);
+  assert.equal(m.x, 12345, 'updatePosition must not move the climber laterally');
   assert.equal(m.y, 0);                        // clamped below ground
   assert.equal(m.altitude, 0);
 
-  m.x = -10000; m.y = -500;                    // left edge, above ground
-  p.updatePosition(m, 1 / 60, 800, vineX);
-  assert.equal(m.x, vineX - MAX_H);
-  assert.equal(m.altitude, 50);                // altitude = -y / ALTITUDE_CONVERSION
+  m.y = -500;                                  // above ground
+  p.updatePosition(m, 1 / 60);
+  assert.equal(m.x, 12345);
+  assert.equal(m.altitude, 50);                // altitude = -y / PX_PER_M
   assert.equal(m.altitude, -m.y / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
   assert.ok(m.altitude >= 0, 'altitude must never be negative');
+
+  // velocityY integrates as usual, and a stray velocityX is inert.
+  const moving = { x: 100, y: -100, velocityX: 9999, velocityY: -600, width: 40 };
+  p.updatePosition(moving, 0.5);
+  assert.equal(moving.x, 100, 'a leftover velocityX field must have no effect');
+  assert.equal(moving.y, -400);
 });
 
-test('updateHorizontalVelocity: left beats right; idle drift decays frame-rate-independently', () => {
+test('the lateral axis is gone: no arrow input, no horizontal tunables', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const HL = -GameConfig.PHYSICS.HORIZONTAL_SPEED;
-  const HR = GameConfig.PHYSICS.HORIZONTAL_SPEED;
-
-  const left = { velocityX: 0 };
-  p.updateHorizontalVelocity(left, 1 / 60, true, false);
-  assert.equal(left.velocityX, HL);
-
-  const right = { velocityX: 0 };
-  p.updateHorizontalVelocity(right, 1 / 60, false, true);
-  assert.equal(right.velocityX, HR);
-
-  const both = { velocityX: 0 };
-  p.updateHorizontalVelocity(both, 1 / 60, true, true);
-  assert.equal(both.velocityX, HL, 'left wins when both held (if/else if order)');
-
-  // Idle decay: one 1/60 step ~ four 1/240 steps of DRIFT_DECAY.
-  const oneShot = () => {
-    const m = { velocityX: 500 };
-    p.updateHorizontalVelocity(m, 1 / 60, false, false);
-    return m.velocityX;
-  };
-  let v = 500;
-  for (let i = 0; i < 4; i++) {
-    const m = { velocityX: v };
-    p.updateHorizontalVelocity(m, 1 / 240, false, false);
-    v = m.velocityX;
-  }
-  approx(v, oneShot(), 1e-6);
+  assert.equal(p.updateHorizontalVelocity, undefined, 'updateHorizontalVelocity was deleted');
+  assert.equal(GameConfig.PHYSICS.HORIZONTAL_SPEED, undefined, 'HORIZONTAL_SPEED was deleted');
+  assert.equal(GameConfig.PHYSICS.DRIFT_DECAY, undefined, 'DRIFT_DECAY was deleted');
 });
 
 // ---------------------------------------------------------------------------

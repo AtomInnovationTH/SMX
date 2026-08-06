@@ -1738,9 +1738,7 @@
                 // The "~770 km/h" peak is really ~7,700 km/h. Fixed at the badge; the
                 // physics is untouched, only the readout was wrong.
                 EDDY_FRACTION: 0.08,
-                HORIZONTAL_SPEED: 150,
                 MOMENTUM_MULTIPLIER: 3.6,
-                DRIFT_DECAY: 0.9,
                 // PX_PER_M: the authoritative world scale, 10 pixels per metre.
                 // DERIVED, not chosen: one carrier wavelength must fit on screen
                 // (lambda = c/f ~ 91 m at 260 Hz -> ~910 px), and it is what the five
@@ -2078,29 +2076,15 @@
                 monkey.velocityY *= frameDecay(Math.pow(eddyRef, Math.max(0, fieldFactor)), dt);
             }
             
-            updatePosition(monkey, dt, screenWidth, vineX) {
-                monkey.x += monkey.velocityX * dt;
+            // The climber has no lateral axis. Steering and centering in the FG40 gap are the
+            // onboard controller's job (opposed pairs cancel laterally only at exact centre,
+            // and that equilibrium has negative stiffness — genuinely hard, and genuinely not
+            // the player's problem). monkey.x is pinned to the film and set by the caller, so
+            // this integrates altitude only.
+            updatePosition(monkey, dt) {
                 monkey.y += monkey.velocityY * dt;
-                
-                // Limit horizontal movement to stay near vine (within 150 pixels)
-                const vineCenter = vineX || screenWidth / 2;
-                const maxDistance = 150;
-                const minX = vineCenter - maxDistance;
-                const maxX = vineCenter + maxDistance - monkey.width;
-                monkey.x = Math.max(minX, Math.min(maxX, monkey.x));
-                
                 monkey.y = Math.min(0, monkey.y); // Prevent going below ground (y=0 is ground level)
                 monkey.altitude = Math.max(0, -monkey.y / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
-            }
-            
-            updateHorizontalVelocity(monkey, dt, isLeft, isRight) {
-                if (isLeft) {
-                    monkey.velocityX = -GameConfig.PHYSICS.HORIZONTAL_SPEED;
-                } else if (isRight) {
-                    monkey.velocityX = GameConfig.PHYSICS.HORIZONTAL_SPEED;
-                } else {
-                    monkey.velocityX *= frameDecay(GameConfig.PHYSICS.DRIFT_DECAY, dt);
-                }
             }
         }
         
@@ -2145,7 +2129,7 @@
         // (input/select/button/textarea). While one is focused, native keys like
         // Left/Right/Enter must drive the control, not the game — but releases are never
         // gated (they are idempotent; gating stranding a held key is what blur/visibility
-        // handling exists to prevent). Array bucketing matches the plan's helper verbatim.
+        // handling exists to prevent).
         const _isFormTarget = (e) => {
             const t = e.target;
             return !!t && (t.tagName === 'INPUT' || t.tagName === 'SELECT'
@@ -2163,9 +2147,11 @@
             setupKeyboardHandlers() {
                 window.addEventListener('keydown', (e) => {
                     // Gate PRESSES (never releases) when a form control is focused, so
-                    // ←/→/Enter tune the slider/select instead of moving the climber or
-                    // firing input:grab. R/S/C stay ungated so the player can't get trapped
-                    // in the panel. With nothing focused e.target is <body>, so play is unaffected.
+                    // ←/→/Enter tune the slider/select instead of firing input:grab. With the
+                    // lateral axis gone this guards SPACE alone, but it still matters: a
+                    // focused slider must not also engage the stack. R/S/C stay ungated so the
+                    // player can't get trapped in the panel. With nothing focused e.target is
+                    // <body>, so play is unaffected.
                     if (!_isFormTarget(e)) {
                         this.keys[e.key] = true;
                         if (e.key === ' ') this.eventBus.emit('input:grab', { pressed: true });
@@ -2182,9 +2168,9 @@
                 });
 
                 // Losing focus (alt-tab, devtools, tab switch) suppresses the matching keyup,
-                // which would otherwise leave arrow keys "held" (endless drift) and Space
-                // "pulsing" forever. Clear all key state and release any held grab on blur /
-                // tab-hide so returning to the game is clean.
+                // which would otherwise leave Space "held" and the stack engaged forever.
+                // Clear all key state and release any held grab on blur / tab-hide so
+                // returning to the game is clean.
                 const _releaseAll = () => {
                     this.keys = {};
                     this.eventBus.emit('input:grab', { pressed: false });
@@ -2240,8 +2226,6 @@
             }
             
             isKeyPressed(key) { return this.keys[key] || false; }
-            isLeft() { return this.isKeyPressed('ArrowLeft'); }
-            isRight() { return this.isKeyPressed('ArrowRight'); }
         }
         
         class ParticleSystem {
@@ -2722,11 +2706,13 @@
 
             initGame() {
                 this.monkey = {
+                    // PINNED CENTRED on the film. There is no lateral axis: staying centred in
+                    // the FG40 gap is the onboard controller's job, not the player's. Only
+                    // resizeCanvas re-centres it.
                     x: (this.canvas.width / 2) - (GameConfig.MONKEY.WIDTH / 2),
                     y: this.canvas.height - GameConfig.MONKEY.INITIAL_Y_OFFSET,
                     width: GameConfig.MONKEY.WIDTH,
                     height: GameConfig.MONKEY.HEIGHT,
-                    velocityX: 0,
                     velocityY: 0,
                     weight: GameConfig.MONKEY.WEIGHT,
                     color: GameConfig.MONKEY.COLOR,
@@ -3199,7 +3185,6 @@
                     // against the tether. Present only while the EPMs are on; releasing latches
                     // them off (zero power) and the climber coasts.
                     this.physics.applyEddyDrag(this.monkey, dt, this.gripMultiplier);
-                    this.monkey.x = this.wave.x - this.monkey.width / 2;
                     quality = c.quality;
 
                     this.lastGrabQuality = c.quality;
@@ -3218,8 +3203,7 @@
                         this.audio.pulse(c.quality);
                     }
                 } else if (this.monkey.isGrabbing && this.epmBrownout) {
-                    // Browned out: EPM can't fire — no momentum imparted, just stay on the tether.
-                    this.monkey.x = this.wave.x - this.monkey.width / 2;
+                    // Browned out: EPM can't fire — no momentum imparted, just stay on the film.
                     this.lastGrabQuality = 0;
                 }
                 // EPM energy loop (B.5): pulsing drains charge; a well-timed up-wave coupling
@@ -3255,11 +3239,10 @@
                 
                 this.waveSystem.time += dt;
                 this._cachedWavePos = this.waveSystem.calculatePosition(this.waveSystem.time) * tensionSagFactor(this.vineTension);
-                this.physics.updateHorizontalVelocity(this.monkey, dt, this.inputManager.isLeft(), this.inputManager.isRight());
                 this.updateThermal();
                 this.updateAirDensityReadout();
                 this.updateContinuous(dt);
-                this.physics.updatePosition(this.monkey, dt, this.canvas.width, this.wave.x);
+                this.physics.updatePosition(this.monkey, dt);
                 this.checkCollisions();
                 
                 // UX: coyote time countdown (2b) — re-grab during grace window
@@ -3669,15 +3652,14 @@
                 ctx.fillStyle = 'white';
                 ctx.font = '11px monospace';
                 ctx.fillText('SPACE: Pulse / catch wave', 20, height - 120);
-                ctx.fillText('\u2190 \u2192: Move left/right', 20, height - 105);
-                ctx.fillText('1-3: Wave type', 20, height - 90);
-                ctx.fillText('P / ESC: Pause', 20, height - 75);
-                ctx.fillText('R: Restart', 20, height - 60);
-                ctx.fillText('S: Settings', 20, height - 45);
+                ctx.fillText('1-3: Wave type', 20, height - 105);
+                ctx.fillText('P / ESC: Pause', 20, height - 90);
+                ctx.fillText('R: Restart', 20, height - 75);
+                ctx.fillText('S: Settings', 20, height - 60);
                 // UX: colorblind toggle hint (2f)
-                ctx.fillText('C: Color mode', 20, height - 30);
+                ctx.fillText('C: Color mode', 20, height - 45);
                 // Polish (Stage 4 / 3.1): mute toggle hint reflects current state
-                ctx.fillText('M: Sound ' + (this.audio && this.audio.muted ? '(off)' : '(on)'), 20, height - 15);
+                ctx.fillText('M: Sound ' + (this.audio && this.audio.muted ? '(off)' : '(on)'), 20, height - 30);
             }
             
             render() {

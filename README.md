@@ -45,7 +45,6 @@ Three ways to play:
 | Key | Action |
 |---|---|
 | `Space` | Pulse your EPM hands to couple to the wave (hold to keep pulsing; time it to the wave's peak velocity) |
-| `←` / `→` | Move left / right while pulsing |
 | `R` | Restart run |
 | `S` | Toggle settings panel |
 | `C` | Toggle Okabe-Ito colorblind palette |
