@@ -36,7 +36,7 @@ const {
   GameConfig, WaveSystem, PhysicsEngine,
   epmChargeStep, thermalStep, climbSpeedKmh,
   maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK, stackDryMassKg,
-  switchingPowerW,
+  switchingPowerW, flutterAmplitudeMm,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly (M2.11 tuning): film 100 GPa
@@ -64,7 +64,9 @@ const DEFAULTS = {
 function kPerPairFor(cfg) {
   const material = GameConfig.MATERIALS[cfg.materialIndex];
   const pole = GameConfig.FG40.POLE_FLUX_T;
-  const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / DEFAULTS.vineTension);
+  // flutterAmplitudeMm is the single source for the flutter formula (M3.1) — the game
+  // loop calls the same helper, so this mirror cannot drift from it.
+  const flutterMm = flutterAmplitudeMm(DEFAULTS.vineTension);
   const fluxT = cfg.gapMm - flutterMm <= 0 ? 0 : gapFluxT(cfg.gapMm, pole);
   return pairCouplingK({ sigmaSPerM: material.sigmaSPerM, thicknessM: DEFAULTS.filmThicknessMm / 1000,
                          fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2 });

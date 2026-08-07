@@ -30,6 +30,8 @@ const {
   pairCouplingK,
   stackDryMassKg,
   stackLengthM,
+  stackPhaseOffset,
+  flutterAmplitudeMm,
   switchingPowerW,
   slipThrustMeanN,
   safePersistedNumber,
@@ -67,7 +69,8 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
-    gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, switchingPowerW, slipThrustMeanN,
+    gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
+    switchingPowerW, slipThrustMeanN,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -94,11 +97,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 32 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 34 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 32);
+  assert.equal(declaredPureHelpers().length, 34);
 });
 
 // ---------------------------------------------------------------------------
@@ -487,6 +490,44 @@ test('§2.5 stack: dry mass is magnets-only and the thrust-to-weight is ~10:1', 
   const lambdaDefault = tetherWaveSpeed() / GameConfig.WAVE.DEFAULT_FREQUENCY;
   const stackFrac = stackLengthM(GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.PITCH_M) / lambdaDefault;
   assert.ok(stackFrac > 0.01 && stackFrac < 0.06, `default stack spans ${(stackFrac * 100).toFixed(1)}% of λ`);
+});
+
+// M3.1: the travelling firing sequence. Unit i sits i·pitch above unit 0, so for the
+// UP-travelling carrier (φ = ωt − k·y) it sees the same phase i·pitch/c seconds LATER:
+// the relative phase is negative, and that sign is what sweeps the firing band upward.
+test('stackPhaseOffset: upper units LAG — the sign is the sweep direction', () => {
+  const c = 20850, f = 92, pitch = 0.041;
+  const off1 = stackPhaseOffset(1, pitch, f, c);
+  assert.ok(off1 < 0, 'an upper unit must see a SMALLER phase at the same instant (up-travelling wave)');
+  approx(off1, -2 * Math.PI * f * pitch / c, 1e-15);                       // exact closed form
+  approx(stackPhaseOffset(4, pitch, f, c), 4 * off1, 1e-15);               // linear in unit index
+  approx(stackPhaseOffset(1, c / f, f, c), -2 * Math.PI, 1e-12);           // one λ of pitch = one cycle
+  approx(stackPhaseOffset(0, pitch, f, c), 0, 1e-15);                      // unit 0 is the reference
+});
+
+test('stackPhaseOffset: span fixtures — the shipped stack, and the paper\u2019s 10 m @ 260 Hz', () => {
+  const c = tetherWaveSpeed();
+  // Shipped default: 128 × 0.041 m = 5.248 m at 92 Hz → ~0.023 λ (near-unison firing).
+  const spanDefault = Math.abs(stackPhaseOffset(GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.PITCH_M, 92, c)) / (2 * Math.PI);
+  assert.ok(Math.abs(spanDefault - 0.0232) < 2e-3, `default stack spans ${spanDefault.toFixed(4)} λ`);
+  // The paper's spatial-phasing anchor (§2.5 of the plan): a 10 m stack at 260 Hz spans
+  // "~0.11 λ". The paper's own λ ≈ 91 m implies c = 23.7 km/s — inconsistent with slide
+  // 3's 21 km/s; with the shipped c = 20.85 km/s the span is 0.125 λ. Assert the BAND,
+  // not the paper's rounding.
+  const spanPaper = Math.abs(stackPhaseOffset(1, 10, 260, c)) / (2 * Math.PI);
+  assert.ok(spanPaper > 0.10 && spanPaper < 0.15, `10 m stack at 260 Hz spans ${spanPaper.toFixed(3)} λ`);
+});
+
+// M3.1: flutter amplitude — the ESTIMATE that eats the centering margin. Single source
+// for the coupling physics, the balance harness, and the panel/canvas readouts.
+test('flutterAmplitudeMm: 0.1 mm at 100 kgf, √-scaling, monotone, finite at degenerate tension', () => {
+  approx(flutterAmplitudeMm(100), GameConfig.TETHER.FLUTTER_REF_MM, 1e-12);
+  approx(flutterAmplitudeMm(400), GameConfig.TETHER.FLUTTER_REF_MM / 2, 1e-12);   // ∝ 1/√T
+  assert.ok(flutterAmplitudeMm(25) > flutterAmplitudeMm(100), 'slack film flutters MORE');
+  assert.ok(Number.isFinite(flutterAmplitudeMm(0)), 'degenerate tension must stay finite (the max() guard)');
+  // The shipped operating point: 0.15 mm gap vs 0.10 mm flutter at 100 kgf → margin 0.05 mm.
+  const margin = 0.15 - flutterAmplitudeMm(100);
+  assert.ok(Math.abs(margin - 0.05) < 1e-12, `shipped margin ${margin} mm`);
 });
 
 // M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.

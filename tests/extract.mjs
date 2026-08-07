@@ -41,6 +41,8 @@ const EXPORTED_SYMBOLS = [
   'pairCouplingK',
   'stackDryMassKg',
   'stackLengthM',
+  'stackPhaseOffset',
+  'flutterAmplitudeMm',
   'switchingPowerW',
   'slipThrustMeanN',
   'safePersistedNumber',

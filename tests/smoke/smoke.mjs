@@ -210,9 +210,9 @@ try {
     window.__cue = 0;
     const orig = g.audio.brownout.bind(g.audio);
     g.audio.brownout = () => { window.__cue++; orig(); };
-    // The magnet ladder is gone (M2.6) and M2.8's drain is switching watts (269 kW at
-    // defaults ≈ 26.9 charge-points/s): trip the latch from a small charge instead of a
-    // large tier — deterministic: 0.2 / (26.9 - TRICKLE 1.5) ≈ 8 ms to brownout.
+    // The magnet ladder is gone (M2.6) and M2.8's drain is switching watts (188 kW at
+    // the 92 Hz defaults ≈ 18.8 charge-points/s): trip the latch from a small charge
+    // instead of a large tier — deterministic: 0.2 / (18.8 - TRICKLE 3.0) ≈ 13 ms to brownout.
     g.waveSystem.amplitude = 0;               // no film velocity -> no thrust -> pure drain
     g.epmCharge = 0.2; g.epmBrownout = false; g.monkey.isGrabbing = true;
     await new Promise((r) => setTimeout(r, 400));
@@ -378,6 +378,52 @@ try {
     latch.callsAfterConfirm === 1 && latch.armedAtCleared === true &&
     latch.d1Armed === true && latch.callsAfterD1 === 1,
     JSON.stringify(latch));
+
+  // 10) M3.1: the FG40 sandwich renders — 8 schematic opposed pairs every frame (it is
+  //     the vehicle, drawn engaged or not), and the firing sweep advances while engaged.
+  //     Reads the live render handles the game exposes on window.__smokeGame.
+  const stack = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    await new Promise((r) => setTimeout(r, 150));
+    const out = { grab: g.monkey.isGrabbing, pairs: g._stackDrawnPairs, sweepA: g._stackSweepPos };
+    await new Promise((r) => setTimeout(r, 300));
+    out.sweepB = g._stackSweepPos;
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: ' ' }));
+    return out;
+  });
+  record('FG40 stack renders (8 schematic pairs) and the firing sweep advances',
+    stack.grab === true && stack.pairs === 8 && stack.sweepA !== stack.sweepB,
+    JSON.stringify(stack));
+
+  // 11) M3.1 photosafety: the firing gradient is a SLOWED schematic. Each unit modulates
+  //     at 1/period, which must stay under the 3 flashes/s photosensitive-seizure ceiling
+  //     (a literal 92-1000 Hz firing animation would be a strobe), and the sweep FREEZES
+  //     to a static lit state under prefers-reduced-motion — checked on a second page
+  //     booted with reducedMotion:'reduce' (the flag is read at window load).
+  const sweepInfo = await page.evaluate(() => ({ period: window.__smokeGame._stackSweepPeriodS }));
+  record('firing sweep respects the 3 Hz photosafety ceiling',
+    typeof sweepInfo.period === 'number' && 1 / sweepInfo.period <= 3, JSON.stringify(sweepInfo));
+  const rmContext = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } });
+  const rmPage = await rmContext.newPage();
+  await rmPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  // __smokeGame is exposed in the constructor, BEFORE the loading gate completes and the
+  // first frame renders — wait for the render handles themselves, or the samples below
+  // read undefined on a slow boot.
+  await rmPage.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._stackSweepPos === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const frozen = await rmPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    const a = g._stackSweepPos;
+    await new Promise((r) => setTimeout(r, 400));
+    return { a, b: g._stackSweepPos, flag: g._stackSweepFrozen, pairs: g._stackDrawnPairs };
+  });
+  record('firing sweep freezes to a static lit state under reduced motion',
+    frozen.flag === true && frozen.a === frozen.b && frozen.pairs === 8, JSON.stringify(frozen));
+  await rmContext.close();
 
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {

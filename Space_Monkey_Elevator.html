@@ -373,6 +373,10 @@
             <small class="setting-hint">The working gap between the opposed FG40 pairs and the film — nothing ever touches. Tighter couples MUCH harder (FG40's published force-vs-airgap curve: 100% at 0.1 mm, ~16% at 0.5 mm) but leaves less centering margin for film flutter. M1.5's field-strength multiplier was an interim label; the gap is the real control.</small>
         </div>
         <div class="slider-container">
+            <label>Centering: <span id="centeringMarginValue">automatic · margin 0.05 mm of ±0.15 mm/side (flutter ±0.10 mm)</span></label>
+            <small class="setting-hint">The onboard controller holds the film centred between the opposed poles — automatic, not your job. What you own is the MARGIN: gap per side minus film flutter (±0.1 mm at 100 kgf pretension, shrinking as √tension). Margin ≤ 0 and the controller unloads the stack rather than scrape the film — the stack label says so on canvas too.</small>
+        </div>
+        <div class="slider-container">
             <label>Gravity: <span id="gravityValue">1.00 G</span></label>
             <input type="range" id="gravity" min="0.01" max="1" step="0.01" value="1.00">
             <small class="setting-hint">1.00 G = 9.81 m/s². Pulls the climber down; you beat it only by coupling to the wave.</small>
@@ -431,6 +435,16 @@
         
         // UX: ghost line of previous best (2c)
         const GHOST_STORAGE_KEY = 'spaceMonkey.bestRun.v1';
+
+        // UX (M3.1): FG40 sandwich schematic tunables. The firing gradient is a SLOWED
+        // schematic ON PURPOSE: the real firing band crosses the stack in L/c ≈ 0.25 ms
+        // (the carrier fires each unit at 92-1000 Hz), which no 60 fps display can draw
+        // and no viewer should be shown — a literal firing animation would be a
+        // high-frequency strobe. The gradient scrolls at 1 / 0.8 s = 1.25 Hz per point,
+        // comfortably under the 3 flashes/s photosensitive-seizure ceiling (WCAG 2.3.1),
+        // and freezes to a static lit state under prefers-reduced-motion.
+        const STACK_SCHEMATIC_PAIRS = 8;
+        const STACK_SWEEP_PERIOD_S = 0.8;
         
         // UX: game-over gate (2e)
         const GAME_OVER_MIN_ALT = 50;       // Must reach this altitude before game-over can trigger
@@ -678,6 +692,30 @@
         // fire in a travelling sequence (multi-pole linear induction motor), not in unison.
         function stackLengthM(nPairs, pitchM) {
             return nPairs * pitchM;
+        }
+
+        // SIM (§2.5 / M3.1): phase of the carrier at unit i of the FG40 stack relative to
+        // unit 0 at the same instant — the spatial phasing that makes the opposed pairs
+        // fire in a TRAVELLING sequence (a multi-pole linear induction motor), not in
+        // unison. NEGATIVE for the up-travelling carrier: upper units LAG, so the firing
+        // band sweeps bottom→top at wave speed c (unit i fires i·pitch/c seconds after
+        // unit 0). The magnitude is small on purpose: the shipped stack (128 × 0.041 m
+        // ≈ 5.2 m) spans ~0.023 λ at 92 Hz, and even the paper's 10 m stack at 260 Hz
+        // spans only ~0.12 λ — near-unison, in upward order. The M3.1 sandwich visual
+        // derives its sweep DIRECTION from this sign (the rate is a slowed schematic —
+        // see STACK_SWEEP_PERIOD_S).
+        function stackPhaseOffset(unitIndex, pitchM, freqHz, waveSpeedMps) {
+            return -(2 * Math.PI * freqHz * unitIndex * pitchM) / waveSpeedMps;
+        }
+
+        // SIM (M2.4 / M3.1): film flutter amplitude vs pretension — an ESTIMATE
+        // (order-of-magnitude placeholder, see GameConfig.TETHER.FLUTTER_REF_MM — never
+        // quote as measured). Single source for the formula: the coupling physics
+        // (updateContinuous), the balance harness, and the M3.1 centering-margin
+        // readouts all compare the same gap against it. Pure w.r.t. GameConfig (same
+        // contract as epmChargeStep).
+        function flutterAmplitudeMm(tensionKgf) {
+            return GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / Math.max(1e-9, tensionKgf));
         }
 
         // SIM (§2.3 / M2.5): mean eddy-traction thrust over one carrier cycle — the core
@@ -2926,6 +2964,11 @@
                 this.epmCharge = GameConfig.EPM.START_CHARGE;
                 this.epmBrownout = false;
                 this.epmNetPerSec = 0;
+                this._brownoutWhy = null;   // M3.1 brownout explainer, set at trip time
+                // M3.1: centering margin state (refreshed every frame in updateContinuous;
+                // initialised here so the first render and the panel row never read stale).
+                this._flutterMm = flutterAmplitudeMm(this.vineTension);
+                this._gapMarginMm = this.airGapMm - this._flutterMm;
 
                 // §2.1: the boot configuration must be physical. At the shipped 92 Hz
                 // carrier the 1.00 m default stroke sits just under the 1.08 m stress cap,
@@ -3085,7 +3128,7 @@
                 this.eventBus.on('settings:width', (data) => { this.vineWidth = scaleSettingValue('width', data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:stressBudget', (data) => { this.safetyFraction = scaleSettingValue('stressBudget', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
-                this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; });
+                this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
                 this.eventBus.on('settings:weight', (data) => { this.cargoKg = data.value; this.updateDerivedReadouts(); });
@@ -3180,6 +3223,17 @@
             }
             totalMassKg() { return this.dryMassKg() + this.cargoKg; }
 
+            // SIM (§2.3 / M3.1): the slip ratio u = v_climber / v_film_peak — the first-
+            // class readout of why thrust fades (mean thrust → 0 as u → 1, asymptotically,
+            // no clamp anywhere). UNCLAMPED on purpose: u > 1 means the climber is
+            // outrunning the crest and the gate is empty. Callers that need a fraction
+            // (the slip halo) clamp at the use site.
+            slipU() {
+                const vFilmPeak = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI;
+                const vClimb = Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+                return vFilmPeak > 0 ? vClimb / vFilmPeak : 0;
+            }
+
             // SIM (§2.2 / M2.2): the stroke budget at the current carrier — the largest
             // amplitude the stress budget permits (A·ω ≤ v_max).
             strokeCapM() {
@@ -3230,6 +3284,17 @@
                 if (vEl) vEl.textContent = Math.round(vMax * 3.6) + ' km/h';
                 const capEl = document.getElementById('strokeCapValue');
                 if (capEl && this.waveSystem) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this.waveSystem.frequency.toFixed(1) + ' Hz';
+                // M3.1: centering margin = gap per side − film flutter. Margin ≤ 0 unloads
+                // the stack (flux → 0) — the panel's explanation of that state. The same
+                // flutterAmplitudeMm the physics and the balance harness use.
+                const cmEl = document.getElementById('centeringMarginValue');
+                if (cmEl) {
+                    const flut = flutterAmplitudeMm(this.vineTension);
+                    const margin = this.airGapMm - flut;
+                    cmEl.textContent = margin > 0
+                        ? `automatic · margin ${margin.toFixed(2)} mm of ±${this.airGapMm.toFixed(2)} mm/side (flutter ±${flut.toFixed(2)} mm)`
+                        : `UNLOADED — flutter ±${flut.toFixed(2)} mm overruns the ±${this.airGapMm.toFixed(2)} mm/side gap`;
+                }
                 // Live wave stress: what the CURRENT (clamped) A·ω actually uses of the
                 // film — as % of working stress AND % of stress-limited power (P ∝ σ²),
                 // so the paper's "10% at 1000 km/h" reads natively.
@@ -3411,6 +3476,12 @@
             // climb is an active energy battle. Drives the EPM charge/brownout loop.
             updateContinuous(dt) {
                 this.physics.applyGravityAndDrag(this.monkey, dt, this.gravityMultiplier, this.dragMultiplier);
+                // Centering margin, computed EVERY frame whether or not the stack is
+                // engaged: the M3.1 readouts (panel line, stack label, brownout
+                // explainer) read it at rest too. flutterAmplitudeMm is the single
+                // source for the formula (the balance harness mirrors it).
+                this._flutterMm = flutterAmplitudeMm(this.vineTension);
+                this._gapMarginMm = this.airGapMm - this._flutterMm;
                 // Compute `engaged` once, at frame entry: the recovery check inside epmChargeStep
                 // can clear the latch at the END of the previous frame, so the branch must read
                 // the value as it stands on entry or a frame could both pulse and recover.
@@ -3427,8 +3498,7 @@
                     // flutter eats the gap's centering margin. Margin <= 0 means the film
                     // touches a pole — the controller UNLOADS (flux -> 0) rather than
                     // scrape. Soft fail: widen the gap or tension up.
-                    const flutterMm = GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / Math.max(1e-9, this.vineTension));
-                    if (this.airGapMm - flutterMm <= 0) fluxT = 0;
+                    if (this._gapMarginMm <= 0) fluxT = 0;
                     const kPerPair = pairCouplingK({
                         sigmaSPerM: material.sigmaSPerM, thicknessM: this.filmThicknessMm / 1000,
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
@@ -3480,7 +3550,33 @@
                 this.epmCharge = step.charge;
                 this.epmBrownout = step.brownout;
                 this.epmNetPerSec = step.netPerSec;
-                if (step.tripped) this.audio.brownout();
+                if (step.tripped) {
+                    this.audio.brownout();
+                    // M3.1: capture WHY the loop browned out, in words, at the moment it
+                    // bites — the gauge shows it for the whole episode.
+                    this._brownoutWhy = this.brownoutReason();
+                } else if (!step.brownout) {
+                    this._brownoutWhy = null;   // latch released — clear the explainer
+                }
+            }
+
+            // M3.1: WHY the brownout latched, in words — the energy loop explained at the
+            // moment it bites. Three physical causes, in the order they bite: an unloaded
+            // stack (flutter fills the gap -> no flux -> no extraction at any speed),
+            // slip closure at high u (extraction F·v collapses while switching watts hold
+            // flat — §2.3), and the low-speed deficit (extraction has not ramped to the
+            // flat switching draw yet).
+            brownoutReason() {
+                const swKw = ((this._switchingW || 0) / 1000).toFixed(0);
+                if (this._gapMarginMm <= 0) {
+                    return `why: flutter ±${this._flutterMm.toFixed(2)} mm fills the ±${this.airGapMm.toFixed(2)} mm gap — stack unloaded, switching ${swKw} kW buys no thrust`;
+                }
+                const u = this.slipU();
+                const exKw = ((this._extractionW || 0) / 1000).toFixed(0);
+                if (u >= 0.8) {
+                    return `why: slip closed (u = ${u.toFixed(2)} — thrust → 0) — skim ${exKw} kW collapsed under the flat ${swKw} kW switching draw`;
+                }
+                return `why: skim ${exKw} kW < switching ${swKw} kW — extraction grows with speed; switching is flat`;
             }
 
             update(time) {
@@ -3670,10 +3766,9 @@
 
                 // §2.6 slip halo: where the stack grips, the film is slowed and locally
                 // stretched. Halo strength tracks (1 − u): maximum at low speed, fading as
-                // slip closes — the physical reason thrust fades, made visible.
-                const vFilmPeak = this.waveSystem.amplitude * freq * 2 * Math.PI;
-                const vClimb = Math.max(0, -this.monkey.velocityY / pxPerM);
-                const u = vFilmPeak > 0 ? Math.min(1, vClimb / vFilmPeak) : 0;
+                // slip closes — the physical reason thrust fades, made visible. (The
+                // sandwich itself is drawn by renderFg40Stack, AFTER the monkey sprite.)
+                const u = Math.min(1, this.slipU());
                 if (this.monkey.isGrabbing && !this.epmBrownout) {
                     const halo = (1 - u);
                     if (halo > 0.02) {
@@ -3683,34 +3778,6 @@
                         ctx.fillStyle = grad;
                         ctx.fillRect(this.wave.x - 60, cy - 60, 120, 120);
                     }
-                    // The FG40 sandwich: opposed pairs flanking the film over the stack
-                    // length. SMALL AND DELIBERATELY NOT TO SCALE (one unit is 4 cm = 0.4 px);
-                    // the label says what it is (decision 6).
-                    const stackPx = stackLengthM(this.nPairs, GameConfig.FG40.PITCH_M) * pxPerM;
-                    const sy0 = cy - stackPx / 2, sy1 = cy + stackPx / 2;
-                    ctx.strokeStyle = 'rgba(159, 212, 160, 0.95)';
-                    ctx.lineWidth = 2;
-                    for (const side of [-1, 1]) {
-                        const bx = this.wave.x + side * 9;
-                        ctx.beginPath();
-                        ctx.moveTo(bx + side * 5, sy0);
-                        ctx.lineTo(bx, sy0);
-                        ctx.lineTo(bx, sy1);
-                        ctx.lineTo(bx + side * 5, sy1);
-                        ctx.stroke();
-                    }
-                    ctx.fillStyle = 'rgba(159, 212, 160, 0.8)';
-                    ctx.font = '9px monospace';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(`${this.nPairs} pr · ${(stackPx / pxPerM).toFixed(1)} m (not to scale)`, this.wave.x + 14, sy1 + 10);
-                    // Engaged marker.
-                    ctx.fillStyle = COLOR_PALETTE.GRAB_GOLD;
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = COLOR_PALETTE.GRAB_GOLD;
-                    ctx.beginPath();
-                    ctx.arc(this.wave.x, cy, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
                 }
                 // Film-velocity indicator at the climber's own phase (world-anchored): the
                 // film HERE is moving up fast exactly when cos(φ) is near 1. It reads the
@@ -3732,7 +3799,111 @@
                 }
                 ctx.restore();
             }
-            
+
+            // M3.1: the FG40 sandwich — the climber IS the stack, so it is drawn ALWAYS
+            // (dim when disengaged), not just while pulsing: the old "hands gripping a
+            // vine" visual taught the wrong mechanism. STACK_SCHEMATIC_PAIRS opposed pairs
+            // flank the film on a FIXED schematic span (a real-scale stack is 26-105 px —
+            // illegible next to a 240 px sprite that is itself not to scale; decision 6
+            // says draw schematically and carry the true dimensions in the label and the
+            // settings telemetry). While engaged, the units light in a TRAVELLING sequence
+            // whose DIRECTION is physical — stackPhaseOffset < 0 for the up-travelling
+            // carrier means upper units lag, so the firing band sweeps bottom→top — and
+            // whose RATE is a slowed schematic: the real band crosses the stack in
+            // L/c ≈ 0.25 ms, an undrawable and unsafe strobe. The gradient scrolls at
+            // 1/STACK_SWEEP_PERIOD_S = 1.25 Hz per point (under the 3 flashes/s
+            // photosafety ceiling) and freezes to a static lit state under reduced motion.
+            // Drawn AFTER renderMonkey so the hardware reads as what the monkey rides.
+            renderFg40Stack(ctx) {
+                const cy = this.monkey.y - this.camera.getY() + this.monkey.height / 2;
+                const stackLenM = stackLengthM(this.nPairs, GameConfig.FG40.PITCH_M);
+                const stackPx = 150;   // fixed schematic span — see the header comment
+                const engaged = this.monkey.isGrabbing && !this.epmBrownout;
+                const cMps = tetherWaveSpeed();
+                const sweepsUp = stackPhaseOffset(1, GameConfig.FG40.PITCH_M, this.waveSystem.frequency, cMps) < 0;
+                const sweep = _uxReducedMotion ? 0.3 : (this.waveSystem.time / STACK_SWEEP_PERIOD_S) % 1;
+                // Live render handles for the smoke test (stack renders; sweep ≤ 3 Hz;
+                // sweep frozen under reduced motion).
+                this._stackDrawnPairs = STACK_SCHEMATIC_PAIRS;
+                this._stackSweepPos = sweep;
+                this._stackSweepPeriodS = STACK_SWEEP_PERIOD_S;
+                this._stackSweepFrozen = _uxReducedMotion;
+
+                // Lit colour follows the palette so the Okabe-Ito colorblind swap keeps
+                // working (same parse-and-cache pattern as WaveSystem.getRGB).
+                if (this._stackLitFor !== COLOR_PALETTE.GRAB_GOLD) {
+                    this._stackLitFor = COLOR_PALETTE.GRAB_GOLD;
+                    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(COLOR_PALETTE.GRAB_GOLD);
+                    this._stackLitRgb = m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 255, g: 215, b: 0 };
+                }
+                const litRgb = this._stackLitRgb;
+
+                const railDX = 58;              // opposed faces flank the climber sprite
+                const unitW = 14, unitH = 8;    // a real unit is 4 cm = 0.4 px — schematic
+                const slotH = stackPx / STACK_SCHEMATIC_PAIRS;
+                const sy0 = cy - stackPx / 2;
+                ctx.save();
+                // One rail per opposed face; the film (renderVine) runs between them.
+                ctx.strokeStyle = 'rgba(159, 212, 160, 0.65)';
+                ctx.lineWidth = 3;
+                for (const side of [-1, 1]) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.wave.x + side * railDX, sy0);
+                    ctx.lineTo(this.wave.x + side * railDX, sy0 + stackPx);
+                    ctx.stroke();
+                }
+                for (let j = 0; j < STACK_SCHEMATIC_PAIRS; j++) {
+                    const yFrac = j / (STACK_SCHEMATIC_PAIRS - 1);   // 0 bottom → 1 top
+                    const uy = sy0 + slotH * (j + 0.5);
+                    // Travelling brightness gradient. Each unit modulates at exactly
+                    // 1/STACK_SWEEP_PERIOD_S = 1.25 Hz < 3 Hz; a smooth cosine, never a
+                    // flash. Frozen (static lit state) under reduced motion.
+                    const phase = sweepsUp ? sweep - yFrac : sweep + yFrac;
+                    const lit = engaged ? 0.5 + 0.5 * Math.cos(2 * Math.PI * phase) : 0;
+                    for (const side of [-1, 1]) {
+                        const ux = this.wave.x + side * railDX - unitW / 2;
+                        // Housing (dark) + coil fill: dim green at rest → gold as the
+                        // firing band passes. Opposed units of a pair light together.
+                        ctx.fillStyle = 'rgba(24, 34, 30, 0.85)';
+                        ctx.fillRect(ux - 1, uy - unitH / 2 - 1, unitW + 2, unitH + 2);
+                        ctx.fillStyle = `rgba(159, 212, 160, ${(0.45 + 0.25 * lit).toFixed(3)})`;
+                        ctx.fillRect(ux, uy - unitH / 2, unitW, unitH);
+                        if (lit > 0.03) {
+                            ctx.fillStyle = `rgba(${litRgb.r}, ${litRgb.g}, ${litRgb.b}, ${(0.8 * lit).toFixed(3)})`;
+                            ctx.fillRect(ux, uy - unitH / 2, unitW, unitH);
+                        }
+                    }
+                }
+
+                // Legend plate: what this is (schematic, true dimensions), that centering
+                // is handled, and that the firing rate is slowed. When the flutter margin
+                // is gone the stack is UNLOADED — say so here, in words, because nothing
+                // else on screen explains the missing thrust.
+                const margin = this._gapMarginMm;
+                const lines = [
+                    { text: `FG40 ×${this.nPairs} pr · ${stackLenM.toFixed(1)} m — schematic`, col: 'rgba(159, 212, 160, 0.95)' },
+                    margin > 0
+                        ? { text: `centering auto · gap ±${this.airGapMm.toFixed(2)} mm · margin ${margin.toFixed(2)} mm`, col: 'rgba(190, 240, 255, 0.85)' }
+                        : { text: `UNLOADED — flutter ±${this._flutterMm.toFixed(2)} mm ≥ gap ${this.airGapMm.toFixed(2)} mm: widen gap or tension up`, col: couplingColor(0) },
+                ];
+                if (engaged) {
+                    const slowdown = Math.round(STACK_SWEEP_PERIOD_S * cMps / stackLenM);
+                    lines.push({ text: `firing sweep slowed ×${slowdown}`, col: 'rgba(190, 240, 255, 0.65)' });
+                }
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'left';
+                const plateW = Math.max(...lines.map(l => l.text.length)) * 5.6 + 14;
+                const plateH = lines.length * 12 + 8;
+                const plateX = this.wave.x + railDX + 18, plateY = cy - plateH / 2;
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                this.roundRect(ctx, plateX, plateY, plateW, plateH, 4);
+                lines.forEach((l, i) => {
+                    ctx.fillStyle = l.col;
+                    ctx.fillText(l.text, plateX + 7, plateY + 13 + i * 12);
+                });
+                ctx.restore();
+            }
+
             renderSpeedLines(ctx) {
                 this.particleSystem.getActiveSpeedLines().forEach(line => {
                     const screenY = line.y - this.camera.getY();
@@ -3967,6 +4138,7 @@
                 this.renderSpeedLines(ctx);
                 this.renderParticles(ctx);
                 this.renderMonkey(ctx);
+                this.renderFg40Stack(ctx);
                 this.renderEffects(ctx, width, height);
                 this.renderControls(ctx, height);
                 this.renderMissionHud(ctx, width);
@@ -4111,18 +4283,47 @@
                 ctx.fill();
                 // M2.8: the energy loop in real units — switching watts against the
                 // paper's 4 MW wave budget, and live extraction (F_mean · v_climber).
+                // Right-aligned at the screen edge: centred on the bar, these lines
+                // ran off-canvas on the right.
+                ctx.textAlign = 'right';
                 ctx.fillStyle = 'rgba(190, 240, 255, 0.85)';
                 ctx.font = '9px monospace';
                 const sw = this._switchingW || 0;
-                ctx.fillText(`switch ${(sw / 1000).toFixed(0)} kW`, ax, ay + 15);
-                ctx.fillText(`${(sw / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of 4 MW`, ax, ay + 26);
+                ctx.fillText(`switch ${(sw / 1000).toFixed(0)} kW`, width - 8, ay + 15);
+                ctx.fillText(`${(sw / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of 4 MW`, width - 8, ay + 26);
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
-                ctx.fillText(`skim ${((this._extractionW || 0) / 1000).toFixed(0)} kW`, ax, ay + 37);
-                // brownout warning (blinks)
-                if (this.epmBrownout && Math.floor(performance.now() / 350) % 2 === 0) {
-                    ctx.fillStyle = '#e74c3c';
+                ctx.fillText(`skim ${((this._extractionW || 0) / 1000).toFixed(0)} kW`, width - 8, ay + 37);
+                // M3.1: slip ratio as a first-class readout — the number that explains
+                // why thrust fades and why the skim line above collapses near v_max.
+                ctx.fillStyle = 'rgba(235, 242, 248, 0.85)';
+                ctx.fillText(`slip u = ${this.slipU().toFixed(2)}`, width - 8, ay + 48);
+                ctx.textAlign = 'center';
+                // brownout: the headline blinks (1.4 Hz — under the 3 flashes/s ceiling)
+                // while the M3.1 WHY line stays steady. Both sit on a dark plate so they
+                // read against the bright low-altitude sky; the plate is sized for the
+                // UNBLINKEN text so it does not breathe with the blink.
+                if (this.epmBrownout) {
+                    const head = 'EPM BROWNOUT — coast to recharge';
                     ctx.font = 'bold 14px monospace';
-                    ctx.fillText('EPM BROWNOUT — coast to recharge', width / 2, 44);
+                    const headW = ctx.measureText(head).width;
+                    ctx.font = '10px monospace';
+                    const whyW = this._brownoutWhy ? ctx.measureText(this._brownoutWhy).width : 0;
+                    const pw = Math.max(headW, whyW) + 18;
+                    const ph = this._brownoutWhy ? 44 : 28;
+                    ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                    this.roundRect(ctx, width / 2 - pw / 2, 26, pw, ph, 5);
+                    if (Math.floor(performance.now() / 350) % 2 === 0) {
+                        ctx.fillStyle = '#e74c3c';
+                        ctx.font = 'bold 14px monospace';
+                        ctx.fillText(head, width / 2, 44);
+                    }
+                    // WHY it browned out, in words — steady (never blinking), shown for
+                    // the whole episode. Switching vs extraction, and the physical cause.
+                    if (this._brownoutWhy) {
+                        ctx.fillStyle = 'rgba(255, 178, 152, 0.95)';
+                        ctx.font = '10px monospace';
+                        ctx.fillText(this._brownoutWhy, width / 2, 60);
+                    }
                 }
                 ctx.restore();
             }

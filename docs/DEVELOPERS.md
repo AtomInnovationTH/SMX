@@ -221,6 +221,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   uses the "pulse/couple" framing.
 - Honor `prefers-reduced-motion` (`_uxReducedMotion`) and the Okabe-Ito colorblind
   palette in any new visual feedback.
+- The FG40 firing gradient (M3.1) is a **slowed schematic**: never exceed 3 flashes/s
+  at any point (photosafety), freeze it under reduced motion, and route its colours
+  through `COLOR_PALETTE` so the Okabe-Ito swap keeps working.
 - Quick sanity check before committing: run `node --test tests/*.test.mjs`, then
   `python3 embed_assets.py` and confirm `index.html` differs from the source only by
   inlined assets.
