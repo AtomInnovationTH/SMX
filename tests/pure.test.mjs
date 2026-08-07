@@ -39,6 +39,7 @@ const {
   missionScore,
   bootstrapPct,
   densityRatio,
+  atmosphereAct,
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
@@ -72,7 +73,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
     freqDecadeColumn, switchingPowerW, slipThrustMeanN,
-    densityRatio, altimeterLandmarkAt, epmChargeStep,
+    densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit,
@@ -98,11 +99,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 35 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 36 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 35);
+  assert.equal(declaredPureHelpers().length, 36);
 });
 
 // ---------------------------------------------------------------------------
@@ -673,6 +674,22 @@ test('densityRatio: 1.0 at sea level, ~2.2e6x lower at the Karman line', () => {
   for (let h = 0; h < 100000; h += 2500) {
     assert.ok(densityRatio(h) > densityRatio(h + 2500), `monotonic at ${h} m`);
   }
+});
+
+// M3.3 (§2.7): the two acts. The 40 km threshold is where densityRatio has collapsed
+// far enough that aerodynamic drag effectively ceases to exist — the fixture ties the
+// act boundary to the SAME density table the drag model reads.
+test('atmosphereAct: the 40 km vacuum threshold, tied to the density table', () => {
+  assert.equal(atmosphereAct(0), 1);
+  assert.equal(atmosphereAct(39999), 1);
+  assert.equal(atmosphereAct(40000), 2);
+  assert.equal(atmosphereAct(100000), 2);
+  // The boundary is physical, not arbitrary: air at the act break is below half a
+  // percent of sea level (US Standard: ~0.33% at 40 km)...
+  assert.ok(densityRatio(40000) < 0.005, `act break at ${(densityRatio(40000) * 100).toFixed(2)}% of sea-level air`);
+  // ...and Act I still spans genuinely thin air (the transition is gradual; the act
+  // break marks where drag stops mattering, not where the sky changes colour).
+  assert.ok(densityRatio(30000) > 0.005, '30 km is still Act I and still has >0.5% air');
 });
 
 test('B.14 split is gone: aero drag alone is the full AIR_DRAG retention at sea level', () => {

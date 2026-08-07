@@ -847,6 +847,16 @@
             return Math.exp(Math.log(r0) + f * (Math.log(r1) - Math.log(r0))) / sl;
         }
 
+        // SIM (§2.7 / M3.3): the climb's two physically real acts. Act I (0-40 km): the
+        // atmosphere fights the wave — aerodynamic drag caps in-atmosphere speed (paper
+        // p.7). Act II (40-100 km): vacuum — the limits become film stress, switching
+        // power and slip. The 40 km threshold is where air density has collapsed to
+        // ~0.3% of sea level (densityRatio) — a genuine act break, not an arbitrary
+        // milestone. No new physics: the drag model already reads densityRatio.
+        function atmosphereAct(altitudeM) {
+            return altitudeM >= 40000 ? 2 : 1;
+        }
+
         // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
         // altitude (m), piecewise through the mesopause (~85 km), clamped above. Cartoon-simplified
         // but directionally honest: cold troposphere, isothermal lower stratosphere, warm stratopause,
@@ -2570,10 +2580,10 @@
                 if (!m) this.unlock();
             }
             toggleMute() { this.setMuted(!this.muted); return this.muted; }
-            blip(freq, dur, type, gain) {
+            blip(freq, dur, type, gain, delayS = 0) {
                 if (this.muted || !this.ctx) return;
                 try {
-                    const t = this.ctx.currentTime;
+                    const t = this.ctx.currentTime + delayS;
                     const osc = this.ctx.createOscillator();
                     const g = this.ctx.createGain();
                     osc.type = type; osc.frequency.value = freq;
@@ -2584,11 +2594,19 @@
                     osc.start(t); osc.stop(t + dur + 0.02);
                 } catch (e) {}
             }
-            pulse(quality) {
+            pulse(quality, act = 1) {
                 const q = Math.max(0, Math.min(1, quality || 0));
-                this.blip(300 + 500 * q, 0.06, 'sine', 0.05);
+                // M3.3: the tone shifts with the act — sine in the atmosphere, a brighter
+                // triangle in vacuum. Presentation only; the pitch still tracks quality.
+                this.blip(300 + 500 * q, 0.06, act === 2 ? 'triangle' : 'sine', 0.05);
             }
             brownout() { this.blip(110, 0.3, 'sawtooth', 0.07); }
+            // M3.3: the 40 km vacuum threshold — the run's biggest beat gets a fifth up
+            // (G4 -> D5), opening into Act II.
+            actBreak() {
+                this.blip(392.00, 0.16, 'sine', 0.05);
+                this.blip(587.33, 0.30, 'sine', 0.05, 0.14);
+            }
         }
 
         class SpaceMonkeyGame {
@@ -3071,6 +3089,11 @@
                 this._thermalTier = -1;
                 this.temperatureC = 15;
                 this._coldFactor = 1;
+                // M3.3: each run starts in Act I (atmosphere); the vacuum-threshold beat
+                // fires once per run at the 40 km crossing.
+                this._act = 1;
+                this._actBreakFired = false;
+                this._actBreakTimer = 0;
                 this.coyoteTimeLeft = 0;
                 this.bufferedGrab = false;
                 this.currentLandmarkName = '';
@@ -3576,7 +3599,7 @@
                     this._audioPulseTimer = (this._audioPulseTimer || 0) - dt;
                     if (this._audioPulseTimer <= 0) {
                         this._audioPulseTimer = GameConfig.COUPLING.AUDIO_PULSE_INTERVAL;
-                        this.audio.pulse(c.quality);
+                        this.audio.pulse(c.quality, this._act);
                     }
                 } else if (this.monkey.isGrabbing && this.epmBrownout) {
                     // Browned out: EPM can't fire — no momentum imparted, just stay on the film.
@@ -3648,6 +3671,22 @@
                 this.waveSystem.time += dt;
                 this.updateThermal();
                 this.updateAirDensityReadout();
+                // M3.3 (§2.7): the two acts. Act I is drag-dominated, Act II is vacuum —
+                // read off the SAME densityRatio the drag model uses, no new physics.
+                // The 40 km crossing is the run's biggest beat: one banner, one chime,
+                // one milestone burst per run (falling back below 40 km re-enters Act I
+                // on the HUD but never re-fires the beat).
+                {
+                    const act = atmosphereAct(this.monkey.altitude);
+                    if (act === 2 && !this._actBreakFired) {
+                        this._actBreakFired = true;
+                        this._actBreakTimer = 4.5;   // banner seconds (sim time: pauses with the game)
+                        this.triggerMilestone('ACT II — VACUUM');
+                        this.audio.actBreak();
+                    }
+                    this._act = act;
+                    if (this._actBreakTimer > 0) this._actBreakTimer -= dt;
+                }
                 this.updateContinuous(dt);
                 this.physics.updatePosition(this.monkey, dt);
                 this.checkCollisions();
@@ -4194,8 +4233,10 @@
                 this.renderMonkey(ctx);
                 this.renderFg40Stack(ctx);
                 this.renderEffects(ctx, width, height);
+                this.renderActBreak(ctx, width, height);
                 this.renderControls(ctx, height);
                 this.renderMissionHud(ctx, width);
+                this.renderActHud(ctx);
                 this.renderThermal(ctx, width, height);
                 this.renderEpmGauge(ctx, width, height);
                 this.renderFreqTable(ctx, width, height);
@@ -4235,6 +4276,56 @@
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
                 ctx.font = '10px monospace';
                 ctx.fillText(`Tether bootstrap: ${bootPct.toFixed(1)}%`, 10, 30);
+                ctx.restore();
+            }
+
+            // M3.3 (§2.7): persistent act + air-density line — the "drag readout" that
+            // visibly collapses through Act I and hits ~0 in Act II. Same densityRatio
+            // table the drag model and the settings-panel readout use. (Top-left block:
+            // mission lines at y 16/30, thermal at 44-85, this at 96.)
+            renderActHud(ctx) {
+                const act = this._act || 1;
+                ctx.save();
+                ctx.textAlign = 'left';
+                // On a dark plate, like the controls box: the low sky is bright and
+                // bare HUD text washes out there.
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                this.roundRect(ctx, 6, 86, 218, 32, 4);
+                ctx.font = 'bold 11px monospace';
+                ctx.fillStyle = act === 2 ? 'rgba(190, 240, 255, 0.95)' : 'rgba(255, 214, 150, 0.9)';
+                ctx.fillText(act === 2 ? 'ACT II — vacuum' : 'ACT I — atmosphere', 12, 99);
+                ctx.font = '10px monospace';
+                ctx.fillStyle = 'rgba(210, 225, 235, 0.8)';
+                ctx.fillText(`air ${airDensityReadout(this.monkey.altitude)} of sea level`, 12, 112);
+                ctx.restore();
+            }
+
+            // M3.3: the 40 km vacuum threshold — the run's biggest beat. One plated
+            // banner, fading in fast and out slow (never a flash), static under reduced
+            // motion. The plate is sized for the widest line so it does not breathe.
+            renderActBreak(ctx, width, height) {
+                if (this._actBreakTimer <= 0) return;
+                const t = this._actBreakTimer;   // 4.5 -> 0
+                const alpha = _uxReducedMotion ? 0.95
+                    : Math.max(0, Math.min(0.95, (4.5 - t) / 0.4, t / 1.2));
+                const lines = [
+                    { text: 'ACT II — VACUUM', font: 'bold 34px monospace', col: '#bef0ff', dy: -130 },
+                    { text: 'the atmosphere lets go — drag ~0', font: '13px monospace', col: 'rgba(235, 242, 248, 0.95)', dy: -106 },
+                    { text: 'your limits now: film stress (v_max) · switching watts · slip u', font: '13px monospace', col: 'rgba(235, 242, 248, 0.95)', dy: -88 },
+                    { text: 'paper p.7 (drag caps) · p.11 (frequency trade table)', font: '10px monospace', col: 'rgba(190, 240, 255, 0.75)', dy: -70 },
+                ];
+                ctx.save();
+                ctx.textAlign = 'center';
+                let plateW = 0;
+                for (const l of lines) { ctx.font = l.font; plateW = Math.max(plateW, ctx.measureText(l.text).width); }
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                this.roundRect(ctx, width / 2 - plateW / 2 - 18, height / 2 - 158, plateW + 36, 100, 6);
+                for (const l of lines) {
+                    ctx.font = l.font;
+                    ctx.fillStyle = l.col;
+                    ctx.fillText(l.text, width / 2, height / 2 + l.dy);
+                }
                 ctx.restore();
             }
 

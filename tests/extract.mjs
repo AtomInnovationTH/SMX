@@ -50,6 +50,7 @@ const EXPORTED_SYMBOLS = [
   'missionScore',
   'bootstrapPct',
   'densityRatio',
+  'atmosphereAct',
   'temperatureAtAltitude',
   'thermalSuitIndex',
   'coldGripFactor',
