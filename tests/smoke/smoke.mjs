@@ -425,6 +425,29 @@ try {
     frozen.flag === true && frozen.a === frozen.b && frozen.pairs === 8, JSON.stringify(frozen));
   await rmContext.close();
 
+  // 12) M3.4: the event schedule — the 12 km transverse reveal fires on the crossing
+  //     (once per run, card queued), and the 70 km gigacycle-fatigue beat stays SILENT
+  //     at the 92 Hz default: it is conditional on the carrier sitting in the paper's
+  //     top decade (freqDecadeColumn >= 6), and 92 Hz is the 100 Hz column.
+  const beats = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.velocityY = -20000;                       // 2 km/s: fast, deterministic crossings
+    g.monkey.y = -115000; g.camera.y = g.monkey.y + 400;   // 11.5 km, climbing
+    await new Promise((r) => setTimeout(r, 400));           // crosses 12 km
+    const t12 = { fired: g._beatsFired.has('transverse'), card: g._beatCard && g._beatCard.title };
+    g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20 km)
+    await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
+    const out = { t12, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
+                  queueLen: g._beatQueue.length };
+    g.monkey.velocityY = 0;
+    return out;
+  });
+  record('event schedule: 12 km reveal fires; 70 km fatigue beat silent at 92 Hz',
+    beats.t12.fired === true && typeof beats.t12.card === 'string' && beats.t12.card.includes('transverse') &&
+    beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
+    JSON.stringify(beats));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

@@ -3089,6 +3089,11 @@
                 this._act = 1;
                 this._actBreakFired = false;
                 this._actBreakTimer = 0;
+                // M3.4: the event schedule — per-run fired set, queue, and the active card.
+                this._beatsFired = new Set();
+                this._beatQueue = [];
+                this._beatCard = null;
+                this._beatCardTimer = 0;
                 this.coyoteTimeLeft = 0;
                 this.bufferedGrab = false;
                 this.currentLandmarkName = '';
@@ -3651,6 +3656,103 @@
                 return `why: skim ${exKw} kW < switching ${swKw} kW — extraction grows with speed; switching is flat`;
             }
 
+            // M3.4: the event schedule (§7) — one supervisory beat at a time, each
+            // teaching one page of the paper, none invented. Crossings reuse
+            // upgradeCrossed (frame-size independent, once per run via the fired set).
+            // The M3-class beats ship here; beats needing physics the sim does not have
+            // — taper (p.9), drag ON THE WAVE (p.7), standing-wave resonance (p.10) —
+            // are deferred to M4 and deliberately not faked. The 40 km vacuum-threshold
+            // beat is M3.3's act break (already live); 100 km delivery + GEO context is
+            // the Kármán game-over panel (already live).
+            _updateClimbBeats(dt) {
+                const prev = this._lastFrameAltitude, alt = this.monkey.altitude;
+                const fired = this._beatsFired;
+                const push = (id, title, lines) => {
+                    if (!fired.has(id)) { fired.add(id); this._beatQueue.push({ title, lines }); }
+                };
+                const f = this.waveSystem.frequency;
+                // ~12 km — the reveal (p.7 drag table: transverse caps at 45 km/h, 20 kW).
+                if (upgradeCrossed(prev, alt, 12000, false)) {
+                    const kmh = Math.round(climbSpeedKmh(this.monkey.velocityY));
+                    push('transverse', 'a transverse wave would be dead here', [
+                        'quadratic drag caps a transverse wave at 45 km/h — 20 kW total (paper p.7).',
+                        `you are doing ${kmh} km/h on a LONGITUDINAL wave: same equation, different mode.`,
+                        'paper p.7 (drag table) · p.12 (longitudinal vs transverse)',
+                    ]);
+                }
+                // ~20 km — air thinning; the stress-budget lever is the ceiling now (p.7).
+                if (upgradeCrossed(prev, alt, 20000, false)) {
+                    push('thinning', 'the air is thinning', [
+                        `air ${airDensityReadout(alt)} of sea level and falling — drag is letting go.`,
+                        `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(this.vMaxMps() * 3.6)} km/h.`,
+                        'if you left margin in the stress budget, this is where it pays. (paper p.7)',
+                    ]);
+                }
+                // ~70 km — gigacycle fatigue, CONDITIONAL: only when the carrier sits in
+                // the paper's top decade (p.11). Evaluated while above 70 km (not just at
+                // the crossing) so raising the carrier later still triggers it; at the
+                // 92 Hz floor "lower the carrier" is not actionable and the p.11 dashboard
+                // already carries the fatigue cell for the 10-1000 Hz band.
+                if (alt >= 70000 && freqDecadeColumn(f) >= 6) {
+                    push('fatigue', 'gigacycle fatigue', [
+                        `at ${f.toFixed(0)} Hz the film passes ~${(f * 0.3156).toFixed(0)} gigacycles per decade of service.`,
+                        'p.11 flags "Gigacycles per decade?" in this band. Lowering the carrier cuts cycles and',
+                        'switching watts; the cost is a longer ground stroke (A_max = v_max/ω), not speed. (paper p.11)',
+                    ]);
+                }
+                // ~85 km — a second climber requests power. The paper leaves multi-climber
+                // power UNSOLVED (p.14; resonance retuning makes sharing "tricky", p.10) —
+                // so there is no share/refuse mechanic to invent: the beat is the open
+                // question itself.
+                if (upgradeCrossed(prev, alt, 85000, false)) {
+                    push('second-climber', 'a second climber requests power', [
+                        'the paper\u2019s own answer is \u201Cunsolved\u201D: resonance retuning makes sharing \u201Ctricky\u201D (p.10),',
+                        'and your FG40 stack skims power — it cannot route it. Powering more than one',
+                        'climber is an open question (p.14). You climb on alone.',
+                    ]);
+                }
+                // Card pump: one beat at a time, 7 s each (sim time — pauses with the game).
+                if (this._beatCard) {
+                    this._beatCardTimer -= dt;
+                    if (this._beatCardTimer <= 0) this._beatCard = null;
+                }
+                if (!this._beatCard && this._beatQueue.length) {
+                    this._beatCard = this._beatQueue.shift();
+                    this._beatCardTimer = 7;
+                }
+            }
+
+            // M3.4: the active event beat, drawn as a plated card at top-centre. Fades
+            // in fast and out slow (never a flash), static under reduced motion. Clear
+            // of the landmark pill (~48), the brownout banner (~70) and the act-break
+            // banner (mid-screen).
+            renderClimbBeat(ctx, width) {
+                if (!this._beatCard) return;
+                const t = this._beatCardTimer;   // 7 -> 0
+                const alpha = _uxReducedMotion ? 0.95
+                    : Math.max(0, Math.min(0.95, (7 - t) / 0.3, t / 0.8));
+                const card = this._beatCard;
+                ctx.save();
+                ctx.textAlign = 'center';
+                let plateW = 0;
+                ctx.font = 'bold 14px monospace';
+                plateW = Math.max(plateW, ctx.measureText(card.title).width);
+                ctx.font = '11px monospace';
+                for (const s of card.lines) plateW = Math.max(plateW, ctx.measureText(s).width);
+                const plateH = 22 + card.lines.length * 17;
+                const py = 130;   // below the landmark pill (~48) and the shared toast (~100)
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                this.roundRect(ctx, width / 2 - plateW / 2 - 16, py, plateW + 32, plateH, 6);
+                ctx.fillStyle = '#bef0ff';
+                ctx.font = 'bold 14px monospace';
+                ctx.fillText(card.title, width / 2, py + 20);
+                ctx.font = '11px monospace';
+                ctx.fillStyle = 'rgba(235, 242, 248, 0.95)';
+                card.lines.forEach((s, i) => ctx.fillText(s, width / 2, py + 37 + i * 17));
+                ctx.restore();
+            }
+
             update(time) {
                 if (!this.running) return;
                 if (this.paused) return;
@@ -3747,6 +3849,11 @@
                         this.altimeterLabel.classList.add('visible');
                     }
                 }
+
+                // M3.4: the event schedule — one supervisory beat at a time, each teaching
+                // one page of the paper, none invented. (Runs on the fresh altitude pair:
+                // _lastFrameAltitude is last frame's, monkey.altitude is this frame's.)
+                this._updateClimbBeats(dt);
                 
                 // UX: game-over detection (2e) — fell back to ground after climbing
                 if (shouldTriggerGameOver(this.maxAltitude, this.monkey.altitude, this.gameOver, GAME_OVER_MIN_ALT)) {
@@ -4229,6 +4336,7 @@
                 this.renderFg40Stack(ctx);
                 this.renderEffects(ctx, width, height);
                 this.renderActBreak(ctx, width, height);
+                this.renderClimbBeat(ctx, width);
                 this.renderControls(ctx, height);
                 this.renderMissionHud(ctx, width);
                 this.renderActHud(ctx);
