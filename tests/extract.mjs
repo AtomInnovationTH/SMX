@@ -43,6 +43,7 @@ const EXPORTED_SYMBOLS = [
   'stackLengthM',
   'stackPhaseOffset',
   'flutterAmplitudeMm',
+  'freqDecadeColumn',
   'switchingPowerW',
   'slipThrustMeanN',
   'safePersistedNumber',

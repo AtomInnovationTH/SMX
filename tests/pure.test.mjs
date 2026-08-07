@@ -32,6 +32,7 @@ const {
   stackLengthM,
   stackPhaseOffset,
   flutterAmplitudeMm,
+  freqDecadeColumn,
   switchingPowerW,
   slipThrustMeanN,
   safePersistedNumber,
@@ -70,7 +71,7 @@ test('extraction exposes the core pure symbols', () => {
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
-    switchingPowerW, slipThrustMeanN,
+    freqDecadeColumn, switchingPowerW, slipThrustMeanN,
     densityRatio, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -97,11 +98,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 34 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 35 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 34);
+  assert.equal(declaredPureHelpers().length, 35);
 });
 
 // ---------------------------------------------------------------------------
@@ -528,6 +529,22 @@ test('flutterAmplitudeMm: 0.1 mm at 100 kgf, √-scaling, monotone, finite at de
   // The shipped operating point: 0.15 mm gap vs 0.10 mm flutter at 100 kgf → margin 0.05 mm.
   const margin = 0.15 - flutterAmplitudeMm(100);
   assert.ok(Math.abs(margin - 0.05) < 1e-12, `shipped margin ${margin} mm`);
+});
+
+// M3.2 (paper p.11): the carrier's decade column — nearest column on the log axis,
+// clamped to the table. The dashboard lights the consequence cells of this column.
+test('freqDecadeColumn: nearest decade on the log axis, clamped to the p.11 table', () => {
+  assert.equal(freqDecadeColumn(0), 0);       // f = 0: the cable-car column
+  assert.equal(freqDecadeColumn(-5), 0);      // junk clamps to cable car
+  assert.equal(freqDecadeColumn(0.01), 1);
+  assert.equal(freqDecadeColumn(0.02), 1);    // below the 0.01/0.1 geometric midpoint
+  assert.equal(freqDecadeColumn(0.05), 2);    // above it
+  assert.equal(freqDecadeColumn(1), 3);
+  assert.equal(freqDecadeColumn(92), 5);      // the shipped default lights the 100 Hz column
+  assert.equal(freqDecadeColumn(260), 5);     // paper's reference band: below 316.2 -> 100 Hz
+  assert.equal(freqDecadeColumn(317), 6);     // just above the 100/1000 midpoint
+  assert.equal(freqDecadeColumn(1000), 6);
+  assert.equal(freqDecadeColumn(5000), 6);    // clamped at the table's top
 });
 
 // M2.1: shared spatial phase φ = ωt − k·y for the up-travelling carrier.

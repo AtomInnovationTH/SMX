@@ -474,6 +474,38 @@
             { altitude: 100000, name: 'Kármán Line (Space!)' },
             { altitude: 400000, name: 'ISS Orbit' }
         ];
+
+        // UX (paper p.11 / M3.2): the Frequency Considerations table, rebuilt as the
+        // in-play dashboard (decision 20). Cell texts are the paper's own words; column
+        // spans are read off the paper's layout and carry ± half a decade of visual
+        // ambiguity, which the plate's footnote says out loud (p.3 vs p.11). The
+        // forbidden band — "climber reflects 50% of power" — is shaded ~0.01-1 Hz per
+        // the plan's reading of the merged cells.
+        const FREQ_TABLE = {
+            columns: [
+                { f: 0,    label: '0 Hz',   lambda: 'λ=∞ cable car' },
+                { f: 0.01, label: '0.01',   lambda: '1000 km' },
+                { f: 0.1,  label: '0.1',    lambda: '100 km' },
+                { f: 1,    label: '1',      lambda: '10 km' },
+                { f: 10,   label: '10',     lambda: '1 km' },
+                { f: 100,  label: '100',    lambda: '100 m' },
+                { f: 1000, label: '1000 Hz', lambda: '10 m' }
+            ],
+            reflectBand: { fLo: 0.01, fHi: 1, label: 'climber reflects 50% of power' },
+            rows: [
+                { tag: 'power',      cells: [ { c0: 0, c1: 1, text: 'climber can use all power' },
+                                              { c0: 4, c1: 6, text: 'climber can use all power' } ] },
+                { tag: 'damage',     cells: [ { c0: 1, c1: 4, text: 'minimal backscatter from impact damage' },
+                                              { c0: 5, c1: 6, text: 'backscatter from damaged areas' } ] },
+                { tag: 'fatigue',    cells: [ { c0: 1, c1: 3, text: 'less fatigue concern' },
+                                              { c0: 4, c1: 6, text: 'Gigacycles per decade?' } ] },
+                // The paper wraps these cells to two lines; so do we (text/text2).
+                { tag: 'atmosphere', cells: [ { c0: 0, c1: 0, text: 'impedance', text2: 'unimportant' },
+                                              { c0: 1, c1: 2, text: 'velocity control', text2: 'via resonance' },
+                                              { c0: 3, c1: 3, text: 'velocity control', text2: 'difficult' },
+                                              { c0: 4, c1: 5, text: 'velocity control via', text2: 'AR layer / tapering' } ] }
+            ]
+        };
         
         // UX: colorblind-safe palette — Okabe-Ito / Wong (2f)
         const COLORBLIND_PALETTE = {
@@ -716,6 +748,23 @@
         // contract as epmChargeStep).
         function flutterAmplitudeMm(tensionKgf) {
             return GameConfig.TETHER.FLUTTER_REF_MM * Math.sqrt(100 / Math.max(1e-9, tensionKgf));
+        }
+
+        // SIM (paper p.11 / M3.2): which decade column of the Frequency Considerations
+        // table a carrier falls in — nearest column on the log10 axis, clamped to the
+        // table. Column 0 is the cable-car column (f = 0, λ = ∞); the game's 92-1000 Hz
+        // slider lands in columns 5-6. Geometric midpoints split the decades, so 260 Hz
+        // -> column 5 (100 Hz) and 320 Hz -> column 6. The M3.2 dashboard lights the
+        // consequence cells of the returned column.
+        function freqDecadeColumn(freqHz) {
+            const COLS = [0, 0.01, 0.1, 1, 10, 100, 1000];   // paper p.11, FREQ_TABLE
+            if (!(freqHz > 0)) return 0;                     // f = 0 (or junk): cable car
+            let best = 1, bestDist = Infinity;
+            for (let i = 1; i < COLS.length; i++) {
+                const d = Math.abs(Math.log10(freqHz) - Math.log10(COLS[i]));
+                if (d < bestDist) { bestDist = d; best = i; }
+            }
+            return best;
         }
 
         // SIM (§2.3 / M2.5): mean eddy-traction thrust over one carrier cycle — the core
@@ -4144,6 +4193,7 @@
                 this.renderMissionHud(ctx, width);
                 this.renderThermal(ctx, width, height);
                 this.renderEpmGauge(ctx, width, height);
+                this.renderFreqTable(ctx, width, height);
                 this.renderFirstHint(ctx, width);
             }
 
@@ -4180,6 +4230,108 @@
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
                 ctx.font = '10px monospace';
                 ctx.fillText(`Tether bootstrap: ${bootPct.toFixed(1)}%`, 10, 30);
+                ctx.restore();
+            }
+
+            // M3.2 (paper p.11, decision 20): the Frequency Considerations table as the
+            // in-play dashboard. The paper's densest page, rebuilt as an instrument: the
+            // seven decade columns with their wavelengths, the ~0.01-1 Hz forbidden band
+            // shaded (the climber reflects 50% of power there), the consequence rows in
+            // the paper's own words, and the carrier's LIVE position marked — the cells
+            // of its current decade column light up. The bimodal choice is the teaching:
+            // very low f is the cable-car / reflection regime, high f buys sane strokes
+            // at the cost of fatigue, backscatter and (in this game) switching watts.
+            renderFreqTable(ctx, width, height) {
+                const T = FREQ_TABLE;
+                const plateW = 640, plateH = 132;
+                const plateX = (width - plateW) / 2, plateY = height - plateH - 10;
+                const gutterW = 56, cabW = 110;
+                const plotX0 = plateX + 10 + gutterW + cabW, plotW = plateW - (plotX0 - plateX) - 12;
+                const slotW = plotW / 6;
+                // Plot span is [0.01/sqrt(10), 1000*sqrt(10)] so the six decade ticks sit
+                // at slot centres; xOfF log-interpolates the live carrier between them.
+                const xOfF = (f) => plotX0 + ((Math.log10(f) + 2.5) / 6) * plotW;
+                const tickX = (i) => i === 0 ? plateX + 10 + gutterW + cabW / 2 : xOfF(T.columns[i].f);
+                const rowY = (i) => plateY + 52 + i * 12;
+                const carrier = this.waveSystem.frequency;
+                const col = freqDecadeColumn(carrier);
+
+                ctx.save();
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                this.roundRect(ctx, plateX, plateY, plateW, plateH, 6);
+
+                // Title + live carrier position.
+                ctx.textAlign = 'left';
+                ctx.font = '9px monospace';
+                ctx.fillStyle = 'rgba(190, 240, 255, 0.7)';
+                ctx.fillText('paper p.11 — Frequency Considerations', plateX + 10, plateY + 14);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = COLOR_PALETTE.GRAB_GOLD;
+                ctx.fillText(`carrier ${carrier.toFixed(1)} Hz → the ${T.columns[col].label} Hz column`, plateX + plateW - 12, plateY + 14);
+
+                // Column headers: frequency and wavelength.
+                ctx.textAlign = 'center';
+                for (let i = 0; i < T.columns.length; i++) {
+                    const cx = tickX(i);
+                    ctx.fillStyle = i === col ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.55)';
+                    ctx.font = '8px monospace';
+                    ctx.fillText(T.columns[i].label, cx, plateY + 27);
+                    ctx.fillStyle = 'rgba(190, 240, 255, 0.5)';
+                    ctx.fillText(T.columns[i].lambda, cx, plateY + 37);
+                }
+
+                // The forbidden band (~0.01-1 Hz): the climber reflects 50% of power.
+                // A large translucent zone + the paper's own words — the label does the
+                // work, so the hue is not load-bearing for colour-blind players.
+                const bandX0 = tickX(1) - slotW / 2, bandX1 = tickX(3) + slotW / 2;
+                ctx.fillStyle = 'rgba(213, 94, 60, 0.13)';
+                ctx.fillRect(bandX0, plateY + 42, bandX1 - bandX0, rowY(3) - plateY - 42 + 14);
+                ctx.strokeStyle = 'rgba(213, 94, 60, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bandX0, plateY + 42, bandX1 - bandX0, rowY(3) - plateY - 42 + 14);
+
+                // Consequence rows in the paper's words; the carrier's column lights up.
+                // The atmosphere row wraps to two lines per cell, as the paper's does.
+                ctx.font = '7.5px monospace';
+                T.rows.forEach((row, ri) => {
+                    const twoLine = row.cells[0].text2 !== undefined;
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = 'rgba(190, 240, 255, 0.45)';
+                    ctx.fillText(row.tag, plateX + 10 + gutterW - 6, twoLine ? rowY(ri) + 5 : rowY(ri));
+                    ctx.textAlign = 'center';
+                    for (const cell of row.cells) {
+                        const cx0 = tickX(cell.c0) - (cell.c0 === 0 ? cabW : slotW) / 2;
+                        const cx1 = tickX(cell.c1) + (cell.c1 === 0 ? cabW : slotW) / 2;
+                        const active = col >= cell.c0 && col <= cell.c1;
+                        ctx.fillStyle = active ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.38)';
+                        ctx.fillText(cell.text, (cx0 + cx1) / 2, rowY(ri));
+                        if (cell.text2) ctx.fillText(cell.text2, (cx0 + cx1) / 2, rowY(ri) + 11);
+                        if (active) {
+                            const w = Math.max(cell.text.length, (cell.text2 || '').length) * 4.5;
+                            ctx.fillRect((cx0 + cx1) / 2 - w / 2, (cell.text2 ? rowY(ri) + 11 : rowY(ri)) + 2.5, w, 1);
+                        }
+                    }
+                });
+                // The band's middle cell, verbatim — drawn over the shade at the power row.
+                ctx.fillStyle = 'rgba(255, 170, 140, 0.95)';
+                ctx.fillText(T.reflectBand.label, (bandX0 + bandX1) / 2, rowY(0));
+
+                // Live carrier marker through the table region (starts below the λ
+                // header row so it does not strike through the column labels).
+                const mx = xOfF(Math.min(1000, Math.max(0.01, carrier)));
+                ctx.strokeStyle = COLOR_PALETTE.GRAB_GOLD;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(mx, plateY + 41);
+                ctx.lineTo(mx, rowY(3) + 15);
+                ctx.stroke();
+
+                // Footnote: honour the p.3 vs p.11 tension instead of papering over it.
+                ctx.textAlign = 'left';
+                ctx.font = '8px monospace';
+                ctx.fillStyle = 'rgba(190, 240, 255, 0.45)';
+                ctx.fillText('Cell spans read off the paper\u2019s layout (\u00B1\u00BD decade). p.3 says climbers reflect \u03BB << 1000 km, yet this table', plateX + 10, plateY + 117);
+                ctx.fillText('gives \u201Cuse all power\u201D at 10-1000 Hz — the more specific claim is implemented; the tension is the paper\u2019s own.', plateX + 10, plateY + 127);
                 ctx.restore();
             }
 
