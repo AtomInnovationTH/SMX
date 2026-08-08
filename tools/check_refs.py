@@ -34,10 +34,10 @@ Acceptance (v1.0) -- this arithmetic closes exactly:
 If the art changes on purpose, update EXPECTED below in the same commit.
 If a number moves and the art did not change, the PARSER is wrong, not the repo.
 
-index.html is checked SEPARATELY: the inlined forms must have become data:
-URIs (zero `assets/<file>` literals survive, ASSET_BASE_PATH const is gone),
-and the two non-inlined forms must still resolve on disk -- the deploy
-publishes index.html + assets/, so a sprite missing from disk is a live 404.
+index.html is checked SEPARATELY: the two tiny assets must have become data:
+URIs, the heavy art (clouds via ASSET_BASE_PATH, ground, noise) must still be
+referenced by path, and every runtime form must resolve on disk -- the deploy
+publishes index.html + assets/, so a file missing from disk is a live 404.
 
 Exit 0 = clean. Exit 1 = at least one unresolved reference, orphan, or a
 parser-sanity failure. Dependency-free, deterministic (all output sorted).
@@ -57,7 +57,9 @@ ASSETS = os.path.join(ROOT, "assets")
 # falcon-9-sm.webp is shared by two entries.
 EXPECTED = {
     "literal": 4,          # grid.svg, grass.webp, noise.jpeg, character.svg
-    "clouds": 12,
+    "inlined_in_build": 2, # of those, only the tiny two are inlined: grid + character
+    "streamed_literals": ["grass.webp", "noise.jpeg"],   # stream from assets/ instead
+    "clouds": 12,          # streamed too, via the surviving ASSET_BASE_PATH const
     "landmark_entries": 79,
     "landmark_files": 78,
     "suits": 3,
@@ -180,20 +182,26 @@ def main():
                         f"{EXPECTED['total']}")
 
     # ---- index.html, separately ------------------------------------------
-    # Inlined forms became data: URIs -> zero `assets/<file>` literals survive.
+    # Only the tiny assets are inlined as data: URIs. The heavy art (clouds, ground,
+    # noise) streams from assets/, so those literals SHOULD survive -- inlining them
+    # made index.html 1.8 MB and delayed play until all of it downloaded.
     build_literals = sorted(set(LITERAL_RE.findall(build)))
-    if build_literals:
-        problems.append(f"index.html still references {len(build_literals)} "
-                        f"literal assets/ path(s) -- embed_assets.py did not "
-                        f"inline them: {', '.join(build_literals)}")
-    if "const ASSET_BASE_PATH" in build:
-        problems.append("index.html still declares ASSET_BASE_PATH -- the "
-                        "const should have been deleted after inlining")
+    unexpected = [f for f in build_literals if f not in EXPECTED["streamed_literals"]]
+    if unexpected:
+        problems.append(f"index.html references unexpected literal assets/ path(s): "
+                        f"{', '.join(unexpected)} -- expected only "
+                        f"{', '.join(EXPECTED['streamed_literals'])}")
+    absent = [f for f in EXPECTED["streamed_literals"] if f not in build_literals]
+    if absent:
+        problems.append(f"index.html lost streamed literal(s) {', '.join(absent)} -- "
+                        f"the ground/noise art would never load")
+    if "const ASSET_BASE_PATH" not in build:
+        problems.append("index.html dropped ASSET_BASE_PATH -- the streamed clouds "
+                        "reference it, so CloudSystem would throw at boot")
     data_uris = build.count("data:image/")
-    if data_uris < EXPECTED["literal"] + EXPECTED["clouds"]:
+    if data_uris != EXPECTED["inlined_in_build"]:
         problems.append(f"index.html contains {data_uris} data:image/ URIs, "
-                        f"expected at least "
-                        f"{EXPECTED['literal'] + EXPECTED['clouds']}")
+                        f"expected exactly {EXPECTED['inlined_in_build']}")
 
     # The two non-inlined forms survive in the build AND still resolve on disk.
     if "assets/${landmark.sprite}" not in build:
