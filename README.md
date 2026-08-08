@@ -6,13 +6,15 @@ The physics is his. The monkey is ours.
 
 **[Play it](https://atominnovationth.github.io/SMX/)**
 
-![Mid-climb at 4.7 km, showing the magnet stack, the paper's frequency table as a dashboard, and the power readout](screenshots/climb.png)
+![Crossing the Kármán line at 100 km: aurora, stars, the suited climber on the ribbon, and the paper's frequency table running as a dashboard](screenshots/hero.png)
 
-A ground station sends compression waves up a graphene ribbon. Your climber grips nothing: it
-pulses electro-permanent magnets to induce eddy currents in the moving film, so momentum crosses an
-air gap. Hold `SPACE` to engage. Thrust fades as your speed catches up to the wave, and the
-switching cost has to come back out of the power you skim, so you learn when to let go. Carrier
-frequency, stress budget, air gap, magnet pairs and cargo are yours to set.
+You ride a ribbon to the edge of space and never touch it.
+
+A ground station pumps waves up the ribbon. Your climber floats in the gap beside it, flicking
+magnets on and off to catch each wave as it goes past. Hold `SPACE` to catch them. The faster you
+go, the less each wave has left to give, while the magnets keep costing power, so the game is
+knowing when to hold on and when to coast. How hard the ground pumps, how tight the magnets sit and
+how much cargo you carry are yours to set.
 
 ## The paper
 
@@ -34,7 +36,7 @@ Also cited by the paper, and used here:
 * **Keith Lofstrom**, [Acoustic Wave Powered Climbers](http://www.launchloop.com/AcousticClimber).
   100-1000 Hz, 1.2-18 cm strokes, and the observation that descending climbers dump energy into
   ribbon vibrations.
-* **Zubax [FluxGrip FG40](https://fluxgrip.zubax.com/)**, the real magnet hardware, including its
+* **Zubax [FluxGrip FG40](https://fluxgrip.zubax.com/)**, the real electro-permanent magnet hardware, including its
   published force-versus-airgap curve. No affiliation.
 
 Full citations and art provenance: [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
@@ -85,6 +87,8 @@ because finding that wall is the point.
 | `R` `P` | Restart, pause |
 | `C` `M` | Colourblind palette, sound |
 
+![Climbing through cloud at 4.7 km with the magnets engaged](screenshots/climb.png)
+
 Presets, each checked against the simulation before shipping: paper baseline (6:28), Wessels
 92 Hz and 60 cm (12:29), Lofstrom 1000 Hz (stalls on 2 MW of switching, which is the lesson), max
 speed (4:53 at 1447 km/h), max payload (200 kg in 8:15).
@@ -97,8 +101,6 @@ unsolved.
 Stalling costs time and tells you why. It never ends the run. The run ends on a report card that
 puts your speed, switching loss, stroke and carrier next to the paper's own figures. Score is
 throughput: kilograms to the Kármán line per hour.
-
-![Report card comparing the run against the paper's published figures](screenshots/report-card.png)
 
 Nothing flashes above 3 Hz, `prefers-reduced-motion` is honoured, and an Okabe-Ito palette keeps
 colour from being the only signal. It needs a keyboard, so phones get a notice instead of the game.
@@ -123,10 +125,7 @@ one WebGL shader.
 
 Climbing past real landmarks toward the Kármán line is a tribute to
 ["Space Elevator" by Neal Agarwal](https://neal.fun/space-elevator/), which remains © Neal Agarwal.
-All code and art here is original. Earlier revisions did bundle his art; it was removed and purged
-from git history on 2026-08-03, so re-clone if you have an older copy. The sky shader's layer
-structure parallels that page and has not been audited line by line. Details in
-[`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
+All code and art here is original.
 
 The paper itself is not redistributed here. It carries no redistribution grant, so the game links to
 the author's copy.
