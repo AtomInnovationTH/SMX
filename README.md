@@ -1,14 +1,35 @@
 # Space Monkey Elevator 🚀🐵
 
-A monkey rides waves up a ribbon to the edge of space. Hold `SPACE` to climb, let go before your
-magnets brown out, and see how fast you can get 50 kg to the Kármán line.
+Ride a wave to the edge of space.
 
-**[Play it in your browser](https://atominnovationth.github.io/SMX/).** One key, no install.
+**[▶ Play now](https://atominnovationth.github.io/SMX/)**
 
 ![Crossing the Kármán line at 100 km: aurora, stars, the suited climber on the ribbon, and the paper's frequency table running as a dashboard](screenshots/hero.png)
 
-<sub>Under the cartoon it is a real simulation of [published research](#the-paper) on powering space
-elevator climbers with mechanical waves.</sub>
+## How to play
+
+Hold `SPACE` to catch the wave and climb. Let go before your magnets run flat, then catch it again.
+Get 50 kg to the Kármán line as fast as you can.
+
+| Key | Action |
+|---|---|
+| `SPACE` | Engage the magnets (hold) |
+| `1` `2` `3` | Sine, square or sawtooth carrier |
+| `S` | Settings: ground station, film, climber |
+| `R` `P` | Restart, pause |
+| `C` `M` | Colourblind palette, sound |
+
+![Climbing through cloud at 4.7 km with the magnets engaged](screenshots/climb.png)
+
+Stalling costs time and tells you why. It never ends the run. The run ends on a report card that
+puts your speed, switching loss, stroke and carrier next to the paper's own figures. Score is
+throughput: kilograms to the Kármán line per hour.
+
+Nothing flashes above 3 Hz, `prefers-reduced-motion` is honoured, and an Okabe-Ito palette keeps
+colour from being the only signal. It needs a keyboard, so phones get a notice instead of the game.
+That's the next thing to fix.
+
+---
 
 ## The paper
 
@@ -35,6 +56,8 @@ Also cited by the paper, and used here:
 
 Full citations and art provenance: [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
 
+---
+
 ## What's real and what isn't
 
 Exact, because you make decisions with them:
@@ -58,6 +81,8 @@ climber, mode conversion, and heat.
 Estimated rather than published, and flagged in the code: per-pair traction, gap flux, structure
 mass, air drag, battery size.
 
+---
+
 ## The default climb
 
 100 GPa graphene, 92 Hz, 1 m stroke, 30% stress budget, 9 mm² film, 0.15 mm gap, 128 magnet pairs,
@@ -71,21 +96,6 @@ paper's 4 MW budget.
 capped by `v_max`, so this film stalls above roughly 200 Hz. The slider still reaches 1000 Hz
 because finding that wall is the point.
 
-## Playing
-
-Hold `SPACE` to catch the wave. Thrust fades as you catch up to it, and the magnets cost power the
-whole time, so you grab, climb, let go, coast, and grab again.
-
-| Key | Action |
-|---|---|
-| `SPACE` | Engage the magnets (hold) |
-| `1` `2` `3` | Sine, square or sawtooth carrier |
-| `S` | Settings: ground station, film, climber |
-| `R` `P` | Restart, pause |
-| `C` `M` | Colourblind palette, sound |
-
-![Climbing through cloud at 4.7 km with the magnets engaged](screenshots/climb.png)
-
 Presets, each checked against the simulation before shipping: paper baseline (6:28), Wessels
 92 Hz and 60 cm (12:29), Lofstrom 1000 Hz (stalls on 2 MW of switching, which is the lesson), max
 speed (4:53 at 1447 km/h), max payload (200 kg in 8:15).
@@ -95,13 +105,7 @@ cap out at 45 km/h, by 20 km the stress budget is your ceiling, at 40 km the air
 climbers pass at 30 and 60 km, and at 85 km a second climber asks for power, which the paper leaves
 unsolved.
 
-Stalling costs time and tells you why. It never ends the run. The run ends on a report card that
-puts your speed, switching loss, stroke and carrier next to the paper's own figures. Score is
-throughput: kilograms to the Kármán line per hour.
-
-Nothing flashes above 3 Hz, `prefers-reduced-motion` is honoured, and an Okabe-Ito palette keeps
-colour from being the only signal. It needs a keyboard, so phones get a notice instead of the game.
-That's the next thing to fix.
+---
 
 ## Run and build
 
@@ -114,6 +118,8 @@ python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 Edit `Space_Monkey_Elevator.html`. `index.html` is generated, so rebuild and commit both. It loads
 sprites from `assets/`, so those have to be served alongside it. Contributor notes are in
 [`docs/DEVELOPERS.md`](docs/DEVELOPERS.md). Skip `docs/v1.0-roadmap.md`, its physics is out of date.
+
+---
 
 ## Credits and licence
 
