@@ -265,8 +265,10 @@
                 GEO the effective gravity <b>flips outward</b>. This game stops at Kármán; the rest is the
                 concept it points to.<br><br>
                 You flew the <b>up-climber</b>: carry cargo up, ride the beamed waves, manage EPM charge.
-                The <b>down-climber</b> — which would brake regeneratively on the way down and reinforce the
-                tether — is the next chapter.<br><br>
+                You also met two <b>descenders</b> on the way, and their energy went into the ribbon as
+                vibration (Lofstrom). Powering climbers <b>from the top</b>, with space solar or with
+                descending climbers, is one of the paper's own open ideas (p.14) &mdash; and flying one
+                is not in this game yet.<br><br>
                 The physics you just rode: Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>,
                 ISDC 2025 — <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
                 (author's page: <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">gassend.net/spaceelevator/isdc2025</a>).
@@ -294,9 +296,12 @@
         <h3>Settings (Press S to toggle)</h3>
         <div class="settings-concept">
             Your hands are <b>electro-permanent magnets (EPMs)</b>. A ground station beams
-            traveling waves up a conductive graphene seed film; <b>pulse (SPACE) at the wave's
-            peak velocity</b> to induce eddy currents and ride the wave upward &mdash; skimming
-            &lt;10% of the energy to recharge your magnets.<br><br>
+            traveling waves up a conductive graphene seed film; <b>hold SPACE</b> to engage the
+            stack and induce eddy currents in the moving film. The onboard controller does the
+            timing: it pulls only while the film is outrunning you, so you never time a pulse
+            yourself. What you watch is the trade &mdash; thrust fades as your speed closes on the
+            wave, while the switching cost stays flat, so the skim eventually stops covering it and
+            it is time to let go.<br><br>
             <b>Nothing ever touches.</b> Momentum crosses an air gap by pulsed eddy-current
             traction. That is the whole point: no wheel, no clamp, no friction to wear out.<br><br>
             <b>Why an EPM and nothing else.</b> An electromagnet burns power continuously just to
@@ -2161,9 +2166,10 @@
 
             // SIM (Stage 2 / B.11): cargo delivery mission (S10/S15/S16).
             //   - Cargo (the Weight slider, kg) is "delivered" when the climber reaches Kármán.
-            //   - Headline score = cargo_kg * altitude_km (kg·km); personal best persisted (S15).
-            //   - Cumulative delivered kg fills a "bootstrap %" meter toward BOOTSTRAP_TARGET_KG (S16),
-            //     a hook toward the future down-climber / tether-reinforcement chapter.
+            //   - Headline score is THROUGHPUT since M3.6 (throughputKgPerHour: delivered kg per
+            //     hour of climb); personal best persisted (S15).
+            //   - Cumulative delivered kg fills a "bootstrap %" meter toward BOOTSTRAP_TARGET_KG
+            //     (S16): the seed tether growing on what climbers carry up.
             static MISSION = {
                 DELIVER_ALTITUDE_M: 100000,   // Kármán Line
                 BOOTSTRAP_TARGET_KG: 5000     // cumulative kg for a full bootstrap meter
