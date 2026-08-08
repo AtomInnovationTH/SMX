@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Opt in with:  git config core.hooksPath dev/.githooks     (skip once: git commit --no-verify)
+exec env SKIP_SMOKE=1 "$(git rev-parse --show-toplevel)/dev/tools/check.sh"

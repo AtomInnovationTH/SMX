@@ -48,7 +48,7 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SOURCE = os.path.join(ROOT, "Space_Monkey_Elevator.html")
 BUILD = os.path.join(ROOT, "index.html")
 ASSETS = os.path.join(ROOT, "assets")

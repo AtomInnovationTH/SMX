@@ -36,11 +36,11 @@ config.local.js
 node_modules/
 bower_components/
 
-# Optional browser smoke test (tests/smoke/): playwright-core is installed locally and
+# Optional browser smoke test (dev/tests/smoke/): playwright-core is installed locally and
 # never committed — the repo stays zero-dependency. node_modules/ is already ignored
 # above; also ignore the local package manifests the install would create.
-tests/smoke/package.json
-tests/smoke/package-lock.json
+dev/tests/smoke/package.json
+dev/tests/smoke/package-lock.json
 /package.json
 /package-lock.json
 
@@ -71,10 +71,10 @@ temp/
 
 # Local art-generation working dir: the OUTPUTS stay local (raw renders, keyed
 # sprites, rejects, contact sheets), but the pipeline CODE is tracked — it is
-# original work, contains no credentials, and art-gen/manifest.py holds the
+# original work, contains no credentials, and dev/art-gen/manifest.py holds the
 # hand-written de-branded subject descriptions.
-art-gen/*
-!art-gen/*.py
+dev/art-gen/*
+!dev/art-gen/*.py
 
 # Local working files — art pipeline preview + agent handoff notes (never on remote)
 art-preview.html

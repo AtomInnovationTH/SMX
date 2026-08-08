@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SOURCE_HTML = join(__dirname, '..', 'Space_Monkey_Elevator.html');
+const SOURCE_HTML = join(__dirname, '..', '..', 'Space_Monkey_Elevator.html');
 
 // Pure / top-level symbols safe to expose for testing. Everything here is either a
 // pure function, a config holder, or a DOM-free class.

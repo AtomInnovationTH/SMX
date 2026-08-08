@@ -30,7 +30,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, '..', '..'); // repo root (serves index.html + assets/)
+const ROOT = path.resolve(HERE, '..', '..', '..'); // repo root (serves index.html + assets/)
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',

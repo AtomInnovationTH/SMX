@@ -110,14 +110,15 @@ unsolved.
 ## Run and build
 
 ```bash
-node --test tests/*.test.mjs   # 105 tests, no dependencies
-bash tools/check.sh            # tests, rebuild check, asset check, browser smoke
+node --test dev/tests/*.test.mjs   # 105 tests, no dependencies
+bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```
 
 Edit `Space_Monkey_Elevator.html`. `index.html` is generated, so rebuild and commit both. It loads
 sprites from `assets/`, so those have to be served alongside it. Contributor notes are in
-[`docs/DEVELOPERS.md`](docs/DEVELOPERS.md). Skip `docs/v1.0-roadmap.md`, its physics is out of date.
+[`dev/docs/DEVELOPERS.md`](dev/docs/DEVELOPERS.md). Everything a player needs is
+`index.html` plus `assets/`; the rest of the repo is the source, the tests and the build.
 
 ---
 

@@ -33,7 +33,7 @@ jobs:
           node-version: '22'
 
       - name: Run unit tests
-        run: node --test tests/*.test.mjs
+        run: node --test dev/tests/*.test.mjs
 
       - uses: actions/setup-python@v7
         with:
@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Verify asset references
-        run: python3 tools/check_refs.py
+        run: python3 dev/tools/check_refs.py
 
       - name: Assemble the published site (the game only)
         if: github.event_name != 'pull_request'
@@ -85,9 +85,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: npm --prefix tests/smoke i -D playwright-core
-      - run: npx --prefix tests/smoke playwright install --with-deps chromium
-      - run: node tests/smoke/smoke.mjs
+      - run: npm --prefix dev/tests/smoke i -D playwright-core
+      - run: npx --prefix dev/tests/smoke playwright install --with-deps chromium
+      - run: node dev/tests/smoke/smoke.mjs
 
   deploy:
     # Only deploy on pushes to main, not on PRs.

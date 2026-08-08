@@ -81,8 +81,8 @@ one place the two projects meet in code.
 All 78 landmark sprites, the 12 atmosphere clouds, and the grass ground strip in
 [`assets/`](assets) were generated with `google/gemini-3-pro-image` via
 OpenRouter, from hand-written, de-branded subject prompts that live in
-[`art-gen/manifest.py`](art-gen/manifest.py) (tracked in this repo — every
-prompt is auditable). The pipeline (`art-gen/gen.py` → `art-gen/post.py`) keys
+[`dev/art-gen/manifest.py`](dev/art-gen/manifest.py) (tracked in this repo — every
+prompt is auditable). The pipeline (`dev/art-gen/gen.py` → `dev/art-gen/post.py`) keys
 out the background, despills, trims and resizes to game dimensions.
 
 References were **not** used: the generator saw words only. The three wide hero
