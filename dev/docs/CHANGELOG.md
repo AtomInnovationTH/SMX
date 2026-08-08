@@ -13,6 +13,45 @@ Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climb
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1–M2); the illustration layer is landing now (M3).
 
+#### Added (M3.5-M3.8, August 2026)
+
+- **Descending climbers** at ~30 km and ~60 km, replacing the deleted arcade pickups.
+  They ride down past you, retarget the milestone shake and burst, leave a labelled
+  schematic ripple in the film (Lofstrom: descenders dissipate energy into ribbon
+  vibrations), and carry the paper's p.5 Descender and p.14 power-from-the-top ideas.
+- **Throughput scoring** — kg delivered to the Kármán Line per hour of climb, replacing
+  the old `cargo_kg × altitude_km`. The mission HUD shows live pace; delivery locks the
+  time.
+- **A report card at the end of a run**, comparing your speed, switching loss, ground
+  stroke and carrier against the paper's own published figures (p.2, p.4, p.6, p.11).
+- **Soft failure** — a stall costs time and explains itself on the stack plate (slip
+  collapsed near the asymptote, or the stack is overloaded). It never ends the run.
+- **Settings grouped by physical owner** (Ground station / Film / Climber) with their
+  derived readouts inline, including a new live switching readout in kW and as a
+  percentage of the paper's 4 MW budget.
+- **Five presets** as entry points instead of a slider wall: paper baseline, Wessels
+  92 Hz / 60 cm, Lofstrom 1000 Hz (a labelled stall demo), max speed, max payload. Each
+  was validated against the balance harness before shipping, and each applies through the
+  sliders' own events so no readout can show a pre-preset number.
+
+#### Changed (M3.5-M3.8, August 2026)
+
+- **Coupling quality is now thrust against the load carried** (`thrust / 2·weight`), so a
+  healthy cruise reads "good". The previous reference (sine thrust at zero slip) scored a
+  perfectly good climb as "poor", painting the border and badge red for most of a run.
+- **The discrete-grab border flash and glyph are retired.** They graded a timing game that
+  no longer exists; with SPACE held they re-armed every frame.
+- **Persistence moved to `.v2` keys**, and the unversioned `spaceMonkey.bestScore` became
+  `spaceMonkey.bestAltitude.v2` (it always stored altitude). v1 values are deleted on first
+  load rather than migrated: units and meaning both changed.
+- **`index.html` is 305 KB instead of 1799 KB.** The build no longer inlines 1.2 MB of
+  cloud art; anything over 20 KB streams from `assets/` like the landmark sprites always
+  did, so the game starts without waiting for scenery.
+- **Repo layout**: the development machinery (tests, tools, art-gen, docs, git hooks)
+  lives in `dev/`, leaving the root as the game itself. Superseded planning documents and
+  `start.sh` were deleted.
+- **README rewritten** to lead with playing the game, with the research credit below it.
+
 #### Added
 
 - **Slip coupling as the core mechanic** — mean eddy-traction thrust over a carrier

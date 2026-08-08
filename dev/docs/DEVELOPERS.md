@@ -3,9 +3,9 @@
 Current architecture and contributor workflow for **Space Monkey Elevator** — a
 cartoon-wrapped simulation of contactless climbing of a space-elevator seed tether.
 
-> The original combined design/roadmap document is archived at
-> [`docs/history/DEVELOPERS-design-doc.md`](history/DEVELOPERS-design-doc.md)
-> (historical; parts are stale). This file is the current reference.
+> This file is the current reference. The superseded design/roadmap documents that
+> used to sit in `docs/history/` were deleted in the August 2026 tidy; `git log` has
+> them if you ever need them.
 
 ---
 
@@ -21,13 +21,17 @@ The game is a single self-rendering file. There are exactly two HTML files:
 Workflow:
 
 1. Edit `Space_Monkey_Elevator.html`.
-2. Rebuild: `python3 embed_assets.py` — inlines statically-referenced assets as
-   base64 data URIs and writes `index.html`.
+2. Rebuild: `python3 embed_assets.py` — inlines only assets under
+   `MAX_INLINE_BYTES` (20 KB: the favicon and the grid) and writes `index.html`.
 3. Commit **both** files together.
 
 `embed_assets.py` does static find/replace of asset paths. The 78 landmark sprites
 are referenced via a runtime-built path (`assets/${landmark.sprite}`)
-and are **not** inlined, so `index.html` must be served alongside the
+and are **not** inlined. Neither are the clouds, the ground or the noise overlay:
+inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
+downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
+and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
+305 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -52,7 +56,7 @@ are gitignored.
   environment or `.env` — see [`.env.example`](../.env.example).
 - **`post.py`** chroma-keys / luma-alphas, despills, trims and resizes each sprite to
   2× its on-screen display width, and **rejects** output that fails its alpha gates.
-- **`tools/check_refs.py`** verifies every asset path actually resolves on disk
+- **`dev/tools/check_refs.py`** verifies every asset path actually resolves on disk
   (run after any source edit).
 
 ---
@@ -64,13 +68,13 @@ wave math, physics helpers, frame-rate-independent decay, tether/scoring helpers
 the altimeter table — without splitting the single HTML file:
 
 ```sh
-node --test tests/*.test.mjs
+node --test dev/tests/*.test.mjs
 ```
 
-[`tests/extract.mjs`](../tests/extract.mjs) slices the single inline `<script>` out of
+[`dev/tests/extract.mjs`](../tests/extract.mjs) slices the single inline `<script>` out of
 `Space_Monkey_Elevator.html`, appends a `return { … }` of the pure top-level symbols,
 and evaluates it with no-op DOM/WebGL/audio stubs (the bottom `load` handler only
-*registers* under the stub, so no game boots). [`tests/pure.test.mjs`](../tests/pure.test.mjs)
+*registers* under the stub, so no game boots). [`dev/tests/pure.test.mjs`](../tests/pure.test.mjs)
 holds the assertions. When you add a pure top-level function or class worth testing you must
 make **three** edits or the new symbol is silently `undefined` in tests: (1) add its name to
 `EXPORTED_SYMBOLS` in `extract.mjs`, (2) destructure it from the loaded module at the top of
@@ -87,28 +91,28 @@ declarations (like array consts).
 ### Optional browser smoke test
 
 The unit suite covers pure logic but cannot boot the game, render, or catch asset 404s.
-[`tests/smoke/smoke.mjs`](../tests/smoke/smoke.mjs) drives the built `index.html` in a
+[`dev/tests/smoke/smoke.mjs`](../tests/smoke/smoke.mjs) drives the built `index.html` in a
 real headless Chromium (boot, the EPM loop, landmark/cloud transform anchors, the
 single-RAF loop, focus-loss handling). It is **optional and adds no committed
 dependency**: it resolves `playwright-core` and a Chromium binary at runtime and skips
 cleanly if either is absent, so `node --test` and CI stay browser-free (it lives outside
-the `tests/*.test.mjs` glob and never runs there). To run it locally:
+the `dev/tests/*.test.mjs` glob and never runs there). To run it locally:
 
 ```sh
-npm --prefix tests/smoke i -D playwright-core
-npx --prefix tests/smoke playwright install chromium   # or set SMOKE_CHROMIUM
-node tests/smoke/smoke.mjs
+npm --prefix dev/tests/smoke i -D playwright-core
+npx --prefix dev/tests/smoke playwright install chromium   # or set SMOKE_CHROMIUM
+node dev/tests/smoke/smoke.mjs
 ```
 
 It reads live state via `window.__smokeGame`, a handle the game exposes **only** under
-`?debug`/`#debug` (inert in normal play). See [`tests/smoke/README.md`](../tests/smoke/README.md).
+`?debug`/`#debug` (inert in normal play). See [`dev/tests/smoke/README.md`](../tests/smoke/README.md).
 
 ### Local gate
 
-For a single command that reproduces the full CI gate, use `tools/check.sh`:
+For a single command that reproduces the full CI gate, use `dev/tools/check.sh`:
 
 ```sh
-bash tools/check.sh        # or: SKIP_SMOKE=1 bash tools/check.sh
+bash dev/tools/check.sh    # or: SKIP_SMOKE=1 bash dev/tools/check.sh
 ```
 
 It runs the unit tests, regenerates `index.html` from the source and **fails if it was
@@ -227,8 +231,8 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
     physics the sim does not have — taper (p.9), drag on the wave (p.7), standing-wave
     resonance (p.10) — are deliberately absent rather than faked.
-- **Governing numbers, all pinned by tests** (`tests/pure.test.mjs`,
-  `tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
+- **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
+  `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
   all to 2 s.f., and they only reproduce at the paper's ρ = 2300); `k ≈ 0.043 N/(m/s)` per
   pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; switching power
@@ -248,9 +252,34 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `f` while extraction is capped by `v_max`: above ~200 Hz this film class cannot pay for
   its own switching and the climb stalls. That trade is the point — the slider keeps the
   whole band so a player can find the wall.
-- **Scoring** (`GameConfig.MISSION`): the Weight slider is cargo; delivering it to the
-  Kármán Line scores `cargo_kg × altitude_km`, with a persisted best and a cumulative
-  "bootstrap %" meter.
+- **Scoring** (`throughputKgPerHour`, M3.6): the Weight slider is cargo, and the score is
+  **throughput — kg delivered to the Kármán Line per hour of climb** (the reference climb is
+  50 kg in 387.6 s ≈ 464 kg/h). The clock is sim time from first liftoff, locked at delivery.
+  A persisted best and the cumulative "bootstrap %" meter survive. `missionScore` (kg·km) is
+  gone; do not reintroduce an altitude-weighted score.
+- **M3.5–M3.8, the rest of the current surface**:
+  - **Descending climbers** replace the deleted arcade pickups (`_updateDescenders`,
+    `renderDescenders`). Riders spawn 150 m above the 30 km and 60 km crossings and ride
+    down at `DESCENDER_SPEED_MPS`; the pass is a **relative-sign flip**, not a one-frame
+    window (both riders move, so a `wasAbove` snapshot silently never fires). The pass
+    retargets the milestone shake/burst, kicks a labelled schematic film ripple (presentation
+    only — never in the slip integral) and queues p.5 / p.14 cards.
+  - **Coupling quality is thrust against load**: `thrustN / (2 × weightN)`, so a healthy
+    cruise reads "good". The old u = 0 sine reference read cruise as 0.37 = "poor", which is
+    why the discrete-grab **border flash and glyph are retired**. `couplingTier` /
+    `couplingColor` still feed the badge bar, the coupling particles and the stall line.
+  - **Soft failure**: 1.2 s of sustained thrust below weight sets `_stalled` and the stack
+    plate explains it in words (slip collapsed vs overloaded). A stall costs time and never
+    ends the run.
+  - **Panel groups + presets** (`PRESETS`): Ground station / Film / Climber, each with its
+    derived readouts, plus five presets that apply through the **sliders' own DOM events**
+    (never a parallel write path). Preset numbers were validated against the balance harness
+    before shipping; Lofstrom 1000 Hz is a labelled stall demo, not a bug.
+  - **Persistence is `.v2`** for every key (`spaceMonkey.bestScore` became
+    `spaceMonkey.bestAltitude.v2` — it always stored altitude). v1 keys are deleted once at
+    the top of the load handler and never migrated: units and meaning both changed.
+  - **Two shared helpers exist so displays cannot drift**: `weightN` (badge tier + stall
+    detector) and `activeFreqCells` (the p.11 dashboard + the game-over report card).
 
 ---
 
@@ -267,9 +296,18 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - The FG40 firing gradient (M3.1) is a **slowed schematic**: never exceed 3 flashes/s
   at any point (photosafety), freeze it under reduced motion, and route its colours
   through `COLOR_PALETTE` so the Okabe-Ito swap keeps working.
-- Quick sanity check before committing: run `node --test tests/*.test.mjs`, then
-  `python3 embed_assets.py` and confirm `index.html` differs from the source only by
-  inlined assets.
+- Quick sanity check before committing: `bash dev/tools/check.sh` (or
+  `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
+  and fails if the committed artifact was stale, checks asset references, and drives the
+  browser smoke suite.
+- **Current gate numbers** (keep these updated when they move): **105 unit tests**
+  (pure 91, sliders 9, balance 5), **38 pure helpers** in the delimited block,
+  **98 = 98** asset references, **18 browser smoke checks**, `index.html` **305 KB**.
+- Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
+  `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
+  and the helper-count assertion. Adding or changing a slider is five: the id list in
+  `extract.mjs`, `dev/tests/sliders.test.mjs`, a `scaleSettingValue` case, a `UI_CONFIG`
+  entry, and `initGame`'s `sliderDefaults` literal.
 
 See [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) for PR process and
 [`CHANGELOG.md`](CHANGELOG.md) for release history.

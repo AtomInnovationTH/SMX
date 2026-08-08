@@ -117,8 +117,9 @@ python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 
 Edit `Space_Monkey_Elevator.html`. `index.html` is generated, so rebuild and commit both. It loads
 sprites from `assets/`, so those have to be served alongside it. Contributor notes are in
-[`dev/docs/DEVELOPERS.md`](dev/docs/DEVELOPERS.md). Everything a player needs is
-`index.html` plus `assets/`; the rest of the repo is the source, the tests and the build.
+[`dev/docs/DEVELOPERS.md`](dev/docs/DEVELOPERS.md), and what to work on next is in
+[`dev/docs/NEXT-SHIFT.md`](dev/docs/NEXT-SHIFT.md). Everything a player needs is `index.html`
+plus `assets/`; the rest of the repo is the source, the tests and the build.
 
 ---
 
