@@ -75,6 +75,11 @@
         #settingsPanel a { color: #6bc8ff; }
         .wave-explainer { font-size: 10px; color: #cfe6f5; background: rgba(0, 90, 130, 0.18); border-radius: 4px; padding: 6px 8px; margin: 6px 0 4px; line-height: 1.4; max-width: 320px; }
         .wave-explainer b { color: #ffe08a; }
+        .preset-row { margin: 8px 0 12px; max-width: 320px; }
+        .preset-row .preset-label { color: #9bb6c9; font-size: 11px; margin-right: 4px; }
+        .preset-row button { font-size: 10px; margin: 2px 2px 2px 0; padding: 3px 7px; background: rgba(0, 90, 130, 0.35); color: #cfe6f5; border: 1px solid rgba(0, 180, 230, 0.45); border-radius: 4px; cursor: pointer; }
+        .preset-row button:hover { background: rgba(0, 130, 180, 0.5); }
+        .preset-row .setting-hint b { color: #ffe08a; }
         input[type="range"] { width: 200px; }
         
         /* Style monkey sliders brown to match monkey */
@@ -301,18 +306,17 @@
             electro-permanent magnets &mdash; no affiliation or endorsement implied.
         </div>
 
-        <h4>Tether (seed)</h4>
-        <div class="slider-container">
-            <label>Material: <span id="materialValue">100 GPa Polycrystalline Graphene</span></label>
-            <select id="material">
-                <option value="0">50 GPa Pentalayer Rhombohedral Graphene</option>
-                <option value="1" selected>100 GPa Polycrystalline Graphene</option>
-                <option value="2">130 GPa Monocrystalline Graphene</option>
-                <option value="3">150 GPa CNT (speculative)</option>
-                <option value="4">300 GPa CC-CNT (speculative)</option>
-            </select>
-            <small class="setting-hint">Carbon films by working STRENGTH — stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
+        <div class="preset-row">
+            <span class="preset-label">Presets:</span>
+            <button data-preset="paper">Paper baseline</button>
+            <button data-preset="wessels">Wessels 92 Hz · 60 cm</button>
+            <button data-preset="lofstrom">Lofstrom 1000 Hz</button>
+            <button data-preset="maxspeed">Max speed</button>
+            <button data-preset="maxpayload">Max payload</button>
+            <small class="setting-hint">Entry points, all applied through the sliders below. <b>Lofstrom 1000 Hz is the wall demo</b>: 1000 Hz × 128 pairs draws ~2 MW of switching against the paper's 4 MW wave budget — the climb stalls, and that wall is the paper's p.11 story. Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed; his 40 m wavelength implies a slower tether than this film (c = 3.7 vs 20.9 km/s), so λ comes out 227 m here.</small>
         </div>
+
+        <h4>Ground station</h4>
         <div class="slider-container">
             <label>Carrier: <span id="frequencyValue">92.0 Hz</span></label>
             <input type="range" id="frequency" min="0" max="100" step="1" value="0">
@@ -327,6 +331,32 @@
             <label>Tether stress budget: <span id="stressBudgetValue">30% of stress (9.0% of power)</span></label>
             <input type="range" id="stressBudget" min="5" max="60" step="1" value="30">
             <small class="setting-hint">Fraction of the film's working stress the wave may use: v_max = budget × strength ÷ √(Eρ). The paper's "10% of tether strength at 1000 km/h" is a share of stress-limited POWER (P ∝ σ²) — at 30% stress you use 9% of it, which is why both numbers are shown.</small>
+        </div>
+        <div class="slider-container">
+            <label>v_max: <span id="vmaxValue">— km/h</span> · stroke cap: <span id="strokeCapValue">— m</span></label>
+            <small class="setting-hint" id="waveStressValue">Wave now: —</small>
+        </div>
+        <div class="slider-container">
+            <label>Switching: <span id="switchingValue">—</span></label>
+            <small class="setting-hint">4·N·E_switch·f — flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
+        </div>
+        <div class="wave-explainer">
+            <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
+            An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
+            even with steady pulsing (efficient). A <b>square</b> wave only couples at its sharp edges (extreme skill).
+        </div>
+
+        <h4>Film</h4>
+        <div class="slider-container">
+            <label>Material: <span id="materialValue">100 GPa Polycrystalline Graphene</span></label>
+            <select id="material">
+                <option value="0">50 GPa Pentalayer Rhombohedral Graphene</option>
+                <option value="1" selected>100 GPa Polycrystalline Graphene</option>
+                <option value="2">130 GPa Monocrystalline Graphene</option>
+                <option value="3">150 GPa CNT (speculative)</option>
+                <option value="4">300 GPa CC-CNT (speculative)</option>
+            </select>
+            <small class="setting-hint">Carbon films by working STRENGTH — stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
         </div>
         <div class="slider-container">
             <label>Film width: <span id="widthValue">45 mm</span></label>
@@ -351,21 +381,8 @@
             <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">— m/s</span></label>
             <small class="setting-hint">Longitudinal (compression) wave speed, set by the material's stiffness and density — this is what your pulses couple to.</small>
         </div>
-        <div class="slider-container">
-            <label>v_max: <span id="vmaxValue">— km/h</span> · stroke cap: <span id="strokeCapValue">— m</span></label>
-            <small class="setting-hint" id="waveStressValue">Wave now: —</small>
-        </div>
-        <div class="slider-container">
-            <label>Air density: <span id="airDensityValue">100%</span> of sea level</label>
-            <small class="setting-hint">How much air is left at your altitude (US Standard Atmosphere) — the factor that scales aerodynamic drag.</small>
-        </div>
-        <div class="wave-explainer">
-            <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
-            An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
-            even with steady pulsing (efficient). A <b>square</b> wave only couples at its sharp edges (extreme skill).
-        </div>
 
-        <h4>Monkey</h4>
+        <h4>Climber</h4>
         <div class="slider-container">
             <label>FG40 pairs: <span id="nPairsValue">128 pairs</span></label>
             <input type="range" id="nPairs" min="1" max="256" step="1" value="128">
@@ -381,11 +398,6 @@
             <small class="setting-hint">The onboard controller holds the film centred between the opposed poles — automatic, not your job. What you own is the MARGIN: gap per side minus film flutter (±0.1 mm at 100 kgf pretension, shrinking as √tension). Margin ≤ 0 and the controller unloads the stack rather than scrape the film — the stack label says so on canvas too.</small>
         </div>
         <div class="slider-container">
-            <label>Gravity: <span id="gravityValue">1.00 G</span></label>
-            <input type="range" id="gravity" min="0.01" max="1" step="0.01" value="1.00">
-            <small class="setting-hint">1.00 G = 9.81 m/s². Pulls the climber down; you beat it only by coupling to the wave.</small>
-        </div>
-        <div class="slider-container">
             <label>Stack: <span id="stackValue">256 units · 5.2 m · dry 23.0 kg</span></label>
             <small class="setting-hint">2 FG40 units per opposed pair, 72 g each, plus 25% structure. Dry mass is dead weight you carry; cargo (below) is what scores.</small>
         </div>
@@ -393,6 +405,15 @@
             <label>Cargo: <span id="weightValue">50 kg</span></label>
             <input type="range" id="weight" min="0.2" max="200" step="0.2" value="50">
             <small class="setting-hint">Scored payload, kg. More cargo: more inertia (a = F/m), but cargo delivered to 100 km is your score.</small>
+        </div>
+        <div class="slider-container">
+            <label>Gravity: <span id="gravityValue">1.00 G</span></label>
+            <input type="range" id="gravity" min="0.01" max="1" step="0.01" value="1.00">
+            <small class="setting-hint">1.00 G = 9.81 m/s². Pulls the climber down; you beat it only by coupling to the wave.</small>
+        </div>
+        <div class="slider-container">
+            <label>Air density: <span id="airDensityValue">100%</span> of sea level</label>
+            <small class="setting-hint">How much air is left at your altitude (US Standard Atmosphere) — the factor that scales aerodynamic drag on the climber.</small>
         </div>
 
         <h4>Accessibility</h4>
@@ -466,6 +487,25 @@
         const DESCENDER_RIPPLE_SIGMA_M = 15;         // gaussian width along the film
         const DESCENDER_RIPPLE_AMP_PX = 7;           // schematic — comparable to A·PX_PER_M
         const DESCENDER_RIPPLE_FREQ_HZ = 2.5;
+
+        // UX (M3.7, decision 17): presets — an entry point instead of a slider wall.
+        // Each reproduces its source's own numbers where the source gives them, and each
+        // was validated against the balance harness's integrator (same step order):
+        //   paper    388 s (the shipped reference climb), wessels 749 s, maxspeed 293 s,
+        //   maxpayload 495 s — lofstrom never closes its energy loop, BY DESIGN:
+        //   1000 Hz × 128 pairs draws ~2 MW of switching against a 4 MW wave budget, so
+        //   the preset IS the high-carrier wall demo (the hint in the panel says so).
+        // Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed exactly; his 40 m
+        // wavelength implies c = 3.7 km/s, not this film's 20.9 km/s, so his λ cannot
+        // reproduce here — the panel footnote says that rather than fake it (§0).
+        // Amplitude goes last at apply time so it clamps against the final stress cap.
+        const PRESETS = [
+            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 128, airGap: 0.15, weight: 50,  gravity: 1 },
+            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 128, airGap: 0.10, weight: 50,  gravity: 1 },
+            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 128, airGap: 0.15, weight: 50,  gravity: 1 },
+            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 192, airGap: 0.15, weight: 50,  gravity: 1 },
+            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 256, airGap: 0.10, weight: 200, gravity: 1 },
+        ];
 
         // UX: game-over gate (2e)
         const GAME_OVER_MIN_ALT = 50;       // Must reach this altitude before game-over can trigger
@@ -2419,6 +2459,34 @@
                     weight: { unit: ' kg', formatter: null }
                 };
                 
+                // M3.7 (decision 17): presets — one click applies a whole configuration
+                // by setting each slider's DOM value and dispatching the SAME events the
+                // slider listeners above use. Labels, derived readouts and game state all
+                // update through the single slider path; there is no parallel write path
+                // to drift. Material first (the stress cap reads strength), then budget
+                // and carrier, amplitude LAST so it clamps against the final cap.
+                document.querySelectorAll('[data-preset]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const p = PRESETS.find((preset) => preset.id === btn.dataset.preset);
+                        if (!p) return;
+                        const fire = (id, raw, evt = 'input') => {
+                            const el = document.getElementById(id);
+                            if (el) { el.value = String(raw); el.dispatchEvent(new Event(evt)); }
+                        };
+                        fire('material', p.material, 'change');
+                        fire('stressBudget', p.stressBudget);
+                        fire('frequency', freqToLogSlider(p.hz));
+                        fire('amplitude', p.amplitude);
+                        fire('width', p.width);
+                        fire('thickness', p.thickness);
+                        fire('tension', p.tension);
+                        fire('nPairs', p.nPairs);
+                        fire('airGap', p.airGap);
+                        fire('weight', p.weight);
+                        fire('gravity', p.gravity);
+                    });
+                });
+
                 // Handle material dropdown
                 const materialElement = document.getElementById('material');
                 if (materialElement) {
@@ -3306,6 +3374,14 @@
                 if (vEl) vEl.textContent = Math.round(vMax * 3.6) + ' km/h';
                 const capEl = document.getElementById('strokeCapValue');
                 if (capEl && this.waveSystem) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this.waveSystem.frequency.toFixed(1) + ' Hz';
+                // M3.7: the ground station's own cost, inline with its controls — the
+                // switching draw is what makes the carrier a two-sided trade (and what
+                // the Lofstrom preset demonstrates).
+                const swEl = document.getElementById('switchingValue');
+                if (swEl && this.waveSystem) {
+                    const swW = switchingPowerW(this.waveSystem.frequency, this.nPairs, GameConfig.FG40.E_SWITCH_J);
+                    swEl.textContent = `${(swW / 1000).toFixed(0)} kW = ${(swW / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of the paper's 4 MW`;
+                }
                 // M3.1: centering margin = gap per side − film flutter. Margin ≤ 0 unloads
                 // the stack (flux → 0) — the panel's explanation of that state. The same
                 // flutterAmplitudeMm the physics and the balance harness use.

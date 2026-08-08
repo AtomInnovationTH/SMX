@@ -466,6 +466,30 @@ try {
     desc.ripple === true && desc.drawn >= 1 && desc.hasDescCard && desc.hasTopCard,
     JSON.stringify(desc));
 
+  // 14) M3.7: presets apply a whole configuration through the SAME slider path (DOM
+  //     events -> existing listeners -> eventBus), so labels, readouts and game state
+  //     all track one click. Wessels pins his 60 cm stroke; Lofstrom's 1000 Hz lights
+  //     the 2 MW wall on the new switching readout; Paper baseline restores 92 Hz.
+  const presets = await page.evaluate(() => {
+    const g = window.__smokeGame;
+    const click = (id) => document.querySelector(`[data-preset="${id}"]`).click();
+    const read = () => ({
+      hz: g.waveSystem.frequency, amp: g.waveSystem.amplitude, nPairs: g.nPairs, cargo: g.cargoKg,
+      sw: document.getElementById('switchingValue').textContent,
+      ampLabel: document.getElementById('amplitudeValue').textContent,
+      freqLabel: document.getElementById('frequencyValue').textContent,
+    });
+    click('wessels'); const w = read();
+    click('lofstrom'); const l = read();
+    click('paper'); const p = read();
+    return { w, l, p };
+  });
+  record('presets: Wessels 60 cm stroke, Lofstrom 2 MW wall, Paper baseline restores',
+    Math.abs(presets.w.amp - 0.6) < 1e-9 && presets.w.ampLabel.includes('0.60') &&
+    Math.abs(presets.l.hz - 1000) < 1 && presets.l.sw.includes('2048 kW') &&
+    Math.abs(presets.p.hz - 92) < 1 && presets.p.freqLabel.includes('92.0') && presets.p.sw.includes('188 kW'),
+    JSON.stringify(presets));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));
