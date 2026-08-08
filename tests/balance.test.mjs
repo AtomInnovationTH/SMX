@@ -49,7 +49,6 @@ const {
 // to the stress cap at boot.
 const DEFAULTS = {
   gravityMultiplier: 1.0,
-  dragMultiplier: 1.0,
   vineWidth: 4.5,
   vineTension: 100,
   airGapMm: 0.15,
@@ -121,7 +120,7 @@ function runClimb(dt, wallS, over = {}) {
     const th = thermalStep(monkey.altitude, thermalTier);
     thermalTier = th.tier; coldFactor = th.coldFactor;
     const prevAlt = monkey.altitude;
-    phys.applyGravityAndDrag(monkey, dt, DEFAULTS.gravityMultiplier, DEFAULTS.dragMultiplier);
+    phys.applyGravityAndDrag(monkey, dt, DEFAULTS.gravityMultiplier);
     const engaged = monkey.isGrabbing && !brownout;
     let quality = 0, thrustFrameN = 0;
     if (engaged) {

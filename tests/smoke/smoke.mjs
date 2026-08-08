@@ -448,6 +448,24 @@ try {
     beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
     JSON.stringify(beats));
 
+  // 13) M3.5: descending climbers replaced the pickups. Check 12's teleport crossed BOTH
+  //     descender trigger altitudes (30 km, 60 km), so by now each rider has spawned, been
+  //     drawn at least once, and passed the player — the pass retargets the milestone
+  //     shake/burst, kicks the schematic film ripple, and queues a beat card.
+  const desc = await page.evaluate(() => {
+    const g = window.__smokeGame;
+    const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
+    return { fired: [...g._descendersFired],
+             ripple: !!g._filmRipple,
+             drawn: g._descenderDrawnTotal || 0,
+             hasDescCard: titles.some((t) => t.includes('descending climber')),
+             hasTopCard: titles.some((t) => t.includes('power from the top')) };
+  });
+  record('descenders: 30/60 km riders spawn, render, pass — ripple + beat cards queued',
+    desc.fired.includes('desc-30') && desc.fired.includes('desc-60') &&
+    desc.ripple === true && desc.drawn >= 1 && desc.hasDescCard && desc.hasTopCard,
+    JSON.stringify(desc));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

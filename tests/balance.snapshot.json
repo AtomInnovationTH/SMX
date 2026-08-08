@@ -3,7 +3,6 @@
   "wallS": 2000,
   "defaults": {
     "gravityMultiplier": 1,
-    "dragMultiplier": 1,
     "vineWidth": 4.5,
     "vineTension": 100,
     "airGapMm": 0.15,

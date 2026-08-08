@@ -450,7 +450,24 @@
         // and freezes to a static lit state under prefers-reduced-motion.
         const STACK_SCHEMATIC_PAIRS = 8;
         const STACK_SWEEP_PERIOD_S = 0.8;
-        
+
+        // UX (M3.5, decision 19): descending climbers replace the arcade pickups. The
+        // paper supplies them — p.5 sketches a Descender, p.14 proposes "powering from
+        // the top ... with descending climbers", and Lofstrom notes descenders dissipate
+        // energy into ribbon vibrations. Two riders sweep past on the way up. The descent
+        // speed is a PRESENTATION choice inside the paper's own 200-1000 km/h operating
+        // band (the paper specifies no descender speed); the closing speed at cruise is
+        // genuinely supersonic-blur fast, so the pass is a streak plus the aftermath it
+        // dumps into the film. The ripple is a labelled schematic (never fed to the slip
+        // integral): the film's drawn displacement is otherwise real amplitude.
+        const DESCENDER_ALTITUDES_M = [30000, 60000];
+        const DESCENDER_SPEED_MPS = 200;             // 720 km/h, paper's operating band
+        const DESCENDER_LEAD_M = 150;                // spawn this far above the crossing
+        const DESCENDER_RIPPLE_DURATION_S = 2.2;     // sim time: pauses with the game
+        const DESCENDER_RIPPLE_SIGMA_M = 15;         // gaussian width along the film
+        const DESCENDER_RIPPLE_AMP_PX = 7;           // schematic — comparable to A·PX_PER_M
+        const DESCENDER_RIPPLE_FREQ_HZ = 2.5;
+
         // UX: game-over gate (2e)
         const GAME_OVER_MIN_ALT = 50;       // Must reach this altitude before game-over can trigger
         const GAME_OVER_INPUT_GATE_MS = 500; // Minimum ms before restart input accepted
@@ -520,14 +537,7 @@
             GRAB_PERFECT: '#009E73',    // Bluish green
             GRAB_GOOD: '#F0E442',       // Yellow
             GRAB_POOR: '#CC79A7',       // Reddish purple
-            GRAB_GOLD: '#E69F00',       // Orange
-            UPGRADE_ALNICO: '#D55E00',
-            UPGRADE_CARBON: '#0072B2',
-            UPGRADE_NEODYMIUM: '#F0E442',
-            UPGRADE_AERO: '#009E73',
-            UPGRADE_TITANIUM: '#C0C0C0',
-            UPGRADE_STREAMLINE: '#009E73',
-            UPGRADE_HALLBACH: '#CC79A7'
+            GRAB_GOLD: '#E69F00'        // Orange
         };
         
         // UX: runtime flags (2f) — set during init
@@ -981,10 +991,12 @@
             return GameConfig.GRAB[couplingTier(quality).toUpperCase() + '_COLOR'];
         }
 
-        // SIM: did the climber cross this upgrade's altitude since the previous frame? A
+        // SIM: did the climber cross a target altitude since the previous frame? A
         // fixed window is unsafe because one clamped 0.1 s step can advance further than the
-        // window. A crossing test is frame-size independent: the upgrade is collected the
-        // first frame the climber is at/above its altitude, having been below it last frame.
+        // window. A crossing test is frame-size independent: it fires the first frame the
+        // climber is at/above the target, having been below it last frame. Mode-neutral:
+        // named for the retired pickups (M3.5), now the event schedule's (M3.4) and the
+        // descenders' (M3.5) crossing test.
         function upgradeCrossed(prevAltitude, altitude, upgradeAltitude, collected) {
             if (collected) return false;
             return prevAltitude < upgradeAltitude && altitude >= upgradeAltitude;
@@ -1058,16 +1070,7 @@
             GRAB_GOOD: '#FFFF00',
             GRAB_POOR: '#FF0000',
             GRAB_GOLD: '#FFD700',
-            
-            // Upgrade colors
-            UPGRADE_ALNICO: '#FF6B6B',
-            UPGRADE_CARBON: '#4ECDC4',
-            UPGRADE_NEODYMIUM: '#FFD93D',
-            UPGRADE_AERO: '#95E1D3',
-            UPGRADE_TITANIUM: '#C0C0C0',
-            UPGRADE_STREAMLINE: '#6BCB77',
-            UPGRADE_HALLBACH: '#FF006E',
-            
+
             // UI colors
             UI_WHITE: '#FFF',
             UI_LIGHT_GRAY: '#CCC',
@@ -1199,13 +1202,12 @@
             { name: 'Kármán Line', altitude: 100000, info: 'Edge of space', sprite: 'vostok-1-sm.webp', width: 224, position: 'center' }
         ];
         
-        const UPGRADES_CONFIG = [
-            { type: 'carbon', altitude: 3000 },
-            { type: 'aero', altitude: 6000 },
-            { type: 'titanium', altitude: 8000 },
-            { type: 'streamline', altitude: 12000 }
-        ];
-        
+        // M3.5 (decision 19): the arcade pickups are gone — descending climbers replace
+        // them (see DESCENDER_ALTITUDES_M below and _updateDescenders). The paper supplies
+        // the replacement: p.5 sketches a Descender, p.14 proposes powering from the top
+        // with descending climbers, and Lofstrom notes descenders dissipate energy into
+        // ribbon vibrations. The 78 landmark sprites already did the pickups' pacing job.
+
         const WAVE_RENDERERS = {
             sine: (ctx, x, y, w, h) => {
                 for (let i = 0; i <= w; i += 2) {
@@ -1232,17 +1234,6 @@
                 ctx.lineTo(x + w / 2, y);
                 ctx.lineTo(x + w / 2, y + h);
                 ctx.lineTo(x + w, y);
-            }
-        };
-        
-        const SHAPE_RENDERERS = {
-            circle: (ctx, x, y, size) => ctx.arc(x, y, size, 0, Math.PI * 2),
-            square: (ctx, x, y, size) => ctx.rect(x - size, y - size, size * 2, size * 2),
-            triangle: (ctx, x, y, size) => {
-                ctx.moveTo(x, y - size);
-                ctx.lineTo(x + size, y + size);
-                ctx.lineTo(x - size, y + size);
-                ctx.closePath();
             }
         };
         
@@ -1897,55 +1888,6 @@
             }
         }
 
-        class Upgrade {
-            constructor(type, altitude, position) {
-                this.type = type;
-                this.altitude = altitude;
-                this.position = position;
-                this.collected = false;
-                this.config = this.getConfig();
-            }
-
-            getConfig() {
-                // (The alnico/neodymium/hallbach magnet ladder was retired in M2.6: an EPM
-                // is not a magnet-material ladder — Alnico + NdFeB co-exist inside every
-                // FG40 unit, and the real scaling axis is N pairs, a pre-run setting.)
-                const configs = {
-                    carbon: { name: 'Carbon Frame', weight: -10, color: COLOR_PALETTE.UPGRADE_CARBON, shape: 'square' },
-                    aero: { name: 'Aero Kit', dragMult: 0.95, color: COLOR_PALETTE.UPGRADE_AERO, shape: 'triangle' },
-                    titanium: { name: 'Titanium Frame', weight: -20, color: COLOR_PALETTE.UPGRADE_TITANIUM, shape: 'square' },
-                    streamline: { name: 'Streamline Kit', dragMult: 0.9, color: COLOR_PALETTE.UPGRADE_STREAMLINE, shape: 'triangle' }
-                };
-                return configs[this.type] || configs.carbon;
-            }
-
-            checkCollision(prevAltitude, altitude) {
-                return upgradeCrossed(prevAltitude, altitude, this.altitude, this.collected);
-            }
-
-            render(ctx, cameraY, screenWidth, screenHeight) {
-                if (this.collected) return;
-                
-                const screenY = -this.altitude * GameConfig.PHYSICS.ALTITUDE_CONVERSION - cameraY;
-                if (screenY < -100 || screenY > screenHeight + 100) return;
-                
-                ctx.save();
-                ctx.fillStyle = this.config.color;
-                ctx.strokeStyle = COLOR_PALETTE.UI_WHITE;
-                ctx.lineWidth = 2;
-                
-                const x = screenWidth / 2;
-                const y = screenY;
-                const size = 25;
-                
-                ctx.beginPath();
-                SHAPE_RENDERERS[this.config.shape](ctx, x, y, size);
-                ctx.fill();
-                ctx.stroke();
-                ctx.restore();
-            }
-        }
-
         class GameConfig {
             static MONKEY = {
                 WIDTH: 100,
@@ -2323,17 +2265,14 @@
             // so there is no "hanging" state that suspends it. (This used to take an
             // `isGrabbing` flag that suspended gravity for the retired discrete grab model;
             // the surviving caller already passed a literal `false`, so the branch was dead.)
-            applyGravityAndDrag(monkey, dt, gravityMult, dragMult) {
+            applyGravityAndDrag(monkey, dt, gravityMult) {
                 monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
                 // B.14: AERODYNAMIC drag only. Scales with air density, so it fades to nothing
                 // in the upper climb. (The magnetic braking term — the old applyEddyDrag —
                 // is gone: the §2.3 slip integral IS the eddy interaction, both traction and
-                // braking, so the two never coexist.)
-                // B.15: dragMult scales the drag LOSS, not the retention factor, so an
-                // Aero/Streamline kit REDUCES drag (it previously multiplied the retention
-                // factor, which made the kits dramatically worse -- see B.15 below).
-                const aeroLossSeaLevel = (1 - GameConfig.PHYSICS.AIR_DRAG) * dragMult;
-                const aero = 1 - aeroLossSeaLevel * densityRatio(monkey.altitude);
+                // braking, so the two never coexist. The aero-kit dragMult channel died
+                // with the pickups in M3.5 — nothing else ever wrote it below 1.0.)
+                const aero = 1 - (1 - GameConfig.PHYSICS.AIR_DRAG) * densityRatio(monkey.altitude);
                 monkey.velocityY *= frameDecay(aero, dt);
             }
 
@@ -2635,11 +2574,7 @@
                 this.cloudSystem = new CloudSystem(this.cloudsContainer);
                 this.landmarkSystem = new LandmarkSystem(this.landmarksContainer);
                 this.grassGround = document.querySelector('.grass-ground');
-                
-                this.upgrades = UPGRADES_CONFIG.map(config =>
-                    new Upgrade(config.type, config.altitude, this.canvas.width / 2)
-                );
-                
+
                 this.waveSystem = new WaveSystem('sine');
                 this.physics = new PhysicsEngine(GameConfig, this.eventBus);
                 this.camera = new Camera(GameConfig);
@@ -2647,7 +2582,6 @@
                 this.particleSystem = new ParticleSystem(GameConfig, this.eventBus, this.particlePool, this.speedLinePool);
                 
                 this.gravityMultiplier = 1.0;
-                this.dragMultiplier = 1.0;
                 this.vineWidth = 4.5;
                 this.vineTension = 100;
                 this.airGapMm = 0.15;          // FG40 working gap (M2.11 default): as tight as
@@ -2656,7 +2590,6 @@
                 this.filmThicknessMm = 0.2;    // paper: 45 mm × 0.2 mm = 9 mm² ribbon (M2.7)
                 this.cargoKg = GameConfig.MONKEY.WEIGHT;       // scored payload (M2.7)
                 this.structureMassFraction = GameConfig.FG40.STRUCTURE_MASS_FRACTION;
-                this.frameMassDeltaKg = 0;     // Carbon/Titanium frame kits reduce DRY mass
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget slider default (M2.2)
                 
@@ -3002,11 +2935,7 @@
                     velocityY: 0,
                     color: GameConfig.MONKEY.COLOR,
                     isGrabbing: false,
-                    altitude: 0,
-                    equipment: {
-                        frame: null,
-                        aero: null
-                    }
+                    altitude: 0
                 };
                 
                 this.waveSystem.time = 0;
@@ -3026,11 +2955,9 @@
                 this.filmThicknessMm = 0.2;
                 this.cargoKg = GameConfig.MONKEY.WEIGHT;
                 this.structureMassFraction = GameConfig.FG40.STRUCTURE_MASS_FRACTION;
-                this.frameMassDeltaKg = 0;
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
                 this.gravityMultiplier = 1.0;
-                this.dragMultiplier = 1.0;
 
                 // SIM (Stage 2 / B.5): EPM energy loop state (used in continuous-coupling mode)
                 this.epmCharge = GameConfig.EPM.START_CHARGE;
@@ -3099,16 +3026,18 @@
                 this._beatQueue = [];
                 this._beatCard = null;
                 this._beatCardTimer = 0;
+                // M3.5: descending climbers — per-run spawn set, active riders, and the
+                // film ripple the last pass dumped into the ribbon (Lofstrom).
+                this._descendersFired = new Set();
+                this._descenders = [];
+                this._filmRipple = null;
                 this.coyoteTimeLeft = 0;
                 this.bufferedGrab = false;
                 this.currentLandmarkName = '';
                 this.currentLandmarkAlt = 0;
                 if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'none';
                 if (this.altimeterLabel) { this.altimeterLabel.textContent = ''; this.altimeterLabel.classList.remove('visible'); }
-                
-                // Reset upgrades
-                this.upgrades.forEach(u => u.collected = false);
-                
+
                 // Reset HTML slider elements and labels to defaults
                 const sliderDefaults = {
                     frequency:  { value: 0,      label: '92.0 Hz' },
@@ -3258,21 +3187,6 @@
                 });
             }
             
-            collectUpgrade(upgrade) {
-                upgrade.collected = true;
-                const config = upgrade.config;
-                const {weight, dragMult} = config;
-                if (weight) { this.monkey.equipment.frame = upgrade.type; this.frameMassDeltaKg += weight; }
-                if (dragMult) { this.monkey.equipment.aero = upgrade.type; this.dragMultiplier *= dragMult; }
-                
-                this.particleSystem.spawnParticles(
-                    this.monkey.x + this.monkey.width / 2,
-                    this.monkey.y + this.monkey.height / 2,
-                    20,
-                    config.color
-                );
-            }
-            
             roundRect(ctx, x, y, w, h, r, fill = true) {
                 ctx.beginPath();
                 ctx.moveTo(x + r, y);
@@ -3296,12 +3210,12 @@
             }
 
             // M2.7 (decision 12): dry mass vs scored cargo. Dry = FG40 stack magnets +
-            // structure fraction, minus frame-kit reductions (the Carbon/Titanium pickups
-            // used to cut the CARGO — i.e. your score — because weight was both inertia
-            // and payload). Cargo is the slider and the score.
+            // structure fraction. Cargo is the slider and the score. (The frame-kit
+            // pickups that used to reduce dry mass died with the pickups in M3.5 — and
+            // before M2.7 they cut the CARGO, i.e. your score, because weight was both
+            // inertia and payload.)
             dryMassKg() {
-                const structureKg = Math.max(0, stackDryMassKg(this.nPairs) * this.structureMassFraction + this.frameMassDeltaKg);
-                return stackDryMassKg(this.nPairs) + structureKg;
+                return stackDryMassKg(this.nPairs) * (1 + this.structureMassFraction);
             }
             totalMassKg() { return this.dryMassKg() + this.cargoKg; }
 
@@ -3407,14 +3321,6 @@
             attemptGrab() {
                 this._firstCoupleDone = true;   // hides the first-load pulse hint (3.5)
                 this.monkey.isGrabbing = true;
-            }
-            
-            checkCollisions() {
-                this.upgrades.forEach(upgrade => {
-                    if (upgrade.checkCollision(this._lastFrameAltitude, this.monkey.altitude)) {
-                        this.collectUpgrade(upgrade);
-                    }
-                });
             }
             
             // UX: trigger milestone effect — screen shake + particle burst (2a)
@@ -3557,7 +3463,7 @@
             // Gravity ALWAYS applies; the coupling impulse fights it only while pulsing, so the
             // climb is an active energy battle. Drives the EPM charge/brownout loop.
             updateContinuous(dt) {
-                this.physics.applyGravityAndDrag(this.monkey, dt, this.gravityMultiplier, this.dragMultiplier);
+                this.physics.applyGravityAndDrag(this.monkey, dt, this.gravityMultiplier);
                 // Centering margin, computed EVERY frame whether or not the stack is
                 // engaged: the M3.1 readouts (panel line, stack label, brownout
                 // explainer) read it at rest too. flutterAmplitudeMm is the single
@@ -3659,6 +3565,55 @@
                     return `why: slip closed (u = ${u.toFixed(2)} — thrust → 0) — skim ${exKw} kW collapsed under the flat ${swKw} kW switching draw`;
                 }
                 return `why: skim ${exKw} kW < switching ${swKw} kW — extraction grows with speed; switching is flat`;
+            }
+
+            // M3.5 (decision 19): descending climbers replace the arcade pickups. One
+            // spawns DESCENDER_LEAD_M above the player as each target altitude is crossed
+            // and rides the wave DOWN at DESCENDER_SPEED_MPS. The PASS is the event: the
+            // milestone shake + particle burst retargeted to the crossing point, a
+            // schematic ripple on the film (Lofstrom: descenders dissipate energy into
+            // ribbon vibrations), and a queued beat card. Presentation only — the slip
+            // integral never sees the descender, so the balance trace cannot move.
+            _updateDescenders(dt) {
+                const prev = this._lastFrameAltitude, alt = this.monkey.altitude;
+                for (const targetAlt of DESCENDER_ALTITUDES_M) {
+                    const id = 'desc-' + (targetAlt / 1000);
+                    if (this._descendersFired.has(id)) continue;
+                    if (!upgradeCrossed(prev, alt, targetAlt, false)) continue;
+                    this._descendersFired.add(id);
+                    // relSign tracks the descender's side of the player (+1 = above).
+                    // The pass is the sign flip — the same frame-size-independent
+                    // crossing trick as upgradeCrossed, on the relative coordinate
+                    // (BOTH riders move, so a one-frame snapshot is not a crossing test).
+                    this._descenders.push({ id, targetAlt, altM: alt + DESCENDER_LEAD_M, passed: false, relSign: 1 });
+                }
+                for (const d of this._descenders) {
+                    d.altM -= DESCENDER_SPEED_MPS * dt;
+                    const sign = d.altM >= this.monkey.altitude ? 1 : -1;
+                    if (!d.passed && d.relSign > 0 && sign < 0) {
+                        d.passed = true;
+                        this.triggerMilestone('DESCENDER');   // shake + burst, retargeted
+                        this._filmRipple = { altM: d.altM, t0: this.waveSystem.time };
+                        const closeKmh = Math.round((-this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION
+                                                     + DESCENDER_SPEED_MPS) * 3.6);
+                        const card = d.targetAlt === 30000
+                            ? { title: 'a descending climber blurs past', lines: [
+                                `closing speed ≈ ${closeKmh} km/h — two climbers passing at cruise.`,
+                                'the paper sketches this rider (p.5: the Descender) — the same machinery',
+                                'as yours, riding the wave down. lofstrom: descenders dissipate energy',
+                                'into ribbon vibrations — the ripple on the film is that energy, schematic.'] }
+                            : { title: 'power from the top', lines: [
+                                `another descender, closing ≈ ${closeKmh} km/h. The paper's own answer to`,
+                                '"how to power more than one climber" (p.14): mode conversion in space, or',
+                                'power FROM THE TOP — space solar, or descenders dumping energy back into',
+                                'the ribbon. Your FG40 stack can only skim; it cannot share.'] };
+                        this._beatQueue.push(card);
+                    }
+                    d.relSign = sign;
+                }
+                // Keep riders until they are well below the player (off-screen). A rider
+                // always descends, so a hovering or falling player is still caught.
+                this._descenders = this._descenders.filter(d => d.altM >= this.monkey.altitude - 200);
             }
 
             // M3.4: the event schedule (§7) — one supervisory beat at a time, each
@@ -3791,8 +3746,7 @@
                 }
                 this.updateContinuous(dt);
                 this.physics.updatePosition(this.monkey, dt);
-                this.checkCollisions();
-                
+
                 // UX: coyote time countdown (2b) — re-grab during grace window
                 if (this.coyoteTimeLeft > 0) {
                     this.coyoteTimeLeft -= dt * 1000;
@@ -3855,9 +3809,11 @@
                     }
                 }
 
-                // M3.4: the event schedule — one supervisory beat at a time, each teaching
-                // one page of the paper, none invented. (Runs on the fresh altitude pair:
-                // _lastFrameAltitude is last frame's, monkey.altitude is this frame's.)
+                // M3.5 + M3.4: descending riders, then the event schedule — one
+                // supervisory beat at a time, each teaching one page of the paper, none
+                // invented. (Both run on the fresh altitude pair: _lastFrameAltitude is
+                // last frame's, monkey.altitude is this frame's.)
+                this._updateDescenders(dt);
                 this._updateClimbBeats(dt);
                 
                 // UX: game-over detection (2e) — fell back to ground after climbing
@@ -3893,8 +3849,8 @@
                 
                 if (this.grabFlashTimer > 0) this.grabFlashTimer -= dt;
                 
-                // Record this frame's altitude for the upgrade crossing test on the next
-                // frame. updatePosition refreshed altitude, then checkCollisions ran; saving
+                // Record this frame's altitude for the crossing tests (event schedule,
+                // descenders) on the next frame. updatePosition refreshed altitude; saving
                 // here once gives the (previous frame, this frame) pair. Note update()
                 // early-returns on game-over above — that is fine, the run is over.
                 this._lastFrameAltitude = this.monkey.altitude;
@@ -3929,10 +3885,24 @@
                 const shape = WAVE_CALCULATORS[this.waveSystem.type] || WAVE_CALCULATORS.sine;
                 for (let i = 0; i < this.wave.segments; i++) {
                     const yBase = i * baseSpacing;
-                    const phi = tetherPhaseAt(altAt(yBase), t, freq, cMps);
+                    const altHere = altAt(yBase);
+                    const phi = tetherPhaseAt(altHere, t, freq, cMps);
                     // Real longitudinal displacement, real amplitude (A ≤ ~1.08 m = ≤11 px
                     // at the stress-capped 92 Hz carrier — small and honest, not exaggerated).
-                    const y = yBase - shape.position(ampPx, phi);
+                    let y = yBase - shape.position(ampPx, phi);
+                    // M3.5: the descender's dumped energy (Lofstrom) — a LABELLED, schematic
+                    // ripple on the film around the pass altitude, decaying in sim time.
+                    // Presentation only: it never enters tetherPhaseAt or the slip integral,
+                    // and it is skipped under reduced motion like the other motion effects.
+                    if (this._filmRipple && !_uxReducedMotion) {
+                        const age = t - this._filmRipple.t0;
+                        if (age >= 0 && age < DESCENDER_RIPPLE_DURATION_S) {
+                            y -= DESCENDER_RIPPLE_AMP_PX
+                                * Math.exp(-age / 1.0)
+                                * Math.exp(-(((altHere - this._filmRipple.altM) / DESCENDER_RIPPLE_SIGMA_M) ** 2))
+                                * Math.sin(2 * Math.PI * DESCENDER_RIPPLE_FREQ_HZ * age);
+                        }
+                    }
                     if (y > height || y < 0) continue;
                     // Brightness/width track strain: compression vs rarefaction is what
                     // carries the stress. The depth of the modulation is presentation.
@@ -4104,6 +4074,42 @@
                 ctx.restore();
             }
 
+            // M3.5: the descending riders, world-anchored on the film — a compact FG40
+            // opposed stack (the same hardware, riding down). Same decision-6 schematic
+            // rule as the player's own stack: not to scale, meaning carried by the beat
+            // card. Okabe-Ito sky blue reads in both colour modes.
+            renderDescenders(ctx) {
+                if (!this._descenders.length) return;
+                const pxPerM = GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+                const cy = this.monkey.y - this.camera.getY() + this.monkey.height / 2;
+                const railDX = 34, unitW = 10, unitH = 6, pairs = 5, spanPx = 60;
+                for (const d of this._descenders) {
+                    const sy = cy - (d.altM - this.monkey.altitude) * pxPerM;
+                    if (sy < -80 || sy > this.canvas.height + 80) continue;
+                    this._descenderDrawnTotal = (this._descenderDrawnTotal || 0) + 1;
+                    ctx.save();
+                    ctx.globalAlpha = 0.9;
+                    ctx.strokeStyle = 'rgba(86, 180, 233, 0.65)';
+                    ctx.lineWidth = 2;
+                    for (const side of [-1, 1]) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.wave.x + side * railDX, sy - spanPx / 2);
+                        ctx.lineTo(this.wave.x + side * railDX, sy + spanPx / 2);
+                        ctx.stroke();
+                    }
+                    for (let j = 0; j < pairs; j++) {
+                        const uy = sy - spanPx / 2 + (spanPx / pairs) * (j + 0.5);
+                        for (const side of [-1, 1]) {
+                            ctx.fillStyle = 'rgba(20, 28, 36, 0.9)';
+                            ctx.fillRect(this.wave.x + side * railDX - unitW / 2 - 1, uy - unitH / 2 - 1, unitW + 2, unitH + 2);
+                            ctx.fillStyle = 'rgba(86, 180, 233, 0.8)';
+                            ctx.fillRect(this.wave.x + side * railDX - unitW / 2, uy - unitH / 2, unitW, unitH);
+                        }
+                    }
+                    ctx.restore();
+                }
+            }
+
             renderSpeedLines(ctx) {
                 this.particleSystem.getActiveSpeedLines().forEach(line => {
                     const screenY = line.y - this.camera.getY();
@@ -4125,12 +4131,6 @@
                     ctx.arc(p.x, screenY, p.size, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.globalAlpha = 1.0;
-                });
-            }
-            
-            renderUpgrades(ctx) {
-                this.upgrades.forEach(upgrade => {
-                    upgrade.render(ctx, this.camera.getY(), this.canvas.width, this.canvas.height);
                 });
             }
             
@@ -4246,19 +4246,6 @@
                 
                 WAVE_RENDERERS[waveType](ctx, waveX, waveY, waveWidth, waveHeight);
                 ctx.stroke();
-                
-                // Equipment icons at bottom
-                let iconX = bx + 7;
-                const iconY = by + 81;
-                if (this.monkey.equipment.frame) {
-                    ctx.fillStyle = COLOR_PALETTE.UPGRADE_CARBON;
-                    ctx.fillRect(iconX, iconY, 9, 9);
-                    iconX += 11;
-                }
-                if (this.monkey.equipment.aero) {
-                    ctx.fillStyle = COLOR_PALETTE.UPGRADE_AERO;
-                    ctx.fillRect(iconX, iconY, 9, 9);
-                }
             }
             
             renderEffects(ctx, width, height) {
@@ -4333,8 +4320,8 @@
                 this.renderGhostLine(ctx, width);
                 
                 this.renderVine(ctx, width, height);
-                
-                this.renderUpgrades(ctx);
+
+                this.renderDescenders(ctx);
                 this.renderSpeedLines(ctx);
                 this.renderParticles(ctx);
                 this.renderMonkey(ctx);

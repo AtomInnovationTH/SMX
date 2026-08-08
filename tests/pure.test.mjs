@@ -663,7 +663,8 @@ test('coldGripFactor is 1.0 when warm and capped when cold', () => {
 });
 
 // ---------------------------------------------------------------------------
-// B.14/B.15 — vacuum-correct drag & the aero-kit fix
+// B.14/B.15 — vacuum-correct drag (the aero-kit dragMult channel died with the
+// pickups in M3.5; what remains is the single density-scaled aero law)
 // ---------------------------------------------------------------------------
 test('densityRatio: 1.0 at sea level, ~2.2e6x lower at the Karman line', () => {
   approx(densityRatio(0), 1.0, 1e-12);
@@ -701,21 +702,24 @@ test('B.14 split is gone: aero drag alone is the full AIR_DRAG retention at sea 
   assert.equal(p.applyEddyDrag, undefined, 'applyEddyDrag was deleted');
   const dt = 1 / 60;
   const m = { velocityY: -1000, altitude: 0 };
-  p.applyGravityAndDrag(m, dt, 0, 1);   // gravityMult 0: isolate drag
+  p.applyGravityAndDrag(m, dt, 0);   // gravityMult 0: isolate drag
   approx(m.velocityY, -1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt), 1e-9);
 });
 
-test('B.15: an aero kit REDUCES drag, and drag vanishes with altitude', () => {
+test('B.15 / M3.5: the aero-kit dragMult channel is gone; drag vanishes with altitude', () => {
+  // The Aero/Streamline pickups were the ONLY writers of dragMult below 1.0, and M3.5
+  // deleted the pickups — so the parameter died with them rather than living on as a
+  // writer-less channel in the drag law. Pin the signature so it cannot creep back.
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const run = (dragMult, altitude) => {
+  assert.equal(p.applyGravityAndDrag.length, 3, 'applyGravityAndDrag(monkey, dt, gravityMult) — no dragMult channel');
+  const run = (altitude) => {
     const m = { velocityY: -1000, altitude };
-    p.applyGravityAndDrag(m, 1 / 60, 0, dragMult);   // gravityMult 0: isolate drag
+    p.applyGravityAndDrag(m, 1 / 60, 0);   // gravityMult 0: isolate drag
     return Math.abs(m.velocityY);
   };
-  // lower dragMult (a kit) must RETAIN more speed at sea level
-  assert.ok(run(0.855, 0) > run(1.0, 0), 'aero kits must reduce drag, not increase it');
-  // and aerodynamic drag must be negligible at 100 km
-  approx(run(1.0, 100000), 1000, 1e-3);
+  // sea-level retention is exactly AIR_DRAG, and aerodynamic drag is negligible at 100 km
+  approx(run(0), 1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, 1 / 60), 1e-9);
+  approx(run(100000), 1000, 1e-3);
 });
 
 test('updatePosition: integrates altitude only — x is untouched (no lateral axis)', () => {
