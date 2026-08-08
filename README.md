@@ -1,13 +1,14 @@
 # Space Monkey Elevator 🚀🐵
 
-**[Play it in your browser](https://atominnovationth.github.io/SMX/).** One key: hold `SPACE` and
-climb to space. Nothing to install, nothing to sign up for.
+A monkey rides waves up a ribbon to the edge of space. Hold `SPACE` to climb, let go before your
+magnets brown out, and see how fast you can get 50 kg to the Kármán line.
 
-A playable version of Blaise Gassend's ISDC 2025 paper
-[*Powering Climbers Using Mechanical Waves*](https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf).
-The physics is his. The monkey is ours.
+**[Play it in your browser](https://atominnovationth.github.io/SMX/).** One key, no install.
 
 ![Crossing the Kármán line at 100 km: aurora, stars, the suited climber on the ribbon, and the paper's frequency table running as a dashboard](screenshots/hero.png)
+
+<sub>Under the cartoon it is a real simulation of [published research](#the-paper) on powering space
+elevator climbers with mechanical waves.</sub>
 
 ## The paper
 
