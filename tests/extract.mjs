@@ -47,7 +47,7 @@ const EXPORTED_SYMBOLS = [
   'switchingPowerW',
   'slipThrustMeanN',
   'safePersistedNumber',
-  'missionScore',
+  'throughputKgPerHour',
   'bootstrapPct',
   'densityRatio',
   'atmosphereAct',

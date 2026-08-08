@@ -36,7 +36,7 @@ const {
   switchingPowerW,
   slipThrustMeanN,
   safePersistedNumber,
-  missionScore,
+  throughputKgPerHour,
   bootstrapPct,
   densityRatio,
   atmosphereAct,
@@ -232,6 +232,39 @@ test('calculateContinuousCoupling: thrust -> 0 as the climber approaches film pe
     const c = p.calculateContinuousCoupling(ws, monkey, args);
     assert.equal(c.thrustN, 0, `u=${u}: gate empty, thrust exactly 0`);
   }
+});
+
+// M3.6: display quality is thrust against 2× the load, so a healthy cruise reads
+// "good". The reference it replaced (sine thrust at u = 0) painted cruise "poor" —
+// quality ≈ 0.37 < GOOD_QUALITY 0.45 at u ≈ 0.47 — so a good climb flashed red.
+test('M3.6: quality = thrust / (2 × weight) — cruise reads good, stall reads poor', () => {
+  const p = new PhysicsEngine(GameConfig, { emit() {} });
+  const ws = new WaveSystem('sine');
+  ws.frequency = 92; ws.amplitude = 1.0;
+  const massKg = 80;
+  const weightN = massKg * (GameConfig.PHYSICS.GRAVITY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+  const vFilmPeak = ws.amplitude * ws.frequency * 2 * Math.PI;
+  // Choose kPerPair so the u = 0 thrust is exactly 4× weight: then quality(u) is
+  // exactly 2·S(u), with S the §2.3 slip factor (S(0) = 1 by construction).
+  const nPairs = 128;
+  const kPerPair = 4 * weightN * Math.PI / (nPairs * vFilmPeak);
+  const qAt = (u, gravityMult = 1) => {
+    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    return p.calculateContinuousCoupling(ws, monkey, { kPerPair, nPairs, massKg, dt: 1 / 60, gravityMult }).quality;
+  };
+  approx(qAt(0), 1, 1e-9);                        // launch: thrust 4× weight = pegged perfect
+  assert.equal(couplingTier(qAt(0)), 'perfect');
+  // The papercut point itself: u = 0.47 cruise. S(0.47) ≈ 0.375 → quality ≈ 0.75,
+  // comfortably "good" — under the old reference this exact climb read 0.375 = poor.
+  const qCruise = qAt(0.47);
+  approx(qCruise, 0.75, 0.01);
+  assert.equal(couplingTier(qCruise), 'good');
+  // The stall regime: thrust below 0.9× weight (S < 0.225, u ≳ 0.72 here) reads poor.
+  assert.equal(couplingTier(qAt(0.9)), 'poor');
+  // The gravity slider feeds the reference (heavier world = harder to impress): the
+  // same u = 0.47 cruise that read "good" at 1 g reads "poor" at 2 g.
+  approx(qAt(0.47, 2), 0.375, 0.01);
+  assert.equal(couplingTier(qAt(0.47, 2)), 'poor');
 });
 
 // §2.3 — the slip integral: the plan's headline mechanic, proven against both endpoints
@@ -611,11 +644,14 @@ test('safePersistedNumber rejects NaN/Infinity/negatives, passes valid values', 
   assert.equal(safePersistedNumber(''), 0);
 });
 
-test('missionScore = deliveredKg × delivery altitude km', () => {
-  const km = GameConfig.MISSION.DELIVER_ALTITUDE_M / 1000;
-  approx(missionScore(0), 0);
-  approx(missionScore(250), 250 * km);
-  assert.ok(missionScore(500) > missionScore(250));
+test('throughputKgPerHour = delivered kg per hour of climb (decision 11)', () => {
+  approx(throughputKgPerHour(0, 100), 0);
+  approx(throughputKgPerHour(50, 387.6), 50 * 3600 / 387.6);   // reference climb ≈ 464 kg/h
+  approx(throughputKgPerHour(250, 3600), 250);
+  assert.ok(throughputKgPerHour(500, 1000) > throughputKgPerHour(250, 1000), 'more cargo, more throughput');
+  assert.ok(throughputKgPerHour(50, 100) > throughputKgPerHour(50, 200), 'faster, more throughput');
+  approx(throughputKgPerHour(50, 0), 0);                       // no time, no rate
+  approx(throughputKgPerHour(50, -5), 0);                      // degenerate input guarded
 });
 
 test('bootstrapPct is 0-100 and saturates at the target', () => {
@@ -1095,16 +1131,16 @@ test('couplingTier: exact inclusive boundaries and tier bands', () => {
   assert.equal(couplingTier(NaN), 'poor'); // NaN >= X is false -> poor
 });
 
-test('couplingTier: glyph, flash colour and badge colour agree by construction', () => {
+test('couplingTier: badge bar, particles and stall line agree by construction', () => {
   // Every tier maps to a well-defined colour on GameConfig.GRAB; a lookup on the
-  // tier name must never be undefined. (renderEffects keys the glyph by the same
-  // tier and renderMonkey's badge bar by the same helper, so a divergence would fail.)
-  const glyph = { perfect: '\u2713', good: '\u223C', poor: '\u2717' };
+  // tier name must never be undefined. (renderMonkey's badge bar, the coupling
+  // particles and the stack plate's stall line all key off couplingColor/couplingTier,
+  // so a divergence would fail here. The discrete-grab flash + glyph were retired in
+  // M3.6 — they graded a timing game that no longer exists.)
   for (const q of [0, 0.4, 0.45, 0.7, 0.85, 0.95, 1]) {
     const tier = couplingTier(q);
-    assert.notEqual(glyph[tier], undefined, `glyph for tier ${tier} at q=${q}`);
     assert.notEqual(GameConfig.GRAB[tier.toUpperCase() + '_COLOR'], undefined,
-      `flash colour for tier ${tier} at q=${q}`);
+      `colour for tier ${tier} at q=${q}`);
   }
 });
 
@@ -1282,9 +1318,11 @@ test('cargoDeliveryCredit: bootstrap accumulates; NaN altitude is null; input no
   assert.deepEqual(input, before);
 });
 
-test('cargoDeliveryCredit composes with missionScore and bootstrapPct', () => {
+test('cargoDeliveryCredit composes with throughputKgPerHour and bootstrapPct', () => {
   const c = credit({ cargoKg: 250, bootstrapKg: 0 });
   assert.ok(c);
-  approx(missionScore(c.deliveredKg), 250 * (DELIVER_M / 1000), 1e-9);
+  // The delivery credits the kg; the climb time (tracked by the game loop) turns
+  // it into throughput. 250 kg in 20 min = 750 kg/h.
+  approx(throughputKgPerHour(c.deliveredKg, 1200), 750, 1e-9);
   assert.ok(bootstrapPct(c.bootstrapKg) > 0);
 });

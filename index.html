@@ -181,6 +181,9 @@
         .go-new-best { font-size: 18px; color: #FF6B6B; margin-bottom: 12px; }
         .go-cargo { font-size: 20px; color: #00E5FF; margin-bottom: 6px; }
         .go-bootstrap { font-size: 15px; color: #9fd4a0; margin-bottom: 14px; }
+        .go-report { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 560px; line-height: 1.6; text-align: left; font-family: monospace; }
+        .go-report b { color: #ffe08a; }
+        .go-report-key { color: #6bc8ff; display: inline-block; min-width: 74px; font-weight: bold; }
         .go-geo { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 460px; line-height: 1.5; text-align: left; }
         .go-geo b { color: #ffe08a; }
         .go-geo a { color: #6bc8ff; }
@@ -249,6 +252,7 @@
             <div class="go-best" id="go-best"></div>
             <div class="go-cargo" id="go-cargo" style="display:none;"></div>
             <div class="go-bootstrap" id="go-bootstrap" style="display:none;"></div>
+            <div class="go-report" id="go-report" style="display:none;"></div>
             <div class="go-geo" id="go-geo" style="display:none;">
                 <b>You reached the Kármán Line (100 km) — but that's only the start.</b><br>
                 A real space-elevator seed tether continues to <b>geostationary orbit (35,786 km)</b>,
@@ -544,8 +548,8 @@
         let _uxReducedMotion = false;
         let _uxColorblind = false;
 
-        // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap progress.
-        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run score (kg·km)
+        // SIM (M3.6, decision 11): throughput scoring + cumulative bootstrap progress.
+        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run throughput (kg/h)
         const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v1';  // cumulative kg delivered to Kármán
 
         // Polish (Stage 4 / 3.1): audio mute preference (audio starts MUTED per A4).
@@ -822,11 +826,13 @@
             return Number.isFinite(v) ? Math.max(0, v) : 0;
         }
 
-        // SIM (Stage 2 / B.11): mission scoring helpers — single source of truth shared by the
-        // game-over panel and the in-play mission HUD so the two displays cannot drift.
-        // Headline score (S15) = delivered cargo kg × delivery altitude km (kg·km).
-        function missionScore(deliveredKg) {
-            return deliveredKg * (GameConfig.MISSION.DELIVER_ALTITUDE_M / 1000);
+        // SIM (M3.6, decision 11): the mission score is THROUGHPUT — kg delivered to
+        // Kármán per hour of climb. It subsumes "max load, max speed" in one number
+        // (the reference climb: 50 kg in 387.6 s ≈ 464 kg/h). Single source shared by
+        // the in-play mission HUD (live pace) and the game-over report card so the two
+        // displays cannot drift. bootstrapPct survives: cumulative progress is separate.
+        function throughputKgPerHour(cargoKg, timeS) {
+            return timeS > 0 ? cargoKg * 3600 / timeS : 0;
         }
         // Cumulative bootstrap progress as a 0-100% of the target kg.
         function bootstrapPct(bootstrapKg) {
@@ -975,9 +981,11 @@
                 default:             return raw;
             }
         }
-        // UX/SIM: single source of truth for the coupling-quality tier. The flash colour,
-        // the colorblind glyph and the badge bar all derive from this, so they cannot drift
-        // apart. Pure only with respect to a fixed GameConfig (same contract as epmChargeStep).
+        // UX/SIM: single source of truth for the coupling-quality tier. The badge bar,
+        // the coupling particles and the stall line all derive from this, so they cannot
+        // drift apart. (M3.6 retired the discrete-grab border flash + glyph — see
+        // renderEffects.) Pure only with respect to a fixed GameConfig (same contract
+        // as epmChargeStep).
         function couplingTier(quality) {
             if (quality >= GameConfig.COUPLING.PERFECT_QUALITY) return 'perfect';
             if (quality >= GameConfig.COUPLING.GOOD_QUALITY) return 'good';
@@ -1950,7 +1958,6 @@
             };
             
             static GRAB = {
-                FLASH_DURATION: 0.15,
                 PERFECT_COLOR: COLOR_PALETTE.GRAB_PERFECT,
                 GOOD_COLOR: COLOR_PALETTE.GRAB_GOOD,
                 POOR_COLOR: COLOR_PALETTE.GRAB_POOR
@@ -1959,9 +1966,16 @@
             // SIM (Stage 2 / B.10): continuous-coupling presentation tunables.
             // (GAIN and RATCHET_GAIN were deleted in M2.5 — thrust is the §2.3 slip
             // integral now, a derived quantity, not a tuned force.)
+            // M3.6: the quality tiers grade thrust against the load the player is
+            // carrying — quality = thrustN / (2 × weight), so 1.0 means accelerating
+            // at better than 1 g net. The bands are then physical: perfect ⟺ thrust
+            // ≥ 1.7× weight (hard acceleration), good ⟺ climbing (a healthy cruise
+            // sits ~0.5), below that is the stall regime the soft-failure explainer
+            // names. (The pre-M3.6 reference — sine thrust at u = 0 — read that same
+            // cruise as 0.37 = "poor": a good climb looked like a failing one.)
             static COUPLING = {
-                PERFECT_QUALITY: 0.85,// thrust ratio above this reads as a perfect coupling (B.6)
-                GOOD_QUALITY: 0.45,   // above this reads as a good coupling
+                PERFECT_QUALITY: 0.85,// thrust ≥ 1.7× weight reads as a perfect coupling (B.6)
+                GOOD_QUALITY: 0.45,   // thrust ≥ 0.9× weight reads as a good coupling
                 PARTICLE_INTERVAL: 0.08, // seconds between coupling particle bursts while pulsing (throttle)
                 AUDIO_PULSE_INTERVAL: 0.16 // seconds between rhythmic pulse tones while coupling
             };
@@ -2109,7 +2123,7 @@
             static RENDER = {
                 MAX_ALTITUDE_FOR_COLOR: 10000,
                 SHADOW_BLUR: { MONKEY: 15, BADGE: 5 },
-                BORDER_WIDTH: { VINE: 3, BADGE: 1, GRAB_FLASH: 5 },
+                BORDER_WIDTH: { VINE: 3, BADGE: 1 },
                 CONTROLS_WIDTH: 180,
                 CONTROLS_HEIGHT: 70,
                 CONTROLS_OFFSET: 10,
@@ -2244,7 +2258,8 @@
             // the flash colour. There is NO speed clamp anywhere: thrust fades as slip
             // closes and v_max is approached asymptotically. massKg is the climber's TOTAL
             // mass (dry stack + cargo, M2.7) — a = F/m is the real inertia law now.
-            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt }) {
+            // gravityMult only feeds the display-quality reference (M3.6), never thrust.
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1 }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
                 // Film peak velocity in m/s (amplitude is real metres, already ≤ v_max/ω
                 // via the §2.1 stress cap). Climber speed in m/s, up-positive.
@@ -2256,9 +2271,15 @@
                     : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude, omega, phi);
                 const thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
                 const impulse = -(thrustN / Math.max(1e-9, massKg)) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
-                const fRef = kPerPair * nPairs * vFilmPeakMps / Math.PI;   // sine thrust at u = 0
-                const quality = fRef > 0 ? Math.max(0, Math.min(1, thrustN / fRef)) : 0;
-                return { impulse, thrustN, quality, flashColor: couplingColor(quality) };
+                // M3.6: display quality is thrust against the load the player actually
+                // carries — thrust / (2 × weight), so 1.0 means net acceleration ≥ 1 g.
+                // The reference it replaces (sine thrust at u = 0) read a healthy
+                // u ≈ 0.47 cruise as quality ≈ 0.37 < GOOD_QUALITY: a good climb looked
+                // like a failing one. Against 2× weight the bands are physical — see
+                // GameConfig.COUPLING.
+                const weightN = massKg * (GameConfig.PHYSICS.GRAVITY / GameConfig.PHYSICS.ALTITUDE_CONVERSION) * gravityMult;
+                const quality = weightN > 0 ? Math.max(0, Math.min(1, thrustN / (2 * weightN))) : 0;
+                return { impulse, thrustN, quality };
             }
 
             // Gravity ALWAYS applies: the climber is never mechanically attached to the film,
@@ -2984,9 +3005,19 @@
                 this._firstCoupleDone = false;
                 
                 this.running = true;
-                this.lastGrabQuality = 0;
-                this.grabFlashTimer = 0;
-                this.grabFlashColor = '';
+                this.lastGrabQuality = 0;   // live thrust-vs-load quality for the badge bar
+                // M3.6: per-run timing/speed records for the throughput score and the
+                // report card. Sim time (pauses with the game); the clock starts at
+                // first liftoff so pre-run configuration time is not charged against
+                // the player's kg/h.
+                this._runTimeS = 0;
+                this._climbStartS = null;
+                this._deliveredInS = null;
+                this._topSpeedKmh = 0;
+                // M3.6 (decision 18): soft-failure stall state (see updateContinuous).
+                this._stallTimer = 0;
+                this._stalled = false;
+                this._weightN = 0;
 
                 // Snap the camera to the fresh spawn. Without this it keeps the previous
                 // run's y (often tens of km up) and visibly swoops down to the ground on
@@ -3392,12 +3423,12 @@
                 if (bestEl) bestEl.textContent = `Best altitude: ${(this.bestAltitude / 1000).toFixed(2)} km`;
                 if (newBestEl) newBestEl.style.display = isNewBest ? 'block' : 'none';
 
-                // SIM (Stage 2 / B.11): cargo-delivery scoring + cumulative bootstrap meter.
+                // SIM (M3.6, decision 11): the score is THROUGHPUT — kg to Kármán per
+                // hour — with the persisted best. (bootstrapPct stays: cumulative
+                // progress is a separate axis.)
                 const cargoEl = document.getElementById('go-cargo');
                 const bootEl = document.getElementById('go-bootstrap');
-                // Mission score (S15): cargo kg × delivered altitude km. Only nonzero on a
-                // successful Kármán delivery; persist the personal best.
-                const score = this.cargoDelivered ? missionScore(this.deliveredKg) : 0;
+                const score = this.cargoDelivered ? throughputKgPerHour(this.deliveredKg, this._deliveredInS || 0) : 0;
                 if (score > this.cargoBest) {
                     this.cargoBest = score;
                     try { localStorage.setItem(CARGO_BEST_KEY, this.cargoBest.toString()); } catch(e) {}
@@ -3405,13 +3436,46 @@
                 if (cargoEl) {
                     cargoEl.style.display = 'block';
                     cargoEl.textContent = this.cargoDelivered
-                        ? `Mission score: ${this.deliveredKg.toFixed(1)} kg  →  ${Math.round(score)} kg·km  (best ${Math.round(this.cargoBest)})`
-                        : 'Mission score: 0 — deliver cargo to the Kármán Line (100 km)';
+                        ? `Throughput: ${Math.round(score)} kg/h to Kármán — ${this.deliveredKg.toFixed(0)} kg in ${this._fmtTime(this._deliveredInS || 0)}  (best ${Math.round(this.cargoBest)})`
+                        : 'Throughput: 0 kg/h — no delivery. A stall costs time, never the run.';
                 }
                 if (bootEl) {
                     const pct = bootstrapPct(this.bootstrapKg);
                     bootEl.style.display = 'block';
                     bootEl.textContent = `Tether bootstrap: ${this.bootstrapKg.toFixed(0)} / ${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg  (${pct.toFixed(1)}%)`;
+                }
+                // M3.6 (decision 18): the run closes on a REPORT CARD against the
+                // paper's own figures — your configuration and run record on the left,
+                // the paper's number on the right. Rows: switching loss vs the 4 MW
+                // delivery budget (p.2), speed vs the 200-1000 km/h operating band
+                // (p.6), ground stroke vs Wessels' 60 cm and Lofstrom's 1.2-18 cm
+                // (p.4), and the carrier's cell in the p.11 frequency table (the same
+                // freqDecadeColumn + FREQ_TABLE the dashboard uses).
+                const reportEl = document.getElementById('go-report');
+                if (reportEl) {
+                    const swKw = (this._switchingW || 0) / 1000;
+                    const swPct = (this._switchingW || 0) / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100;
+                    const f = this.waveSystem.frequency;
+                    const col = freqDecadeColumn(f);
+                    const cells = [];
+                    for (const row of FREQ_TABLE.rows) {
+                        for (const c of row.cells) {
+                            if (col >= c.c0 && col <= c.c1) cells.push(`${row.tag}: ${c.text}${c.text2 ? ' ' + c.text2 : ''}`);
+                        }
+                    }
+                    const rows = [];
+                    if (this.cargoDelivered) {
+                        const meanKmh = Math.round(GameConfig.MISSION.DELIVER_ALTITUDE_M / (this._deliveredInS || 1) * 3.6);
+                        rows.push(['speed', `mean ${meanKmh} km/h, top ${Math.round(this._topSpeedKmh)} km/h — the paper's operating band is 200–1000 km/h (p.6)`]);
+                    } else {
+                        rows.push(['altitude', `reached ${(this.maxAltitude / 1000).toFixed(1)} km of 100 km — top speed ${Math.round(this._topSpeedKmh)} km/h (paper's band: 200–1000 km/h, p.6)`]);
+                    }
+                    rows.push(['switching', `${swKw.toFixed(0)} kW = ${swPct.toFixed(1)}% of the paper's 4 MW delivery budget (p.2) — the EPM skim`]);
+                    rows.push(['stroke', `ground stroke ${this.waveSystem.amplitude.toFixed(2)} m — Wessels' 92 Hz design: 60 cm; Lofstrom: 1.2–18 cm at 100–1000 Hz (p.4)`]);
+                    rows.push(['carrier', `${f.toFixed(0)} Hz sits in p.11's ${FREQ_TABLE.columns[col].label} column — ${cells.join(' · ') || 'between cells (spans carry ±½ decade)'}`]);
+                    reportEl.innerHTML = '<b>report card — you vs the paper</b><br>' +
+                        rows.map(([k, v]) => `<span class="go-report-key">${k}</span> ${v}`).join('<br>');
+                    reportEl.style.display = 'block';
                 }
                 // "What's above 100 km" teaching panel — shown once the player reaches Kármán.
                 const geoEl = document.getElementById('go-geo');
@@ -3492,19 +3556,17 @@
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt });
+                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     thrustFrameN = c.thrustN;
 
                     this.lastGrabQuality = c.quality;
-                    this.grabFlashColor = c.flashColor;
-                    this.grabFlashTimer = GameConfig.GRAB.FLASH_DURATION;
                     // Throttled coupling particles for feedback (avoids a per-frame burst)
                     this._couplingParticleTimer = (this._couplingParticleTimer || 0) - dt;
                     if (this._couplingParticleTimer <= 0) {
                         this._couplingParticleTimer = GameConfig.COUPLING.PARTICLE_INTERVAL;
-                        this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.max(1, Math.floor(c.quality * 6)), c.flashColor);
+                        this.particleSystem.spawnParticles(this.monkey.x + this.monkey.width / 2, this.monkey.y + this.monkey.height / 2, Math.max(1, Math.floor(c.quality * 6)), couplingColor(c.quality));
                     }
                     // Polish (Stage 4 / 3.1): rhythmic pulse tone, pitch tracks coupling quality.
                     this._audioPulseTimer = (this._audioPulseTimer || 0) - dt;
@@ -3528,6 +3590,22 @@
                 const extractW = thrustFrameN * Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
                 this._switchingW = switchW;
                 this._extractionW = extractW;
+                // M3.6 (decision 18): soft failure. A stall — engaged, stack loaded
+                // (margin > 0, so it isn't the UNLOADED case the stack plate already
+                // names), and thrust below weight — costs TIME and explains itself on
+                // the stack plate; it never ends the run. The 1.2 s sustain filters
+                // the tiny hunting oscillation at the thrust ≈ weight cruise point,
+                // so only a real stall (overloaded, or slip collapsed near u → 1)
+                // speaks up. Brownout's "switching power exceeds extraction" case
+                // keeps its own WHY (below).
+                const weightN = this.totalMassKg() * (GameConfig.PHYSICS.GRAVITY / GameConfig.PHYSICS.ALTITUDE_CONVERSION) * this.gravityMultiplier;
+                this._weightN = weightN;
+                if (engaged && this._gapMarginMm > 0 && thrustFrameN < weightN) {
+                    this._stallTimer += dt;
+                } else {
+                    this._stallTimer = 0;
+                }
+                this._stalled = this._stallTimer > 1.2;
                 const toChargeRate = (watts) => watts / GameConfig.EPM.CAPACITY_J * GameConfig.EPM.CAPACITY;
                 const step = epmChargeStep({
                     charge: this.epmCharge, brownout: this.epmBrownout, pulsing: engaged,
@@ -3724,8 +3802,17 @@
                 // is already *dt-scaled, and the decays are now frameDecay()-normalized, so a
                 // clamped step stays stable.
                 dt = Math.min(dt, 0.1);
-                
+
                 this.waveSystem.time += dt;
+                // M3.6: run clock (sim time — pauses with the game) and the climb
+                // segment it measures for the throughput score. The clock starts at
+                // first liftoff: pre-run configuration is not charged against kg/h.
+                this._runTimeS += dt;
+                if (this._climbStartS === null && this.monkey.altitude > 0.5) {
+                    this._climbStartS = this._runTimeS;
+                }
+                const speedKmhNow = climbSpeedKmh(this.monkey.velocityY);
+                if (speedKmhNow > this._topSpeedKmh) this._topSpeedKmh = speedKmhNow;
                 this.updateThermal();
                 this.updateAirDensityReadout();
                 // M3.3 (§2.7): the two acts. Act I is drag-dominated, Act II is vacuum —
@@ -3781,6 +3868,10 @@
                     this.cargoDelivered = true;
                     this.deliveredKg = credit.deliveredKg;
                     this.bootstrapKg = credit.bootstrapKg;
+                    // M3.6: lock the climb time at delivery — the throughput score is
+                    // cargoKg / this climb time. Falling and re-delivering keeps the
+                    // first delivery's time (cargoDeliveryCredit fires once per run).
+                    this._deliveredInS = this._runTimeS - (this._climbStartS ?? this._runTimeS);
                     try { localStorage.setItem(BOOTSTRAP_KG_KEY, this.bootstrapKg.toString()); } catch(e) {}
                     this.triggerMilestone('CARGO DELIVERED');
                 }
@@ -3846,9 +3937,7 @@
                         this.grassGround.classList.remove('visible');
                     }
                 }
-                
-                if (this.grabFlashTimer > 0) this.grabFlashTimer -= dt;
-                
+
                 // Record this frame's altitude for the crossing tests (event schedule,
                 // descenders) on the next frame. updatePosition refreshed altitude; saving
                 // here once gives the (previous frame, this frame) pair. Note update()
@@ -4056,6 +4145,17 @@
                         ? { text: `centering auto · gap ±${this.airGapMm.toFixed(2)} mm · margin ${margin.toFixed(2)} mm`, col: 'rgba(190, 240, 255, 0.85)' }
                         : { text: `UNLOADED — flutter ±${this._flutterMm.toFixed(2)} mm ≥ gap ${this.airGapMm.toFixed(2)} mm: widen gap or tension up`, col: couplingColor(0) },
                 ];
+                // M3.6 (decision 18): a stall costs time and says WHY, in words, here —
+                // it never ends the run. Two physical causes: slip collapsed near u → 1
+                // (the asymptote IS the ceiling for this configuration), or thrust below
+                // weight at open slip (the stack is overloaded for this carrier/gap —
+                // reconfigure). Brownout's own WHY banner covers the energy case.
+                if (this._stalled && margin > 0) {
+                    const u = this.slipU();
+                    lines.push(u >= 0.5
+                        ? { text: `STALLED — thrust < weight: slip collapsed (u = ${u.toFixed(2)}) · this is the asymptote for this config`, col: couplingColor(0) }
+                        : { text: `STALLED — thrust < weight at open slip (u = ${u.toFixed(2)}) · lighten cargo / add pairs (S)`, col: couplingColor(0) });
+                }
                 if (engaged) {
                     const slowdown = Math.round(STACK_SWEEP_PERIOD_S * cMps / stackLenM);
                     lines.push({ text: `firing sweep slowed ×${slowdown}`, col: 'rgba(190, 240, 255, 0.65)' });
@@ -4206,9 +4306,10 @@
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.fillRect(phaseBarX, phaseBarY, phaseBarWidth, phaseBarHeight);
                 
-                // Fill bar based on grab quality. Colour comes from the same
-                // couplingTier -> GRAB.*_COLOR path the flash and glyph use, so it
-                // follows the Okabe-Ito colorblind palette and cannot drift.
+                // Fill bar based on live coupling quality (M3.6: thrust against 2× the
+                // load — see calculateContinuousCoupling). Colour comes from the single
+                // couplingTier -> GRAB.*_COLOR source, so it follows the Okabe-Ito
+                // colorblind palette and cannot drift.
                 if (this.lastGrabQuality > 0) {
                     const fillWidth = phaseBarWidth * this.lastGrabQuality;
                     const phaseColor = couplingColor(this.lastGrabQuality);
@@ -4249,24 +4350,13 @@
             }
             
             renderEffects(ctx, width, height) {
-                if (this.grabFlashTimer > 0) {
-                    ctx.strokeStyle = this.grabFlashColor;
-                    ctx.lineWidth = GameConfig.RENDER.BORDER_WIDTH.GRAB_FLASH;
-                    ctx.globalAlpha = this.grabFlashTimer / GameConfig.GRAB.FLASH_DURATION;
-                    ctx.strokeRect(5, 5, width - 10, height - 10);
-                    // Polish (Stage 4 / 3.6): colorblind coupling glyph — shape encodes quality,
-                    // so it reads without relying on the flash colour. ✓ perfect · ~ good · ✗ poor.
-                    const q = this.lastGrabQuality || 0;
-                    const glyph = { perfect: '\u2713', good: '\u223C', poor: '\u2717' }[couplingTier(q)];
-                    const gx = this.monkey.x + this.monkey.width / 2;
-                    const gy = (this.monkey.y - this.camera.getY()) - 16;
-                    ctx.fillStyle = this.grabFlashColor;
-                    ctx.font = 'bold 26px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(glyph, gx, gy);
-                    ctx.textAlign = 'left';
-                    ctx.globalAlpha = 1.0;
-                }
+                // M3.6: the border flash + glyph are retired. They graded the DISCRETE
+                // grab (did your timing land?); in the continuous model SPACE is
+                // hold-to-engage, the flash re-armed every engaged frame, and the
+                // u = 0 quality reference painted a healthy cruise red. Live coupling
+                // feedback is the badge bar (thrust vs load, couplingTier-coloured),
+                // the slip halo and the firing sweep; failure feedback is the brownout
+                // banner and the stall line on the stack plate.
                 // UX: km milestone text + current landmark hero label (2a, 2d)
                 const kmAlt = Math.floor(this.monkey.altitude / 1000);
                 const kmFrac = (this.monkey.altitude % 1000) / 1000;
@@ -4352,21 +4442,34 @@
                 ctx.restore();
             }
 
-            // SIM (Stage 2 / B.11): persistent mission HUD — surface the same cargo / mission-score
-            // and bootstrap metrics shown at game-over so the player tracks them during the climb.
+            // m:ss for the throughput readouts (HUD + report card).
+            _fmtTime(s) {
+                return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+            }
+
+            // SIM (M3.6, decision 11): persistent mission HUD — the score is THROUGHPUT,
+            // kg to Kármán per hour. Live it shows the pace projection (cargo × altitude
+            // fraction ÷ climb time — at this average speed, when do you deliver); after
+            // delivery it locks to the recorded figure and the persisted best. Bootstrap
+            // line unchanged. Band: top-left y 16/30 (claimed since M3).
             renderMissionHud(ctx, width) {
                 const cargoKg = this.cargoKg || 0;
-                // Live mission score = cargo kg × current altitude km (locks in at Kármán delivery).
-                const km = this.monkey ? this.monkey.altitude / 1000 : 0;
-                const liveScore = cargoKg * km;
                 const bootPct = bootstrapPct(this.bootstrapKg);
                 ctx.save();
                 ctx.textAlign = 'left';
                 ctx.font = 'bold 11px monospace';
                 ctx.fillStyle = this.cargoDelivered ? 'rgba(0, 229, 255, 0.95)' : 'rgba(190, 240, 255, 0.85)';
-                const scoreLabel = this.cargoDelivered
-                    ? `Mission score: ${Math.round(missionScore(this.deliveredKg))} kg·km (DELIVERED)`
-                    : `Mission: ${cargoKg.toFixed(0)} kg cargo · ${Math.round(liveScore)} kg·km so far`;
+                let scoreLabel;
+                if (this.cargoDelivered) {
+                    const kgH = throughputKgPerHour(this.deliveredKg, this._deliveredInS || 0);
+                    scoreLabel = `Delivered ${this.deliveredKg.toFixed(0)} kg in ${this._fmtTime(this._deliveredInS || 0)} — ${kgH.toFixed(0)} kg/h (best ${Math.round(this.cargoBest)})`;
+                } else if (this._climbStartS !== null && this.monkey.altitude > 0.5) {
+                    const frac = this.monkey.altitude / GameConfig.MISSION.DELIVER_ALTITUDE_M;
+                    const pace = throughputKgPerHour(cargoKg * frac, this._runTimeS - this._climbStartS);
+                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo · pace ${pace.toFixed(0)} kg/h to Kármán`;
+                } else {
+                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo — deliver it to the Kármán line (100 km)`;
+                }
                 ctx.fillText(scoreLabel, 10, 16);
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
                 ctx.font = '10px monospace';

@@ -125,7 +125,7 @@ function runClimb(dt, wallS, over = {}) {
     let quality = 0, thrustFrameN = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
-        { kPerPair, nPairs: cfg.nPairs, massKg, dt });
+        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
       thrustFrameN = c.thrustN;
