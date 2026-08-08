@@ -58,12 +58,15 @@ jobs:
         # Publish ONLY what the game needs at runtime: the built index.html and the
         # "assets/" folder (landmark sprites and suit/gauge art load from it at
         # runtime). Source, tests, docs, screenshots, and CI config stay out of the
-        # live site.
+        # live site. The one exception is social.png: the og:image / twitter:image
+        # tags in index.html point at it, so it has to exist on the published site or
+        # every shared link previews a 404.
         run: |
           rm -rf _site
           mkdir -p _site
           cp index.html _site/
           cp -R assets _site/
+          cp screenshots/climb.png _site/social.png
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
