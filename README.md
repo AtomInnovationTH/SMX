@@ -1,20 +1,13 @@
 # Space Monkey Elevator 🚀🐵
 
+**[Play it in your browser](https://atominnovationth.github.io/SMX/).** One key: hold `SPACE` and
+climb to space. Nothing to install, nothing to sign up for.
+
 A playable version of Blaise Gassend's ISDC 2025 paper
 [*Powering Climbers Using Mechanical Waves*](https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf).
 The physics is his. The monkey is ours.
 
-**[Play it](https://atominnovationth.github.io/SMX/)**
-
 ![Crossing the Kármán line at 100 km: aurora, stars, the suited climber on the ribbon, and the paper's frequency table running as a dashboard](screenshots/hero.png)
-
-You ride a ribbon to the edge of space and never touch it.
-
-A ground station pumps waves up the ribbon. Your climber floats in the gap beside it, flicking
-magnets on and off to catch each wave as it goes past. Hold `SPACE` to catch them. The faster you
-go, the less each wave has left to give, while the magnets keep costing power, so the game is
-knowing when to hold on and when to coast. How hard the ground pumps, how tight the magnets sit and
-how much cargo you carry are yours to set.
 
 ## The paper
 
@@ -78,6 +71,9 @@ capped by `v_max`, so this film stalls above roughly 200 Hz. The slider still re
 because finding that wall is the point.
 
 ## Playing
+
+Hold `SPACE` to catch the wave. Thrust fades as you catch up to it, and the magnets cost power the
+whole time, so you grab, climb, let go, coast, and grab again.
 
 | Key | Action |
 |---|---|
