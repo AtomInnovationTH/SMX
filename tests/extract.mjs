@@ -68,6 +68,8 @@ const EXPORTED_SYMBOLS = [
   'thermalStep',
   'airDensityReadout',
   'cargoDeliveryCredit',
+  'weightN',
+  'activeFreqCells',
 ];
 
 // Pull out the body of the single largest <script> block.

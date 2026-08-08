@@ -57,6 +57,8 @@ const {
   thermalStep,
   airDensityReadout,
   cargoDeliveryCredit,
+  weightN,
+  activeFreqCells,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -76,7 +78,7 @@ test('extraction exposes the core pure symbols', () => {
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
-    airDensityReadout, cargoDeliveryCredit,
+    airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -99,11 +101,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 36 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 38 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 36);
+  assert.equal(declaredPureHelpers().length, 38);
 });
 
 // ---------------------------------------------------------------------------
@@ -242,12 +244,12 @@ test('M3.6: quality = thrust / (2 × weight) — cruise reads good, stall reads 
   const ws = new WaveSystem('sine');
   ws.frequency = 92; ws.amplitude = 1.0;
   const massKg = 80;
-  const weightN = massKg * (GameConfig.PHYSICS.GRAVITY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+  const weight = weightN(massKg, 1);   // the single tier/stall reference
   const vFilmPeak = ws.amplitude * ws.frequency * 2 * Math.PI;
   // Choose kPerPair so the u = 0 thrust is exactly 4× weight: then quality(u) is
   // exactly 2·S(u), with S the §2.3 slip factor (S(0) = 1 by construction).
   const nPairs = 128;
-  const kPerPair = 4 * weightN * Math.PI / (nPairs * vFilmPeak);
+  const kPerPair = 4 * weight * Math.PI / (nPairs * vFilmPeak);
   const qAt = (u, gravityMult = 1) => {
     const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
     return p.calculateContinuousCoupling(ws, monkey, { kPerPair, nPairs, massKg, dt: 1 / 60, gravityMult }).quality;
@@ -265,6 +267,33 @@ test('M3.6: quality = thrust / (2 × weight) — cruise reads good, stall reads 
   // same u = 0.47 cruise that read "good" at 1 g reads "poor" at 2 g.
   approx(qAt(0.47, 2), 0.375, 0.01);
   assert.equal(couplingTier(qAt(0.47, 2)), 'poor');
+});
+
+// The single weight reference shared by the quality tier and the stall detector
+// (M3.6 review): 1 kg at 1 G is exactly 9.81 N, and the gravity slider scales it.
+test('weightN: mass × g, gravity-multiplier aware', () => {
+  approx(weightN(1, 1), 9.81, 1e-12);
+  approx(weightN(80, 1), 80 * GameConfig.PHYSICS.GRAVITY / GameConfig.PHYSICS.ALTITUDE_CONVERSION, 1e-9);
+  approx(weightN(80, 2), 2 * weightN(80, 1), 1e-9);
+  approx(weightN(0, 1), 0);
+});
+
+// The single p.11 cell-span rule shared by the dashboard and the report card (M3.6
+// review): the shipped 92 Hz lights the 100 Hz column (5), which must report the
+// paper's own words for every row that spans it — and the forbidden band's columns
+// must NOT claim "climber can use all power".
+test('activeFreqCells: the p.11 span rule, pinned per column', () => {
+  const tags5 = activeFreqCells(5).map(({ tag }) => tag);
+  assert.deepEqual(tags5, ['power', 'damage', 'fatigue', 'atmosphere']);
+  const cellText = (col, tag) => activeFreqCells(col).find(({ tag: t }) => t === tag)?.cell.text;
+  assert.equal(cellText(5, 'power'), 'climber can use all power');
+  assert.equal(cellText(5, 'fatigue'), 'Gigacycles per decade?');
+  // Column 2 (0.1 Hz) sits in the "climber reflects 50% of power" band: no power cell.
+  assert.equal(cellText(2, 'power'), undefined);
+  assert.equal(cellText(2, 'fatigue'), 'less fatigue concern');
+  // Membership by cell identity is what the dashboard's highlight uses.
+  const col6 = activeFreqCells(6);
+  assert.ok(col6.every(({ cell }) => 6 >= cell.c0 && 6 <= cell.c1));
 });
 
 // §2.3 — the slip integral: the plan's headline mechanic, proven against both endpoints
