@@ -464,7 +464,7 @@
         const MILESTONE_INTERVAL_M = 1000;        // Meters between distance milestones
         
         // UX: ghost line of previous best (2c)
-        const GHOST_STORAGE_KEY = 'spaceMonkey.bestRun.v1';
+        const GHOST_STORAGE_KEY = 'spaceMonkey.bestRun.v2';
 
         // UX (M3.1): FG40 sandwich schematic tunables. The firing gradient is a SLOWED
         // schematic ON PURPOSE: the real firing band crosses the stack in L/c ≈ 0.25 ms
@@ -524,7 +524,7 @@
         const RESTART_CONFIRM_MSG = 'Press R again to restart';
         
         // UX: reduced motion + colorblind settings (2f)
-        const SETTINGS_STORAGE_KEY = 'spaceMonkey.settings.v1';
+        const SETTINGS_STORAGE_KEY = 'spaceMonkey.settings.v2';
         const REDUCED_MOTION_PARALLAX_MULT = 0.5;
         
         // UX: diegetic altimeter named landmarks (2d)
@@ -589,11 +589,31 @@
         let _uxColorblind = false;
 
         // SIM (M3.6, decision 11): throughput scoring + cumulative bootstrap progress.
-        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v1';      // best single-run throughput (kg/h)
-        const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v1';  // cumulative kg delivered to Kármán
+        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v2';      // best single-run throughput (kg/h)
+        const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v2';  // cumulative kg delivered to Kármán
 
         // Polish (Stage 4 / 3.1): audio mute preference (audio starts MUTED per A4).
-        const AUDIO_MUTED_KEY = 'spaceMonkey.audioMuted.v1';
+        const AUDIO_MUTED_KEY = 'spaceMonkey.audioMuted.v2';
+
+        // M3.8: persistence migration. Every key moved to .v2, and the previously
+        // UNVERSIONED spaceMonkey.bestScore — which stored altitude despite the name —
+        // became spaceMonkey.bestAltitude.v2. v1 values are NOT migrated: units and
+        // meaning both changed across M2/M3 (the slip model's altitudes and speeds,
+        // kg·km score vs kg/h throughput), so a carried-over number would be a lie in
+        // the new units. The v1 keys are deleted once, on first v2 load (see the call
+        // at the top of the window load handler). These names are literals, not the
+        // live consts — they must stay even though nothing else references them.
+        const PERSIST_V1_KEYS = [
+            'spaceMonkey.bestScore',
+            'spaceMonkey.bestRun.v1',
+            'spaceMonkey.cargoBest.v1',
+            'spaceMonkey.bootstrapKg.v1',
+            'spaceMonkey.settings.v1',
+            'spaceMonkey.audioMuted.v1',
+        ];
+        function purgeV1Persistence() {
+            try { for (const k of PERSIST_V1_KEYS) localStorage.removeItem(k); } catch (e) {}
+        }
         
         // Store originals so we can swap back
         const _ORIGINAL_PALETTE = {};
@@ -2738,8 +2758,9 @@
                 this.airDensityLabel = document.getElementById('airDensityValue');
                 
                 // UX: load persisted best altitude + ghost (2c). Clamp on read (F9).
+                // (M3.8: the key is now honestly named — it always stored altitude.)
                 try {
-                    this.bestAltitude = safePersistedNumber(localStorage.getItem('spaceMonkey.bestScore'));
+                    this.bestAltitude = safePersistedNumber(localStorage.getItem('spaceMonkey.bestAltitude.v2'));
                     this.ghostBestAltitude = safePersistedNumber(localStorage.getItem(GHOST_STORAGE_KEY));
                 } catch(e) {}
 
@@ -3483,7 +3504,7 @@
                 if (isNewBest) {
                     this.bestAltitude = currentAltitude;
                     try {
-                        localStorage.setItem('spaceMonkey.bestScore', this.bestAltitude.toString());
+                        localStorage.setItem('spaceMonkey.bestAltitude.v2', this.bestAltitude.toString());
                         localStorage.setItem(GHOST_STORAGE_KEY, this.bestAltitude.toString());
                     } catch(e) {}
                     this.ghostBestAltitude = this.bestAltitude;
@@ -4896,6 +4917,8 @@
         }
         
         window.addEventListener('load', () => {
+            // M3.8: first v2 load deletes the v1 keys (no migration — see PERSIST_V1_KEYS).
+            purgeV1Persistence();
             // UX: detect reduced-motion preference (2f)
             _uxReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             

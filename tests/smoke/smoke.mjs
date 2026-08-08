@@ -490,6 +490,31 @@ try {
     Math.abs(presets.p.hz - 92) < 1 && presets.p.freqLabel.includes('92.0') && presets.p.sw.includes('188 kW'),
     JSON.stringify(presets));
 
+  // 15) M3.8: every persistence key moved to .v2 (bestScore -> bestAltitude.v2 — it
+  //     always stored altitude). v1 values are NOT migrated (units and meaning both
+  //     changed); they are deleted on first v2 load. Seed the v1 keys, reload, and
+  //     assert they are gone and nothing carried over.
+  await page.evaluate(() => {
+    for (const k of ['spaceMonkey.bestScore', 'spaceMonkey.bestRun.v1', 'spaceMonkey.cargoBest.v1',
+                     'spaceMonkey.bootstrapKg.v1', 'spaceMonkey.settings.v1', 'spaceMonkey.audioMuted.v1']) {
+      localStorage.setItem(k, '12345');
+    }
+  });
+  await page.reload({ waitUntil: 'load' });
+  // __smokeGame is exposed in the constructor, BEFORE the first frame — wait on the
+  // render handle, not just the game object.
+  await page.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._stackSweepPos === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const migrated = await page.evaluate(() => ({
+    v1Left: ['spaceMonkey.bestScore', 'spaceMonkey.bestRun.v1', 'spaceMonkey.cargoBest.v1',
+             'spaceMonkey.bootstrapKg.v1', 'spaceMonkey.settings.v1', 'spaceMonkey.audioMuted.v1']
+            .filter((k) => localStorage.getItem(k) !== null),
+    bestAlt: window.__smokeGame.bestAltitude,   // must NOT inherit the seeded 12345
+  }));
+  record('persistence: v1 keys purged on first v2 load, values not migrated',
+    migrated.v1Left.length === 0 && migrated.bestAlt === 0, JSON.stringify(migrated));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));
