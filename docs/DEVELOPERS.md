@@ -138,11 +138,17 @@ Rough top-to-bottom structure of `Space_Monkey_Elevator.html`:
 - **`GameConfig`** — central tuning: `PHYSICS`, `GRAB`, `COUPLING`, `EPM`, `TETHER`,
   `MISSION`, `RENDER`, `CAMERA`, particle/speed-line configs.
 - **Data tables** — `WAVE_CALCULATORS`, `LANDMARKS_DATA`, `UPGRADES_CONFIG`,
-  altimeter landmarks, colour palette.
+  `FREQ_TABLE` (the paper's p.11 grid), altimeter landmarks, colour palette.
 - **Systems** — `WebGLBackground`, `CloudSystem`, `LandmarkSystem`, `WaveSystem`,
   `PhysicsEngine`, `ObjectPool`, `ParticleSystem`, `InputManager`, `AudioManager`.
 - **`SpaceMonkeyGame`** — the orchestrator: state, settings event handlers, input,
   `update(dt)`, `render()`, scoring/persistence, overlays.
+
+`render()` composites in a fixed order; the HUD passes own disjoint screen bands, so
+anything new has to claim its own (top-left: mission 16–30, thermal 44–85, act plate
+86–118; top-centre: landmark pill ≈48, shared toast ≈100, beat cards from 130, brownout
+banner 26–70; mid-screen: act-break banner; bottom-centre: the p.11 dashboard, 640×132,
+which stays clear of the controls box down to 1024 px wide).
 
 ---
 
@@ -186,12 +192,49 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   engage/release **rhythm is emergent, not scripted**. Ambient trickle recovers a latched
   brownout in `BROWNOUT_RECOVER / TRICKLE` = 5 s. The gauge shows switching kW, the share
   of the paper's 4 MW budget, and live extraction.
+- **What the player sees (M3 illustration layer)** — presentation only; none of it feeds
+  back into the physics:
+  - **The FG40 sandwich** (`renderFg40Stack`): 8 schematic opposed pairs flanking the
+    film, drawn always (dim at rest), on a **fixed** span — a real-scale stack is 26–105 px
+    next to a 240 px sprite that is itself not to scale, so the drawing is schematic and
+    the label carries the true pair count and length. While engaged the units light in a
+    **travelling** sequence: the direction is physical (`stackPhaseOffset` < 0 ⇒ upper
+    units lag the up-travelling carrier ⇒ the band sweeps bottom→top), the **rate is a
+    slowed schematic** (the real band crosses the stack in ≈0.25 ms). The gradient scrolls
+    at `1/STACK_SWEEP_PERIOD_S` = 1.25 Hz per point — never above 3 flashes/s — and
+    freezes to a static lit state under `prefers-reduced-motion`.
+  - **The readouts that explain the model**: `slip u` on the gauge (the quantity that
+    explains why thrust fades), the **centering margin** (gap per side − film flutter,
+    from the shared `flutterAmplitudeMm`) on the panel and the stack plate — reading
+    `UNLOADED` in words when flutter fills the gap — and the **brownout reason** captured
+    at trip time (unloaded stack / slip closure at `u ≥ 0.8` / low-speed extraction
+    deficit).
+  - **The paper's p.11 table as the dashboard** (`renderFreqTable`, `FREQ_TABLE`,
+    `freqDecadeColumn`): seven decade columns with the paper's wavelengths and consequence
+    rows in the paper's own words, the ~0.01–1 Hz band shaded (the climber reflects 50 % of
+    power there), and the carrier's live position marked with its decade column lit. Cell
+    spans are read off the paper's layout (±½ decade) and the plate's footnote says so,
+    including the p.3-vs-p.11 tension it does not paper over.
+  - **Two acts** (`atmosphereAct`): Act I (0–40 km) is drag-dominated, Act II is vacuum —
+    the boundary is read off the same `densityRatio` the drag model uses. The crossing
+    fires a plated banner, a chime, and a milestone burst once per run, and the persistent
+    act/air line shows the drag readout collapsing.
+  - **The event schedule** (`_updateClimbBeats`): plated, queued teaching cards at ~12 km
+    (a transverse wave would be dead here — p.7's 45 km/h, 20 kW cap, against the player's
+    live speed), ~20 km (air thinning; the stress-budget lever), ~70 km (gigacycle fatigue,
+    only when the carrier sits in the paper's top decade), ~85 km (a second climber
+    requests power — the paper's own open question, p.14). Crossings reuse the pure
+    `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
+    physics the sim does not have — taper (p.9), drag on the wave (p.7), standing-wave
+    resonance (p.10) — are deliberately absent rather than faked.
 - **Governing numbers, all pinned by tests** (`tests/pure.test.mjs`,
   `tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
   all to 2 s.f., and they only reproduce at the paper's ρ = 2300); `k ≈ 0.043 N/(m/s)` per
-  pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; 266 kW switching =
-  6.7% of 4 MW; and the balance harness's **target bands** (100 km in 240–480 s, mean
+  pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; switching power
+  **266 kW = 6.7 % of 4 MW at §2.5's reference config** (260 Hz × 64 pairs) and
+  **188 kW = 4.7 % at the shipped defaults** (92 Hz × 128 pairs); and the balance harness's
+  **target bands** (100 km in 240–480 s, mean
   900–1300 km/h, terminal speed < `v_max`, brownout episodes 2–8 s).
 - **Units chain** (`GameConfig.TETHER`): the tether carries a **longitudinal** (compression)
   wave, so its speed is `v = √(E/ρ)` from Young's modulus and density — a material constant

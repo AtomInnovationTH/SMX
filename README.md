@@ -7,7 +7,7 @@
 <!-- TODO: replace with a 10–15s gameplay GIF when one is available -->
 ![Space Monkey Elevator — falling back to Earth](screenshots/falling.png)
 
-You play an up-climber riding a graphene space-elevator seed tether from sea level to the Kármán Line (100 km). A ground station beams **longitudinal (compression) waves** up the tether, and the monkey's hands are **electro-permanent magnets (EPMs)** that *pulse* to couple to them — no physical contact. Tap `SPACE` in time with the wave's peak velocity to gain upward momentum while regeneratively powering your magnets.
+You play an up-climber riding a graphene space-elevator seed tether from sea level to the Kármán Line (100 km). A ground station beams **longitudinal (compression) waves** up the tether, and the climber's coupling stack is an array of **electro-permanent magnets (EPMs)** that pulse to induce eddy currents in the moving film — no physical contact. Hold `SPACE` to engage the stack: its onboard controller gates each cycle so it only pulls while the film is outrunning you, and the switching energy has to come back out of the power you skim. Your job is the **supervisory** one — carrier, stress budget, air gap, pairs, cargo — and letting go before the energy loop browns out.
 
 ---
 
@@ -57,7 +57,7 @@ Three ways to play:
 
 | Key | Action |
 |---|---|
-| `Space` | Pulse your EPM hands to couple to the wave (hold to keep pulsing; time it to the wave's peak velocity) |
+| `Space` | Engage the EPM stack (hold — the onboard controller gates each cycle; thrust fades as your speed closes on the wave) |
 | `R` | Restart run |
 | `S` | Toggle settings panel |
 | `C` | Toggle Okabe-Ito colorblind palette |
@@ -70,12 +70,17 @@ Three ways to play:
 
 ## Features
 
+- **The FG40 sandwich, drawn** — a schematic stack of opposed magnet pairs flanking the film, firing in a travelling sequence up the stack while engaged (slowed and labelled; never a strobe, and frozen under `prefers-reduced-motion`)
+- **The paper's frequency table as a live dashboard** — the seven decades of Gassend's p.11 grid, with your carrier's position marked, its consequences lit, and the band where a climber reflects half the power shaded
+- **Two acts** — the atmosphere fights the wave to ~40 km, then the vacuum threshold lands as the run's biggest beat and the drag readout collapses
+- **Teaching beats along the climb** — at ~12 km a transverse wave would already be dead (45 km/h, 20 kW); at ~20 km the stress budget becomes your ceiling; at ~85 km a second climber asks for power and the paper's own answer is *unsolved*
+- **Readouts that explain the physics** — slip ratio `u` (why thrust fades), the centering margin your pretension eats, and a brownout that tells you in words why switching outran extraction
 - **Milestone shake + particles** triggered when the player crosses a milestone altitude
 - **Named landmarks** along the climb — Burj Khalifa → Mt. Everest → Kármán Line → ISS Orbit
 - **Ghost-line PB tracker** — best altitude persisted in `localStorage` and drawn as a horizontal target line
 - **Coyote time + input buffering** (`COYOTE_MS` / `BUFFER_MS` in [`Space_Monkey_Elevator.html`](Space_Monkey_Elevator.html)) so near-miss pulses still feel fair
 - **One-button restart** (`R`) with a clear game-over state
-- **`prefers-reduced-motion`** honored — camera shake and particle bursts are suppressed automatically
+- **`prefers-reduced-motion`** honored — camera shake, particle bursts and the stack's firing sweep are suppressed automatically
 - **Okabe-Ito colorblind palette** toggle (`C`) — coupling quality is no longer colour-only
 
 ---
@@ -133,4 +138,4 @@ This regenerates [`index.html`](index.html) by inlining the statically-reference
 
 ---
 
-> ℹ️ **Project status: feature-complete.** The game is done and deploys automatically to GitHub Pages on every green push to `main`. It is not under active feature development, so issues and PRs may not receive responses — forks are welcome (see [CONTRIBUTING.md](.github/CONTRIBUTING.md)).
+> ℹ️ **Project status: under active development.** The game deploys automatically to GitHub Pages on every green push to `main`. It is being reworked to illustrate live research faithfully — the coupling model, the readouts and the climb's structure all change as that work lands — so treat the published build as a moving target. Issues and PRs are welcome and may take a while; forks are welcome too (see [CONTRIBUTING.md](.github/CONTRIBUTING.md)).

@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Simulation-fidelity rework (in progress)
+
+Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
+Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
+hardware. Physics landed first (M1–M2); the illustration layer is landing now (M3).
+
+#### Added
+
+- **Slip coupling as the core mechanic** — mean eddy-traction thrust over a carrier
+  cycle, closed-form for a sine carrier and integrated numerically for band-limited
+  square/sawtooth. `v_max` is an **asymptote**: thrust fades as the climber's speed
+  closes on the film, and there is no speed clamp anywhere in the code.
+- **A real hardware chain** — air gap → pole flux via FG40's published
+  force-vs-airgap curve → per-pair traction coefficient → × N pairs, with pretension
+  setting film flutter and flutter eating the gap's centering margin.
+- **An energy loop with teeth** — engaging costs `4·N·E_switch·f` switching watts (flat
+  in duty cycle) and regenerates from extracted mechanical power, so the engage/release
+  rhythm is emergent rather than scripted, and a brownout means switching outran
+  extraction.
+- **Stress budget → speed ceiling** — wave stress sets `v_max` from material strength;
+  the amplitude slider is clamped to `v_max/ω` and reports the stroke actually in use.
+- **The FG40 sandwich, drawn** — a schematic stack of opposed pairs flanking the film,
+  firing in a travelling sequence whose direction is physical and whose rate is a
+  slowed schematic (never above 3 flashes/s, frozen under `prefers-reduced-motion`).
+- **The paper's p.11 frequency table as a live dashboard** — seven decades, the
+  consequence rows in the paper's words, the ~0.01–1 Hz reflection band shaded, and the
+  carrier's live position with its decade column lit.
+- **Two acts and a vacuum threshold** — Act I is drag-dominated, Act II is vacuum; the
+  ~40 km crossing gets a banner, a chime and a collapsing air-density readout.
+- **Teaching beats along the climb** — ~12 km (a transverse wave would be dead here),
+  ~20 km (the stress budget becomes the ceiling), ~70 km (gigacycle fatigue, only on a
+  hot carrier), ~85 km (a second climber asks for power — the paper's open question).
+- **Readouts that explain the model** — slip ratio `u`, the centering margin, and a
+  brownout that states its cause in words.
+- **Test instruments** — a balance-trace harness with target bands and a committed
+  advisory snapshot, and the paper's slide-6 impedance/power table as a regression
+  fixture (it only reproduces at the paper's ρ = 2300).
+
+#### Changed
+
+- **The carrier is a real frequency** (92–1000 Hz, default 92 Hz): switching watts grow
+  with `f` while extraction is capped by `v_max`, so this film class stalls above
+  ~200 Hz — that wall is the paper's story, kept playable on purpose.
+- **The grip slider became the real air gap** (0.1–5 mm, default 0.15 mm).
+- **N pairs is the scaling axis** for the coupling stack (default 128), replacing the
+  magnet-tier ladder; mass now splits into derived dry mass and scored cargo.
+- **Default material** is the strongest non-speculative rung (100 GPa); stronger
+  entries are labelled speculative.
+
+#### Removed
+
+- The invented tuning terms the old arcade model leaned on: altitude attenuation,
+  material damping, coupling/ratchet gain constants, the eddy-drag speed ceiling,
+  weight and momentum multipliers, the magnet-tier pickups and grip multiplier, and
+  the time-only wave API.
+
 ### Fixed
 
 - **Shift 7 defect sweep** — a broad audit of the settings panel, rendering,
