@@ -515,6 +515,146 @@ try {
   record('persistence: v1 keys purged on first v2 load, values not migrated',
     migrated.v1Left.length === 0 && migrated.bestAlt === 0, JSON.stringify(migrated));
 
+  // 16) Shift 9, touch play. A phone used to get "requires a keyboard" instead of the
+  //     game. Boot a real touch viewport (390x844) and check the whole path: the game
+  //     boots, the notice stays hidden, the copy stops naming a key that is not there,
+  //     and the bottom HUD band collapses to the compact plate.
+  const touchCtx = await browser.newContext({
+    hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 },
+  });
+  const tPage = await touchCtx.newPage();
+  const tErrors = [];
+  tPage.on('pageerror', (e) => tErrors.push('pageerror: ' + e.message));
+  tPage.on('console', (m) => { if (m.type() === 'error' && !/WebGL/i.test(m.text())) tErrors.push('console: ' + m.text()); });
+  await tPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await tPage.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._stackSweepPos === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const touchBoot = await tPage.evaluate(() => ({
+    notice: getComputedStyle(document.getElementById('mobile-notice')).display,
+    touchClass: document.body.classList.contains('touch-play'),
+    panelWord: document.getElementById('grab-input-word').textContent,
+    heading: document.getElementById('settings-heading').textContent,
+    compact: window.__smokeGame._compactHud,
+    booted: !!window.__smokeGame.monkey,
+  }));
+  record('touch: a phone viewport boots the game (no keyboard notice), copy follows the device',
+    touchBoot.booted === true && touchBoot.notice === 'none' && touchBoot.touchClass === true &&
+    !/SPACE/i.test(touchBoot.panelWord) && !/Press S/i.test(touchBoot.heading) &&
+    touchBoot.compact === true,
+    JSON.stringify(touchBoot));
+
+  // 17) Hold anywhere IS the button: a press on the play surface engages the stack and the
+  //     lift releases it — the same input:grab event SPACE emits, no second input path.
+  await tPage.evaluate(() => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true; g.monkey.isGrabbing = false;
+  });
+  await tPage.mouse.move(195, 520);
+  await tPage.mouse.down();
+  await tPage.waitForTimeout(120);
+  const holdOn = await tPage.evaluate(() => window.__smokeGame.monkey.isGrabbing);
+  await tPage.mouse.up();
+  await tPage.waitForTimeout(120);
+  const holdOff = await tPage.evaluate(() => window.__smokeGame.monkey.isGrabbing);
+  //     ...and a second finger must not be able to release the first: the handler tracks
+  //     pointer ids in a Set precisely because a boolean would drop the hold here.
+  const multi = await tPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.monkey.isGrabbing = false;
+    const fire = (type, pointerId) => window.dispatchEvent(new PointerEvent(type, {
+      pointerId, pointerType: 'touch', bubbles: true, cancelable: true, isPrimary: pointerId === 1,
+    }));
+    fire('pointerdown', 1);
+    fire('pointerdown', 2);
+    await new Promise((r) => setTimeout(r, 40));
+    const both = g.monkey.isGrabbing;
+    fire('pointerup', 1);
+    await new Promise((r) => setTimeout(r, 40));
+    const afterOneLift = g.monkey.isGrabbing;
+    fire('pointerup', 2);
+    await new Promise((r) => setTimeout(r, 40));
+    return { both, afterOneLift, afterBothLift: g.monkey.isGrabbing };
+  });
+  record('touch: hold anywhere engages, lift releases, second finger cannot steal the release',
+    holdOn === true && holdOff === false &&
+    multi.both === true && multi.afterOneLift === true && multi.afterBothLift === false,
+    JSON.stringify({ holdOn, holdOff, multi }));
+
+  // 18) Chrome is not the play surface. Tapping the gear must open Settings WITHOUT
+  //     engaging the stack (otherwise every settings visit is also a pulse), the panel has
+  //     to be reachable at phone width, and it has to be closable — S is a key that is not
+  //     there, so the close button is the only way out.
+  const panelTouch = await tPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.monkey.isGrabbing = false;
+    document.getElementById('settingsPanel').classList.remove('visible');
+    return { closeDisplay: getComputedStyle(document.getElementById('settings-close')).display };
+  });
+  const gearRect = await tPage.evaluate(() => {
+    const r = document.getElementById('ux-settings-btn').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
+  });
+  await tPage.touchscreen.tap(gearRect.x, gearRect.y);
+  await tPage.waitForTimeout(120);
+  const afterGearTap = await tPage.evaluate(() => ({
+    visible: document.getElementById('settingsPanel').classList.contains('visible'),
+    grab: window.__smokeGame.monkey.isGrabbing,
+    // The panel fills a phone viewport and scrolls, instead of overflowing off-screen.
+    fits: document.getElementById('settingsPanel').getBoundingClientRect().width <= innerWidth,
+  }));
+  await tPage.touchscreen.tap(
+    (await tPage.evaluate(() => { const r = document.getElementById('settings-close').getBoundingClientRect(); return r.x + r.width / 2; })),
+    (await tPage.evaluate(() => { const r = document.getElementById('settings-close').getBoundingClientRect(); return r.y + r.height / 2; })));
+  await tPage.waitForTimeout(120);
+  const afterClose = await tPage.evaluate(() => ({
+    visible: document.getElementById('settingsPanel').classList.contains('visible'),
+    grab: window.__smokeGame.monkey.isGrabbing,
+  }));
+  record('touch: gear/close taps drive Settings without engaging the stack; panel fits the phone',
+    panelTouch.closeDisplay === 'block' && gearRect.w >= 44 && gearRect.h >= 44 &&
+    afterGearTap.visible === true && afterGearTap.grab === false && afterGearTap.fits === true &&
+    afterClose.visible === false && afterClose.grab === false,
+    JSON.stringify({ panelTouch, gearRect, afterGearTap, afterClose }));
+  record('touch: no console/page errors on the phone viewport', tErrors.length === 0, tErrors.slice(0, 6).join(' | '));
+  await touchCtx.close();
+
+  // 19) Shift 9, instrument levels. The DEFAULT is minimal: a visitor lands on the climb,
+  //     not on four HUD blocks plus a 640 px frequency table. H cycles minimal -> full ->
+  //     off, and ?clean boots straight to off for captures (every instrument is drawn on
+  //     the canvas, so no CSS could hide it). The stack keeps rendering at every level —
+  //     it is the vehicle, not a readout.
+  const desktopHud = await page.evaluate(() => window.__smokeGame._hudLevelDrawn);
+  const cleanCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const cPage = await cleanCtx.newPage();
+  await cPage.goto(`${BASE}/index.html?debug&clean`, { waitUntil: 'load' });
+  await cPage.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._hudLevelDrawn === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const clean = await cPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    const press = async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+      await new Promise((r) => setTimeout(r, 120));
+      return g._hudLevelDrawn;
+    };
+    await new Promise((r) => setTimeout(r, 120));
+    const onLoad = g._hudLevelDrawn;                 // ?clean -> off (2)
+    const gearHidden = getComputedStyle(document.getElementById('ux-settings-btn')).display;
+    const after1 = await press();                    // -> minimal (0)
+    const gearBack = getComputedStyle(document.getElementById('ux-settings-btn')).display;
+    const after2 = await press();                    // -> full (1)
+    const after3 = await press();                    // -> off (2)
+    return { onLoad, after1, after2, after3, gearHidden, gearBack, pairs: g._stackDrawnPairs };
+  });
+  record('instruments: minimal by default, H cycles minimal/full/off, ?clean starts off',
+    desktopHud === 0 && clean.onLoad === 2 && clean.after1 === 0 && clean.after2 === 1 &&
+    clean.after3 === 2 && clean.gearHidden === 'none' && clean.gearBack !== 'none' &&
+    clean.pairs === 8,
+    JSON.stringify({ desktopHud, clean }));
+  await cleanCtx.close();
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

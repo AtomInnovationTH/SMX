@@ -59,6 +59,17 @@ const {
   cargoDeliveryCredit,
   weightN,
   activeFreqCells,
+  grabHintText,
+  nextHudLevel,
+  hudLevelToast,
+  HUD_MINIMAL,
+  HUD_FULL,
+  HUD_OFF,
+  compactHudLayout,
+  clampPlateX,
+  viewportTooSmall,
+  cleanModeRequested,
+  COMPACT_HUD_MAX_W,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -79,6 +90,7 @@ test('extraction exposes the core pure symbols', () => {
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
+    grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -101,11 +113,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 38 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 45 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 38);
+  assert.equal(declaredPureHelpers().length, 45);
 });
 
 // ---------------------------------------------------------------------------
@@ -1354,4 +1366,107 @@ test('cargoDeliveryCredit composes with throughputKgPerHour and bootstrapPct', (
   // it into throughput. 250 kg in 20 min = 750 kg/h.
   approx(throughputKgPerHour(c.deliveredKg, 1200), 750, 1e-9);
   assert.ok(bootstrapPct(c.bootstrapKg) > 0);
+});
+
+// ---------------------------------------------------------------------------
+// Touch play + small screens (shift 9). The game takes exactly ONE input, so a
+// phone gets a hold-anywhere surface rather than a control scheme — and the copy
+// and the layout have to follow the device that is actually there.
+// ---------------------------------------------------------------------------
+test('grabHintText never names SPACE on a touch device', () => {
+  for (const compact of [false, true]) {
+    const touch = grabHintText(true, compact);
+    assert.ok(!/SPACE/i.test(touch), `touch hint must not mention SPACE: ${touch}`);
+    assert.ok(touch.startsWith('Hold anywhere'), touch);
+    assert.ok(grabHintText(false, compact).startsWith('Press SPACE'));
+  }
+});
+
+test('grabHintText: the compact form is shorter and both forms say "the wave"', () => {
+  for (const touch of [false, true]) {
+    const full = grabHintText(touch, false);
+    const compact = grabHintText(touch, true);
+    assert.ok(compact.length < full.length, `${compact} should be shorter than ${full}`);
+    // At 15px monospace (renderFirstHint) a character is ~9 px, so the compact form
+    // has to stay inside a 360 px phone viewport with room to spare.
+    assert.ok(compact.length * 9 < 360, `${compact} is too wide for a phone`);
+    for (const s of [full, compact]) assert.ok(s.endsWith('catch the wave'), s);
+  }
+});
+
+test('compactHudLayout switches exactly at the dashboard clearance width', () => {
+  // The p.11 dashboard is a fixed 640 px plate and the controls box owns the
+  // bottom-left 180 px + 10 px offset: (1024 - 640) / 2 = 192 is the first width at
+  // which they clear each other, which is why the boundary is 1024 and not a
+  // rounder number.
+  assert.equal(COMPACT_HUD_MAX_W, 1024);
+  assert.equal(compactHudLayout(1024), false);
+  assert.equal(compactHudLayout(1023), true);
+  assert.equal(compactHudLayout(390), true);   // iPhone portrait
+  assert.equal(compactHudLayout(844), true);   // iPhone landscape
+  assert.equal(compactHudLayout(1280), false); // desktop
+  assert.ok((COMPACT_HUD_MAX_W - 640) / 2 > 180 + 10);
+});
+
+test('clampPlateX keeps a plate inside the viewport, left edge winning when it cannot fit', () => {
+  // Fits where it was asked to sit.
+  assert.equal(clampPlateX(300, 200, 1280), 300);
+  // Runs off the right: pulled back to the margin.
+  assert.equal(clampPlateX(1200, 200, 1280), 1280 - 200 - 6);
+  // Asked for a negative x: pushed in to the margin.
+  assert.equal(clampPlateX(-50, 200, 1280), 6);
+  // Wider than the viewport (a long UNLOADED line on a phone): the LEFT edge wins,
+  // so the start of the sentence is the part that survives.
+  assert.equal(clampPlateX(120, 500, 390), 6);
+  // Custom margin honoured.
+  assert.equal(clampPlateX(999, 100, 400, 20), 400 - 100 - 20);
+});
+
+test('viewportTooSmall passes every real phone and only rejects the unplaceable', () => {
+  // Real devices, portrait and landscape, must all boot the game.
+  for (const [w, h] of [[320, 568], [360, 640], [390, 844], [844, 390], [412, 915], [768, 1024]]) {
+    assert.equal(viewportTooSmall(w, h), false, `${w}x${h} must be supported`);
+  }
+  assert.equal(viewportTooSmall(299, 800), true);
+  assert.equal(viewportTooSmall(800, 379), true);
+});
+
+test('cleanModeRequested: ?clean / #clean on, clean=0 and lookalikes off', () => {
+  assert.equal(cleanModeRequested('?clean', ''), true);
+  assert.equal(cleanModeRequested('?debug&clean', ''), true);
+  assert.equal(cleanModeRequested('?clean&debug', ''), true);
+  assert.equal(cleanModeRequested('?clean=1', ''), true);
+  assert.equal(cleanModeRequested('', '#clean'), true);
+  assert.equal(cleanModeRequested('?debug', '#clean'), true);
+  assert.equal(cleanModeRequested('', ''), false);
+  assert.equal(cleanModeRequested('?debug', ''), false);
+  assert.equal(cleanModeRequested('?clean=0', ''), false);
+  assert.equal(cleanModeRequested('?cleanup', ''), false);
+  assert.equal(cleanModeRequested('?x=clean', ''), false);
+  // Missing/odd inputs must not throw — it runs once, at load, before anything else.
+  assert.equal(cleanModeRequested(undefined, undefined), false);
+  assert.equal(cleanModeRequested(null, null), false);
+});
+
+test('nextHudLevel cycles minimal -> full -> off -> minimal, and minimal is the default', () => {
+  // The DEFAULT is the point of the change: a visitor lands on the climb, not on four
+  // HUD blocks and a 640 px frequency table. Full detail is one keypress away.
+  assert.equal(HUD_MINIMAL, 0);
+  assert.equal(nextHudLevel(HUD_MINIMAL), HUD_FULL);
+  assert.equal(nextHudLevel(HUD_FULL), HUD_OFF);
+  assert.equal(nextHudLevel(HUD_OFF), HUD_MINIMAL);
+  // Three presses always come home, from any level.
+  for (const start of [HUD_MINIMAL, HUD_FULL, HUD_OFF]) {
+    assert.equal(nextHudLevel(nextHudLevel(nextHudLevel(start))), start);
+  }
+});
+
+test('hudLevelToast names the key that brings the instruments back', () => {
+  // Minimal and off must both advertise H, or folded-away instruments look deleted.
+  for (const level of [HUD_MINIMAL, HUD_OFF]) {
+    assert.match(hudLevelToast(level), /\bH\b/, hudLevelToast(level));
+  }
+  assert.match(hudLevelToast(HUD_MINIMAL), /minimal/i);
+  assert.match(hudLevelToast(HUD_FULL), /readouts/i);
+  assert.match(hudLevelToast(HUD_OFF), /hidden/i);
 });

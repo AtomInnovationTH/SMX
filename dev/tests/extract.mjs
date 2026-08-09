@@ -70,6 +70,17 @@ const EXPORTED_SYMBOLS = [
   'cargoDeliveryCredit',
   'weightN',
   'activeFreqCells',
+  'grabHintText',
+  'nextHudLevel',
+  'hudLevelToast',
+  'HUD_MINIMAL',
+  'HUD_FULL',
+  'HUD_OFF',
+  'compactHudLayout',
+  'clampPlateX',
+  'viewportTooSmall',
+  'cleanModeRequested',
+  'COMPACT_HUD_MAX_W',
 ];
 
 // Pull out the body of the single largest <script> block.

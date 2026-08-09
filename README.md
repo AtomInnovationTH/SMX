@@ -4,30 +4,31 @@ Ride a wave to the edge of space.
 
 **[▶ Play now](https://atominnovationth.github.io/SMX/)**
 
-![Crossing the Kármán line at 100 km: aurora, stars, the suited climber on the ribbon, and the paper's frequency table running as a dashboard](screenshots/hero.png)
+![The monkey climbing its ribbon past a hot air balloon in a blue sky, both hands on the film](screenshots/hero.png)
 
 ## How to play
 
-Hold `SPACE` to catch the wave and climb. Let go before your magnets run flat, then catch it again.
-Get 50 kg to the Kármán line as fast as you can.
+Hold `SPACE` — or hold anywhere on a touchscreen — to catch the wave and climb. Let go before your
+magnets run flat, then catch it again. Get 50 kg to the Kármán line as fast as you can.
 
 | Key | Action |
 |---|---|
-| `SPACE` | Engage the magnets (hold) |
+| `SPACE` / hold anywhere | Engage the magnets (hold) |
 | `1` `2` `3` | Sine, square or sawtooth carrier |
 | `S` | Settings: ground station, film, climber |
 | `R` `P` | Restart, pause |
+| `H` | Instruments: minimal, all readouts, none |
 | `C` `M` | Colourblind palette, sound |
 
-![Climbing through cloud at 4.7 km with the magnets engaged](screenshots/climb.png)
+![Climbing past a bald eagle at 340 m with the magnets engaged](screenshots/climb.png)
 
 Stalling costs time and tells you why. It never ends the run. The run ends on a report card that
 puts your speed, switching loss, stroke and carrier next to the paper's own figures. Score is
 throughput: kilograms to the Kármán line per hour.
 
 Nothing flashes above 3 Hz, `prefers-reduced-motion` is honoured, and an Okabe-Ito palette keeps
-colour from being the only signal. It needs a keyboard, so phones get a notice instead of the game.
-That's the next thing to fix.
+colour from being the only signal. It plays on a phone: the game takes exactly one input, so the
+whole screen is the button — hold anywhere.
 
 ---
 
