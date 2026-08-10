@@ -4106,20 +4106,26 @@
             // in fast and out slow (never a flash), static under reduced motion. Clear
             // of the landmark pill (~48), the brownout banner (~70) and the act-break
             // banner (mid-screen).
+            //
+            // At the minimal level only the TITLE is drawn. The body of a card is two or
+            // three lines of paper citation, and ambushing a new player with a paragraph
+            // mid-climb is what made this game read as homework. The title still tells you
+            // something happened and what it was; H opens the rest.
             renderClimbBeat(ctx, width) {
-                if (!this._beatCard) return;
+                if (!this._beatCard || _uxHudLevel === HUD_OFF) return;
                 const t = this._beatCardTimer;   // 7 -> 0
                 const alpha = _uxReducedMotion ? 0.95
                     : Math.max(0, Math.min(0.95, (7 - t) / 0.3, t / 0.8));
                 const card = this._beatCard;
+                const lines = _uxHudLevel === HUD_FULL ? card.lines : [];
                 ctx.save();
                 ctx.textAlign = 'center';
                 let plateW = 0;
                 ctx.font = 'bold 14px monospace';
                 plateW = Math.max(plateW, ctx.measureText(card.title).width);
                 ctx.font = '11px monospace';
-                for (const s of card.lines) plateW = Math.max(plateW, ctx.measureText(s).width);
-                const plateH = 22 + card.lines.length * 17;
+                for (const s of lines) plateW = Math.max(plateW, ctx.measureText(s).width);
+                const plateH = 22 + lines.length * 17;
                 const py = 130;   // below the landmark pill (~48) and the shared toast (~100)
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
@@ -4129,7 +4135,7 @@
                 ctx.fillText(card.title, width / 2, py + 20);
                 ctx.font = '11px monospace';
                 ctx.fillStyle = 'rgba(235, 242, 248, 0.95)';
-                card.lines.forEach((s, i) => ctx.fillText(s, width / 2, py + 37 + i * 17));
+                lines.forEach((s, i) => ctx.fillText(s, width / 2, py + 37 + i * 17));
                 ctx.restore();
             }
 
@@ -5202,18 +5208,26 @@
                 // paper's 4 MW wave budget, and live extraction (F_mean · v_climber).
                 // Right-aligned at the screen edge: centred on the bar, these lines
                 // ran off-canvas on the right.
-                ctx.textAlign = 'right';
-                ctx.fillStyle = 'rgba(190, 240, 255, 0.85)';
-                ctx.font = '9px monospace';
-                const sw = this._switchingW || 0;
-                ctx.fillText(`switch ${(sw / 1000).toFixed(0)} kW`, width - 8, ay + 15);
-                ctx.fillText(`${(sw / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of 4 MW`, width - 8, ay + 26);
-                ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
-                ctx.fillText(`skim ${((this._extractionW || 0) / 1000).toFixed(0)} kW`, width - 8, ay + 37);
-                // M3.1: slip ratio as a first-class readout — the number that explains
-                // why thrust fades and why the skim line above collapses near v_max.
-                ctx.fillStyle = 'rgba(235, 242, 248, 0.85)';
-                ctx.fillText(`slip u = ${this.slipU().toFixed(2)}`, width - 8, ay + 48);
+                //
+                // Full level only. To PLAY you need the bar (how much is left) and the arrow
+                // (which way it is going); kilowatts and a slip ratio are for flying it
+                // properly, and four lines of engineering text next to a battery is what a
+                // first-time visitor reads as homework. The brownout banner below is NOT
+                // gated: a failure always explains itself.
+                if (_uxHudLevel === HUD_FULL) {
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = 'rgba(190, 240, 255, 0.85)';
+                    ctx.font = '9px monospace';
+                    const sw = this._switchingW || 0;
+                    ctx.fillText(`switch ${(sw / 1000).toFixed(0)} kW`, width - 8, ay + 15);
+                    ctx.fillText(`${(sw / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of 4 MW`, width - 8, ay + 26);
+                    ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
+                    ctx.fillText(`skim ${((this._extractionW || 0) / 1000).toFixed(0)} kW`, width - 8, ay + 37);
+                    // M3.1: slip ratio as a first-class readout — the number that explains
+                    // why thrust fades and why the skim line above collapses near v_max.
+                    ctx.fillStyle = 'rgba(235, 242, 248, 0.85)';
+                    ctx.fillText(`slip u = ${this.slipU().toFixed(2)}`, width - 8, ay + 48);
+                }
                 ctx.textAlign = 'center';
                 // brownout: the headline blinks (1.4 Hz — under the 3 flashes/s ceiling)
                 // while the M3.1 WHY line stays steady. Both sit on a dark plate so they

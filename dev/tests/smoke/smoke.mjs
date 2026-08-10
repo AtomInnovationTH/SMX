@@ -655,6 +655,51 @@ try {
     JSON.stringify({ desktopHud, clean }));
   await cleanCtx.close();
 
+  // 20) What each level actually PUTS ON SCREEN. Every instrument is canvas text, so this
+  //     wraps ctx.fillText for one frame and diffs the strings drawn at minimal against
+  //     full. Pins the two cuts that make the default friendly: an event beat is a title at
+  //     minimal (its body is two or three lines of paper citation) and the energy gauge is a
+  //     bar, not four lines of kilowatts and a slip ratio.
+  const drawn = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    const setLevel = async (want) => {
+      for (let i = 0; i < 4 && g._hudLevelDrawn !== want; i++) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return g._hudLevelDrawn === want;
+    };
+    const capture = async () => {
+      // A card has to be on screen to be measured; 7 s is the normal lifetime.
+      g._beatCard = { title: 'SMOKE-TITLE', lines: ['SMOKE-BODY-LINE'] };
+      g._beatCardTimer = 6;
+      const seen = [];
+      const orig = g.ctx.fillText.bind(g.ctx);
+      g.ctx.fillText = (s, x, y) => { seen.push(String(s)); return orig(s, x, y); };
+      await new Promise((r) => setTimeout(r, 220));
+      delete g.ctx.fillText;
+      return seen;
+    };
+    const out = {};
+    out.minimalSet = await setLevel(0); out.minimal = await capture();
+    out.fullSet = await setLevel(1);    out.full = await capture();
+    await setLevel(0);
+    g._beatCard = null;
+    return out;
+  });
+  const has = (a, re) => a.some((s) => re.test(s));
+  record('levels: minimal draws the beat TITLE and a bare energy bar; full adds the readouts',
+    drawn.minimalSet && drawn.fullSet &&
+    has(drawn.minimal, /SMOKE-TITLE/) && !has(drawn.minimal, /SMOKE-BODY-LINE/) &&
+    has(drawn.full, /SMOKE-TITLE/) && has(drawn.full, /SMOKE-BODY-LINE/) &&
+    has(drawn.minimal, /^EPM$/) && !has(drawn.minimal, /switch \d+ kW/) && !has(drawn.minimal, /slip u =/) &&
+    has(drawn.full, /switch \d+ kW/) && has(drawn.full, /slip u =/) &&
+    // Minimal still says what to press: the compact plate is the one instruction left.
+    has(drawn.minimal, /SPACE: pulse/),
+    JSON.stringify({ minimalSet: drawn.minimalSet, fullSet: drawn.fullSet,
+                     minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14) }));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));
