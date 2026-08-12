@@ -353,7 +353,9 @@
         <button id="settings-close" title="Close settings" aria-label="Close settings">&times;</button>
         <h3 id="settings-heading">Settings (Press S to toggle)</h3>
         <div class="settings-concept">
-            Your hands are <b>electro-permanent magnets (EPMs)</b>. A ground station beams
+            Your vehicle is a <b>stack of electro-permanent magnets (EPMs)</b>: the two
+            opposed rails drawn beside the climber, with the film running through the gap
+            between them. A ground station beams
             traveling waves up a conductive graphene seed film; <b id="grab-input-word">hold SPACE</b> to engage the
             stack and induce eddy currents in the moving film. The onboard controller does the
             timing: it pulls only while the film is outrunning you, so you never time a pulse
@@ -431,7 +433,7 @@
         <div class="slider-container">
             <label>Film width: <span id="widthValue">45 mm</span></label>
             <input type="range" id="width" min="10" max="1000" step="5" value="45">
-            <small class="setting-hint">The ribbon is a paper-thin conductive FILM, not a cable — 45 mm × 0.2 mm = the paper's 9 mm².</small>
+            <small class="setting-hint">The ribbon is a paper-thin conductive FILM, not a cable: 45 mm × 0.2 mm = the paper's 9 mm². The drawn band follows this slider up to about 50 mm and then stops widening, because past that it would grow into the climber's clamps and the air gap would stop being visible, which is the one thing the picture must not say. The number here is the width the physics uses.</small>
         </div>
         <div class="slider-container">
             <label>Film thickness: <span id="thicknessValue">0.20 mm</span></label>
@@ -544,6 +546,23 @@
         // "schematic" — a 64-pair stack in 150 px is a smear, not information.
         const STACK_MAX_DRAWN_PAIRS = 16;
         const STACK_SWEEP_PERIOD_S = 0.8;
+
+        // Shift 10: period of the specular highlight that runs up the film band (renderVine).
+        // One pass every 2.2 s — a drift, far under the 3 Hz flash ceiling, and frozen under
+        // prefers-reduced-motion like the stack sweep.
+        const FILM_HIGHLIGHT_PERIOD_S = 2.2;
+        // Film band geometry (renderVine / filmBandHalfPx). The band is drawn SEGMENT_WIDTH px
+        // each side of the tether at the slider's 45 mm default and scales linearly with film
+        // width, so the slider keeps the visible effect it had when it set a line thickness.
+        // The maximum is hard: the grabbing sprite's clamp jaws sit CLAMP_JAW_HALF_PX from the
+        // centre (viewBox x 64 and 96, drawn 1 unit = 1 px), and the band must always leave
+        // daylight to them — a band touching the clamps is the contact reading this shift
+        // removed. FILM_BAND_CLEARANCE_PX is that daylight.
+        const CLAMP_JAW_HALF_PX = 16;
+        const FILM_BAND_CLEARANCE_PX = 3;
+        const FILM_BAND_REF_MM = 45;
+        const FILM_BAND_MIN_HALF_PX = 3;
+        const FILM_BAND_MAX_HALF_PX = CLAMP_JAW_HALF_PX - FILM_BAND_CLEARANCE_PX;
 
         // UX (M3.5, decision 19): descending climbers replace the arcade pickups. The
         // paper supplies them — p.5 sketches a Descender, p.14 proposes "powering from
@@ -1316,6 +1335,18 @@
             return level === HUD_FULL ? 'Instruments: all readouts'
                  : level === HUD_OFF  ? 'HUD hidden — H to bring it back'
                                       : 'Instruments: minimal — H for all readouts';
+        }
+
+        // Half-width, in screen px, of the film band renderVine draws (shift 10). The film
+        // is vineWidth x 10 mm wide, drawn SEGMENT_WIDTH px each side at the 45 mm default so
+        // the film-width slider keeps the visible effect it had when it set a line thickness.
+        // The ceiling is not cosmetic: the grabbing sprite's clamp jaws sit a fixed
+        // CLAMP_JAW_HALF_PX from the tether centre, and a band that reached them would put
+        // the hands back in contact with the film, which is the one thing the drawing must
+        // never say. Pinned by a test at both ends of the slider.
+        function filmBandHalfPx(vineWidth, refPx = 12) {
+            const scaled = refPx * (vineWidth * 10) / FILM_BAND_REF_MM;
+            return Math.max(FILM_BAND_MIN_HALF_PX, Math.min(FILM_BAND_MAX_HALF_PX, scaled));
         }
 
         // ===== END PURE SIM HELPERS ===== //
@@ -2172,14 +2203,14 @@
                 BADGE_HEIGHT: 85,
                 BADGE_X_OFFSET: 10,  // Centered on chest
                 BADGE_Y_OFFSET: 45,
-                // Where the grabbing sprite's fists actually are, relative to the climber's
-                // screen y (shift 9). The pose is drawn as a 311 px box from
-                // monkeyScreenY - 131 with a 350-unit viewBox, so the fists at viewBox
-                // y = -68 / -56 land ~88 px ABOVE monkeyScreenY. renderEpmHandsGlow used
-                // monkeyScreenY + 6 and so lit the climber's neck, which is part of why
+                // Where the grabbing sprite's clamps actually are, relative to the climber's
+                // screen y (shift 9; clamps in shift 10). The pose is drawn as a 311 px box
+                // from monkeyScreenY - 131 with a 350-unit viewBox, so the clamp jaws at
+                // viewBox y = -88..-44 land ~88 px ABOVE monkeyScreenY. renderEpmHandsGlow
+                // used monkeyScreenY + 6 and so lit the climber's neck, which is part of why
                 // nobody could tell where its hands were.
                 HANDS_Y_OFFSET: -88,
-                HANDS_X_SPREAD: 14   // half the gap between the two fists (viewBox 66 / 95)
+                HANDS_X_SPREAD: 20   // half the gap between the clamp mouths (viewBox 60 / 100)
             };
             
             static WAVE = {
@@ -3109,11 +3140,16 @@
             
             loadMonkeySvg() {
                 if (window.loadingManager) window.loadingManager.expect(2);
-                // Create grabbing pose SVG — BOTH ARMS UP, both fists clamped on the film
-                // above the head. The viewBox carries 80 units of headroom above the old
-                // ceiling (-110 instead of -30) purely so the reach has somewhere to exist;
-                // renderMonkey draws it into a proportionally taller box so no body part
-                // moves. See the comment there.
+                // Create grabbing pose SVG — BOTH ARMS UP, ending in OPEN CLAMPS that
+                // bracket the film without meeting it. The film band runs down x = 80 with
+                // its edges at 80 ± 12 (renderVine draws it SEGMENT_WIDTH wide each side,
+                // and this sprite is drawn 1 unit = 1 px), so the clamp jaws stop at x 64
+                // and x 96: four units of daylight to the film on each side. A closed fist
+                // around a line read as contact; an open bracket beside a band reads as the
+                // air gap that is the whole premise. The viewBox carries 80 units of
+                // headroom above the old ceiling (-110 instead of -30) so the reach has
+                // somewhere to exist; renderMonkey draws it into a proportionally taller
+                // box so no body part moves. See the comment there.
                 const grabbingSvg = `
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -110 160 350">
                         <!-- Left Leg (angled outward) -->
@@ -3128,9 +3164,9 @@
                         <!-- Right Foot (wrapped around vine) -->
                         <ellipse cx="90" cy="230" rx="16" ry="9" fill="#654321" transform="rotate(15 90 230)"/>
                         
-                        <!-- ARMS + HANDS (shift 9 rework). The climber hangs off the film by
-                             both hands, above its head — a rope climb. Four things stopped
-                             that reading, all fixed here:
+                        <!-- ARMS + HANDS (shift 9 rework; shift 10: hands are now OPEN
+                             CLAMPS, because closed fists around the film contradicted the
+                             non-contact premise). What stopped the reach reading before:
                                1. there was no headroom: the fists sat 7 units below the
                                   viewBox ceiling, so the "reach" had nowhere to be drawn and
                                   the arms could only trace the head's outline (the viewBox is
@@ -3138,7 +3174,8 @@
                                2. the arms were the SAME #8B4513 as the torso with no outline,
                                   so where they crossed the body they dissolved into it;
                                3. both fists sat at x 78 and 80, one behind the other, so they
-                                  merged into one brown lump that read as a hat;
+                                  merged into one brown lump that read as a hat (the clamps
+                                  are staggered and now sit at x 46-64 / 96-114);
                                4. (see renderEpmHandsGlow) the magnet glow was drawn at the
                                   neck, ~90 px below where the hands actually are.
                              PAINT ORDER IS LOAD-BEARING: the arms are drawn BEFORE the torso
@@ -3146,29 +3183,32 @@
                              the only visible run is the reach above the head. Drawn after the
                              torso instead, the two arm strokes crossing the cream chest patch
                              read as a second pair of arms hanging down — a four-armed monkey. -->
-                        <!-- Left arm: shoulder (hidden behind the torso) up to the fist -->
-                        <path d="M 58 130 Q 46 40, 66 -58"
+                        <!-- Left arm: shoulder (hidden behind the torso) up to the clamp -->
+                        <path d="M 58 130 Q 44 40, 52 -66"
                               fill="none" stroke="#5A2D0C" stroke-width="28" stroke-linecap="round"/>
-                        <path d="M 58 130 Q 46 40, 66 -58"
+                        <path d="M 58 130 Q 44 40, 52 -66"
                               fill="none" stroke="#8B4513" stroke-width="20" stroke-linecap="round"/>
 
                         <!-- Right arm -->
-                        <path d="M 102 130 Q 114 40, 94 -58"
+                        <path d="M 102 130 Q 116 40, 108 -54"
                               fill="none" stroke="#5A2D0C" stroke-width="28" stroke-linecap="round"/>
-                        <path d="M 102 130 Q 114 40, 94 -58"
+                        <path d="M 102 130 Q 116 40, 108 -54"
                               fill="none" stroke="#8B4513" stroke-width="20" stroke-linecap="round"/>
 
-                        <!-- Left fist, closed around the film (the film runs down x = 80).
-                             The two fists are staggered so you can see there are two of them. -->
-                        <ellipse cx="66" cy="-68" rx="17" ry="15" fill="#A0522D" stroke="#5A2D0C" stroke-width="3"/>
-                        <path d="M 57 -74 L 75 -74 M 57 -66 L 75 -66" stroke="#5A2D0C" stroke-width="2" opacity="0.5"/>
-                        <!-- thumb, wrapped over the film -->
-                        <ellipse cx="79" cy="-73" rx="7" ry="10" fill="#A0522D" stroke="#5A2D0C" stroke-width="2" transform="rotate(20 79 -73)"/>
+                        <!-- Left clamp, OPEN toward the film: a "[" bracket whose jaws stop
+                             at x 64, four units clear of the band edge at 68. Nothing closes
+                             on x = 80. (Butt caps: a round cap would overshoot the jaw tip
+                             by half the stroke width and touch the band.) -->
+                        <path d="M 64 -88 H 46 V -56 H 64"
+                              fill="none" stroke="#5A2D0C" stroke-width="14" stroke-linecap="butt" stroke-linejoin="round"/>
+                        <path d="M 64 -88 H 46 V -56 H 64"
+                              fill="none" stroke="#A0522D" stroke-width="8" stroke-linecap="butt" stroke-linejoin="round"/>
 
-                        <!-- Right fist, a little lower — the natural rope-climb offset -->
-                        <ellipse cx="95" cy="-56" rx="17" ry="15" fill="#A0522D" stroke="#5A2D0C" stroke-width="3"/>
-                        <path d="M 86 -62 L 104 -62 M 86 -54 L 104 -54" stroke="#5A2D0C" stroke-width="2" opacity="0.5"/>
-                        <ellipse cx="82" cy="-61" rx="7" ry="10" fill="#A0522D" stroke="#5A2D0C" stroke-width="2" transform="rotate(-20 82 -61)"/>
+                        <!-- Right clamp, a little lower — the natural stagger — opening left -->
+                        <path d="M 96 -76 H 114 V -44 H 96"
+                              fill="none" stroke="#5A2D0C" stroke-width="14" stroke-linecap="butt" stroke-linejoin="round"/>
+                        <path d="M 96 -76 H 114 V -44 H 96"
+                              fill="none" stroke="#A0522D" stroke-width="8" stroke-linecap="butt" stroke-linejoin="round"/>
 
                         <!-- Torso/Body (proportioned to nicely frame badge) -->
                         <ellipse cx="80" cy="125" rx="54" ry="78" fill="#8B4513"/>
@@ -4363,13 +4403,42 @@
                 const cy = this.monkey.y - cameraY + this.monkey.height / 2;   // climber centre, screen px
                 const altAt = (screenY) => this.monkey.altitude + (cy - screenY) / pxPerM;
 
-                const maxLineWidth = this.vineWidth * 3;
                 const baseSpacing = height / this.wave.segments;
                 // One source of truth for waveform shape: the same calculators the slip
                 // integral samples. Displacement uses the real (band-limited) shape, and
                 // "strain" is its normalised particle velocity — for a travelling wave
                 // strain = −v_particle/c, so velocity IS the strain profile.
                 const shape = WAVE_CALCULATORS[this.waveSystem.type] || WAVE_CALCULATORS.sine;
+
+                // Shift 10: the film is drawn as a BAND, not a line. A 0.2 mm x 45 mm ribbon
+                // is a 2 px line side-on, and anything near a line reads as touching — which
+                // made the closed fists legibly contradict the non-contact premise. The band
+                // is foil seen slightly oblique: a shaded fill (one edge dark, a specular
+                // stripe off-centre), two edge lines, and a highlight that runs UP it. The
+                // strain segments below span it edge to edge. Presentation only: no phase,
+                // amplitude or slip maths changes.
+                //
+                // The band tracks the film-width slider, because that slider used to be what
+                // set the drawn thickness (lineWidth = vineWidth x 2) and must keep a visible
+                // effect: SEGMENT_WIDTH px each side at the 45 mm default, scaling linearly.
+                // It SATURATES at FILM_BAND_MAX_HALF_PX because the sprite's clamp jaws are a
+                // fixed CLAMP_JAW_HALF_PX from the centre and the band must never reach them —
+                // a band touching the clamps is the exact wrong physics this shift removed.
+                // Above the saturation point the true width is carried by the cross-section
+                // readout in Settings, not by the drawing.
+                const bandHalf = filmBandHalfPx(this.vineWidth, GameConfig.WAVE.SEGMENT_WIDTH);
+                // Live render handles for the smoke test: the band the renderer actually
+                // drew, and the fixed jaw half-width it must never reach.
+                this._filmBandHalfPx = bandHalf;
+                this._clampJawHalfPx = CLAMP_JAW_HALF_PX;
+                const foil = ctx.createLinearGradient(this.wave.x - bandHalf, 0, this.wave.x + bandHalf, 0);
+                foil.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`);
+                foil.addColorStop(0.35, 'rgba(255, 255, 255, 0.30)');
+                foil.addColorStop(0.55, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`);
+                foil.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.34)`);
+                ctx.fillStyle = foil;
+                ctx.fillRect(this.wave.x - bandHalf, 0, bandHalf * 2, height);
+
                 for (let i = 0; i < this.wave.segments; i++) {
                     const yBase = i * baseSpacing;
                     const altHere = altAt(yBase);
@@ -4393,14 +4462,20 @@
                     if (y > height || y < 0) continue;
                     // Brightness/width track strain: compression vs rarefaction is what
                     // carries the stress. The depth of the modulation is presentation.
+                    // Shift 10: the stroke thickness scales with the BAND, not with the raw
+                    // film width. Film width sets how wide the ribbon is, never how tall a
+                    // compression band is (that is wavelength), and at 1000 mm the old
+                    // vineWidth-based thickness reached 300 px: the segments merged into a
+                    // flat stripe and swallowed the foil shading the air gap depends on.
                     const strain = shape.velocity(1, 1, phi);
                     const opacity = 0.5 + (strain + 1) * 0.25;
-                    const segWidth = this.vineWidth + Math.max(0, strain) * this.vineWidth * 0.67;
+                    const segBase = Math.max(2, bandHalf * 0.4);
+                    const segWidth = segBase + Math.max(0, strain) * segBase * 0.67;
                     ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
-                    ctx.lineWidth = Math.min(segWidth, maxLineWidth);
+                    ctx.lineWidth = Math.min(segWidth, bandHalf * 1.2);
                     ctx.beginPath();
-                    ctx.moveTo(this.wave.x - GameConfig.WAVE.SEGMENT_WIDTH, y);
-                    ctx.lineTo(this.wave.x + GameConfig.WAVE.SEGMENT_WIDTH, y);
+                    ctx.moveTo(this.wave.x - bandHalf, y);
+                    ctx.lineTo(this.wave.x + bandHalf, y);
                     ctx.stroke();
                 }
 
@@ -4408,18 +4483,25 @@
                 ctx.shadowBlur = 12;
                 ctx.shadowColor = wc;
                 ctx.strokeStyle = wc;
-                ctx.lineWidth = Math.min(this.vineWidth * 2, maxLineWidth);
-                ctx.beginPath();
-                ctx.moveTo(this.wave.x, 0);
-                ctx.lineTo(this.wave.x, height);
-                ctx.stroke();
+                ctx.lineWidth = 2;
+                for (const side of [-1, 1]) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.wave.x + side * bandHalf, 0);
+                    ctx.lineTo(this.wave.x + side * bandHalf, height);
+                    ctx.stroke();
+                }
                 ctx.shadowBlur = 0;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.lineWidth = this.vineWidth * 0.67;
-                ctx.beginPath();
-                ctx.moveTo(this.wave.x - 1, 0);
-                ctx.lineTo(this.wave.x - 1, height);
-                ctx.stroke();
+                // The highlight running up the foil: a short bright streak whose y scrolls
+                // upward (the direction the wave travels), slow enough to be a drift, never
+                // a flash, and frozen to a static sheen under reduced motion.
+                const hlFrac = _uxReducedMotion ? 0.6 : (this.waveSystem.time / FILM_HIGHLIGHT_PERIOD_S) % 1;
+                const hlY = height + 60 - hlFrac * (height + 120);
+                const hlGrad = ctx.createLinearGradient(0, hlY - 50, 0, hlY + 50);
+                hlGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                hlGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.55)');
+                hlGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = hlGrad;
+                ctx.fillRect(this.wave.x - bandHalf * 0.55, hlY - 50, bandHalf * 0.7, 100);
 
                 // §2.6 slip halo: where the stack grips, the film is slowed and locally
                 // stretched. Halo strength tracks (1 − u): maximum at low speed, fading as
@@ -4686,8 +4768,9 @@
                     ctx.shadowOffsetY = 5;
                     
                     // Pose boxes. The falling pose is the original 180x240. The grabbing pose
-                    // reaches ABOVE the head — that is the whole premise, hands clamped on the
-                    // film — and it never read as such because its viewBox ceiling sat 7 units
+                    // reaches ABOVE the head — that is the whole premise, open clamps
+                    // bracketing the film with a visible air gap — and it never read as such
+                    // because its viewBox ceiling sat 7 units
                     // above the fists: there was literally nowhere to draw the reach, so the
                     // arms could only trace the outline of the head. Its viewBox now carries
                     // 80 units of headroom (0 -110 160 350), and drawing it into a box taller
@@ -4726,9 +4809,9 @@
                     ctx.restore();
                 }
 
-                // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow. The hands are
-                // electro-permanent magnets — they glow brighter/pulse faster with EPM charge,
-                // redden + flicker near brownout, and go dark at zero. Reinforces "pulsing magnets".
+                // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow. The glow sits on the
+                // clamp mouths bracketing the film — it glows brighter/pulses faster with EPM
+                // charge, reddens + flickers near brownout, and goes dark at zero.
                 this.renderEpmHandsGlow(ctx, monkeyScreenY);
 
                 // The badge is the climber's own readout — altitude, speed, carrier, coupling
@@ -5193,13 +5276,14 @@
                 ctx.restore();
             }
 
-            // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow drawn over the climber's hands.
+            // SIM (Stage 3 / D2 + B.5.1): diegetic EPM hands-glow drawn over the climber's
+            // clamps (shift 10: the fists became open clamps bracketing the film band).
             // Brightness/pulse-rate scale with EPM charge; reddens + flickers near brownout; dark at zero.
             renderEpmHandsGlow(ctx, monkeyScreenY) {
                 const cap = GameConfig.EPM.CAPACITY;
                 const charge = Math.max(0, Math.min(cap, this.epmCharge || 0)) / cap; // 0..1
                 const cx = this.monkey.x + this.monkey.width / 2;
-                // ON the fists, which are above the head — see MONKEY.HANDS_Y_OFFSET.
+                // ON the clamp mouths, which are above the head — see MONKEY.HANDS_Y_OFFSET.
                 const handY = monkeyScreenY + GameConfig.MONKEY.HANDS_Y_OFFSET;
                 let r, g, b, intensity;
                 if (this.epmBrownout || charge <= 0.001) {

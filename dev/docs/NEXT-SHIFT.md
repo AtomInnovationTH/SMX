@@ -1,8 +1,8 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Written at the end of the shift that shipped touch play, the
-three-level HUD, the climbing-pose fix and the demo re-scale (8 pairs, 3 kg).
+that have already cost time. Updated at the end of the shift that fixed the non-contact
+visuals (film band, open clamps, stack-as-vehicle copy).
 
 ## Where things stand
 
@@ -10,7 +10,7 @@ three-level HUD, the climbing-pose fix and the demo re-scale (8 pairs, 3 kg).
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 113 unit tests, 24 smoke checks, 98 = 98 asset references, all green.
+  Currently 114 unit tests, 25 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 338 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2 and M3.1-M3.8 are complete. The deferred list is taper (p.9), drag on
@@ -21,6 +21,37 @@ three-level HUD, the climbing-pose fix and the demo re-scale (8 pairs, 3 kg).
   brownouts, 28 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The film is a band, not a line.** `renderVine` now draws the ribbon as foil seen
+  slightly oblique: a shaded fill (one edge dark, a specular stripe off-centre), two glowing
+  edge lines, and a highlight that drifts up it on a 2.2 s period
+  (`FILM_HIGHLIGHT_PERIOD_S`), frozen under reduced motion. A 2 px line made everything near
+  it read as contact; the band is what makes the air gap drawable. No phase, amplitude or
+  slip maths changed.
+- **The band tracks the film-width slider, and saturates on purpose.** `filmBandHalfPx` is
+  a pure helper: `SEGMENT_WIDTH` px each side at the 45 mm default, scaling linearly, capped
+  at `FILM_BAND_MAX_HALF_PX` = `CLAMP_JAW_HALF_PX` - `FILM_BAND_CLEARANCE_PX`. The cap is
+  the whole point: the sprite's clamp jaws are at a fixed 16 px, so a band that kept growing
+  would touch them and re-assert contact. The width slider's hint says the drawing stops
+  widening around 50 mm and that the number is what the physics uses, the same way the stack
+  legend says "schematic" above 16 pairs. A unit test walks the entire slider range and a
+  smoke check reads the band the live renderer actually drew.
+- **Strain-segment thickness now scales with the band, not with `vineWidth`.** Film width
+  sets how wide the ribbon is, never how tall a compression band is (that is wavelength).
+  At 1000 mm the old `vineWidth`-based stroke reached 300 px, the segments merged into a flat
+  stripe, and the foil shading the air gap depends on disappeared.
+- **The fists are open clamps.** The grabbing sprite's hands are now "[" and "]" brackets
+  whose jaws stop at viewBox x 64 and 96, four units clear of the band edges at 80 ± 12
+  (the sprite draws 1 unit = 1 px). Butt line-caps are load-bearing: a round cap overshoots
+  the jaw tip by half the stroke width and touches the band. `HANDS_X_SPREAD` moved to 20
+  so the EPM glow sits on the clamp mouths. If you ever move those jaws, move
+  `CLAMP_JAW_HALF_PX` with them or the band cap goes stale.
+- **The settings copy tells the stack story.** "Your hands are electro-permanent magnets"
+  fought the 8-pair stack drawn beside the climber; it now reads "Your vehicle is a stack
+  of electro-permanent magnets (EPMs)". The stack is the vehicle in the deck; the copy
+  moved, not the drawing.
+
+### From the shift before (touch, HUD levels, demo scale, climbing pose)
 
 - **Touch is a first-class input.** The game takes exactly one input, so the whole play
   surface is the button: `InputManager.setupPointerHandlers` emits the same `input:grab` the
@@ -56,32 +87,14 @@ three-level HUD, the climbing-pose fix and the demo re-scale (8 pairs, 3 kg).
 
 ## Priorities for this shift
 
-### 1. The hands contradict the whole premise (highest value)
-
-Gassend's central claim is **non-contact**: a 0.15 mm air gap, nothing ever touches. The
-climbing pose now clearly shows two fists **closed around** the film, which is legibly the
-wrong physics. It got worse, not better, when the pose was made readable.
-
-Side on, a 0.2 mm x 45 mm film is a 2 px line, so anything near it reads as touching and
-"no contact" can only be asserted in text. The fix is to draw the film as a **band** in
-slight oblique view, like unrolled foil, with the magnet faces either side of it and a
-visible gap:
-
-- Draw the band, do not build real 3D. Two edge lines, shading, and a highlight running up
-  it. Only `renderVine` and the stack geometry change; the wave maths must not.
-- Then the fists become open clamps that bracket the band without meeting it.
-- The settings panel still says "Your hands are electro-permanent magnets", which fights the
-  8-pair stack drawn beside the climber. Pick one story. The stack is the vehicle in the
-  deck, so the copy is what should move.
-
-### 2. Make slip visible instead of numeric
+### 1. Make slip visible instead of numeric (highest value)
 
 Thrust comes from the wave overtaking the climber, and that is currently a number in a
 corner (`slip u = 0.17`) at the full HUD level only. The crests travel at 20.9 km/s and the
 climber at about 0.3 km/s, so drawing the crests **visibly overtaking**, and the push fading
 as they stop overtaking, teaches momentum transfer with no text at all.
 
-### 3. Decide whether the score survives
+### 2. Decide whether the score survives
 
 The score is throughput, kg to the Kármán line per hour, and a player will not encounter it
 unless they press `H` for the full HUD. Either surface it in the minimal level or drop it and
@@ -89,13 +102,13 @@ score altitude and time. Do not leave a scoring system nobody is told about.
 `cargoBest`/`bootstrapKg` are already on `.v3` after the payload change, so re-basing again
 is cheap.
 
-### 4. A moving picture
+### 3. A moving picture
 
 An animated GIF or a short clip of a real climb would beat any still. Nothing in the repo
 does video capture yet. `screenshots/hero.png` is also the social card (`deploy.yml` copies
 it to `_site/social.png`), so whatever becomes the hero must read at thumbnail size.
 
-### 5. M4 physics, when the presentation work is done
+### 4. M4 physics, when the presentation work is done
 
 Taper, wave drag, resonance and multi-climber, in the order the deck presents them. Each
 needs its own balance-harness verification before it ships.
@@ -138,7 +151,7 @@ needs its own balance-harness verification before it ships.
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 45). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 46). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.

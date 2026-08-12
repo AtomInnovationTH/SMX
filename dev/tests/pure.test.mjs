@@ -70,6 +70,10 @@ const {
   viewportTooSmall,
   cleanModeRequested,
   COMPACT_HUD_MAX_W,
+  filmBandHalfPx,
+  CLAMP_JAW_HALF_PX,
+  FILM_BAND_MIN_HALF_PX,
+  FILM_BAND_MAX_HALF_PX,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -91,6 +95,7 @@ test('extraction exposes the core pure symbols', () => {
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
+    filmBandHalfPx,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -113,11 +118,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 45 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 46 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 45);
+  assert.equal(declaredPureHelpers().length, 46);
 });
 
 // ---------------------------------------------------------------------------
@@ -1435,6 +1440,34 @@ test('clampPlateX keeps a plate inside the viewport, left edge winning when it c
   assert.equal(clampPlateX(120, 500, 390), 6);
   // Custom margin honoured.
   assert.equal(clampPlateX(999, 100, 400, 20), 400 - 100 - 20);
+});
+
+// Shift 10: the film is drawn as a BAND so the air gap is visible, and the sprite's hands
+// are open clamps whose jaws sit CLAMP_JAW_HALF_PX from the tether centre. The band must
+// keep a visible response to the film-width slider AND must never grow into those jaws:
+// a band touching the clamps re-asserts contact, which is the one claim the drawing may
+// not make.
+test('filmBandHalfPx tracks the film-width slider and never reaches the clamp jaws', () => {
+  // The 45 mm default draws the reference half-width (SEGMENT_WIDTH px).
+  assert.equal(filmBandHalfPx(4.5, 12), 12);
+  // Half the default film is half the band; the slider stays legible in the middle.
+  assert.equal(filmBandHalfPx(2.25, 12), 6);
+  // Monotonic across the whole slider range (10 mm .. 1000 mm => vineWidth 1 .. 100).
+  let prev = -Infinity;
+  for (let mm = 10; mm <= 1000; mm += 5) {
+    const half = filmBandHalfPx(mm / 10, 12);
+    assert.ok(half >= prev, `band half-width must not shrink as film width grows (${mm} mm)`);
+    prev = half;
+    // The invariant: daylight to the jaws at EVERY slider position.
+    assert.ok(half < CLAMP_JAW_HALF_PX, `band must clear the clamp jaws (${mm} mm => ${half})`);
+    assert.ok(half >= FILM_BAND_MIN_HALF_PX, `band must stay visible (${mm} mm => ${half})`);
+    assert.ok(half <= FILM_BAND_MAX_HALF_PX);
+  }
+  // Both ends saturate rather than run away.
+  assert.equal(filmBandHalfPx(1, 12), FILM_BAND_MIN_HALF_PX);
+  assert.equal(filmBandHalfPx(100, 12), FILM_BAND_MAX_HALF_PX);
+  // And the clearance is real, not zero.
+  assert.ok(CLAMP_JAW_HALF_PX - FILM_BAND_MAX_HALF_PX >= 2);
 });
 
 test('viewportTooSmall passes every real phone and only rejects the unplaceable', () => {

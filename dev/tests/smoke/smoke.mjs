@@ -401,6 +401,35 @@ try {
     stack.sweepA !== stack.sweepB,
     JSON.stringify(stack));
 
+  // 10b) Shift 10 non-contact: the film RENDERS as a band, and the band the renderer
+  //      actually drew keeps daylight to the sprite's clamp jaws at every film width. The
+  //      pure test pins the function; this pins what the live renderer put on screen, at
+  //      the default and at the top of the width slider (1000 mm).
+  const bandInfo = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await wait();
+    const out = { atDefault: g._filmBandHalfPx, jaws: g._clampJawHalfPx };
+    const slider = document.getElementById('width');
+    const before = slider.value;
+    slider.value = '1000';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.atMax = g._filmBandHalfPx;
+    slider.value = '10';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.atMin = g._filmBandHalfPx;
+    slider.value = before;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    return out;
+  });
+  record('film draws as a BAND (not a line) and never grows into the climber\'s clamp jaws',
+    bandInfo.atDefault === 12 && bandInfo.atMax < bandInfo.jaws && bandInfo.atMin >= 3 &&
+    bandInfo.atMax > bandInfo.atMin && bandInfo.jaws === 16,
+    JSON.stringify(bandInfo));
+
   // 11) M3.1 photosafety: the firing gradient is a SLOWED schematic. Each unit modulates
   //     at 1/period, which must stay under the 3 flashes/s photosensitive-seizure ceiling
   //     (a literal 92-1000 Hz firing animation would be a strobe), and the sweep FREEZES

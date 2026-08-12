@@ -81,6 +81,10 @@ const EXPORTED_SYMBOLS = [
   'viewportTooSmall',
   'cleanModeRequested',
   'COMPACT_HUD_MAX_W',
+  'filmBandHalfPx',
+  'CLAMP_JAW_HALF_PX',
+  'FILM_BAND_MIN_HALF_PX',
+  'FILM_BAND_MAX_HALF_PX',
 ];
 
 // Pull out the body of the single largest <script> block.
