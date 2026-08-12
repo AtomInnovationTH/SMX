@@ -142,7 +142,8 @@ extension).
   (`viewportTooSmall`).
 - **The HUD has three levels and defaults to the quietest.** `_uxHudLevel` is
   minimal (default) / full / off, cycled by `H`, and `?clean` or `#clean` boots straight to
-  off. Minimal draws the badge, the energy bar, one instruction line and a beat's title;
+  off. Minimal draws the badge, the energy bar, the compact plate (one instruction, the
+  p.11 carrier line and, since shift 12, the score) and a beat's title;
   full adds the mission and act blocks, the thermal readout, the p.11 dashboard, the stack
   legend and the switching/skim/slip lines. Failures (UNLOADED, STALLED, brownout) are
   never gated: they explain themselves at every level. A smoke check wraps `ctx.fillText`
@@ -167,15 +168,12 @@ extension).
 
 ## Priorities for this shift
 
-### 1. Decide whether the score survives: DECIDED, shipped this shift
+Last shift's priority 1, "does the score survive", is **settled**: it survives, it is
+throughput, it is on the minimal HUD, and the `.v3` keys were not re-based. The record is
+in "What last shift changed" above and in DEVELOPERS.md's scoring section. Do not reopen
+it, and do not fold the score back behind `H`.
 
-The score stays throughput (kg to the Kármán line per hour), surfaced at the minimal
-level, and the `.v3` keys were not re-based. One short line in the existing compact
-plate: the live pace projection while climbing, the locked figure plus best after
-delivery, the goal on the ground before liftoff. Full keeps the block it has. What was
-built and the traps are in "What last shift changed" above.
-
-### 2. A moving picture
+### 1. A moving picture
 
 An animated GIF or a short clip of a real climb would beat any still. Nothing in the repo
 does video capture yet. `screenshots/hero.png` is also the social card (`deploy.yml` copies
@@ -183,10 +181,27 @@ it to `_site/social.png`), so whatever becomes the hero must read at thumbnail s
 committed stills are also two shifts out of date (thin-line film, closed fists), so
 re-shooting them is the floor even if the clip does not happen.
 
-### 3. M4 physics, when the presentation work is done
+### 2. M4 physics, when the presentation work is done
 
 Taper, wave drag, resonance and multi-climber, in the order the deck presents them. Each
-needs its own balance-harness verification before it ships.
+needs its own balance-harness verification before it ships. The specs live in section 8 of
+`.kilo/plans/1785893790322-fg40-film-coupling-fidelity-plan.md` (gitignored, local only;
+sections 4-9 are the milestone authority). That file's STATUS block was refreshed this
+shift, but **this file is the committed handoff and wins wherever they disagree**.
+
+### 3. Two contained hygiene tasks nobody has claimed
+
+- **The em-dash ban is not enforced in the shipped copy.** Counted this shift: 41 quoted
+  strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
+  plus 6 `&mdash;` entities in the settings markup. New prose has been clean for several
+  shifts, but the backlog still ships to players. The sweep is mechanical and needs a
+  capture pass after it, because several of those strings are width-tuned to a plate.
+- **`dev/docs/v1.0-roadmap.md` still presents itself as the current plan.** It is pre-M1
+  history with superseded physics (it predates slip coupling entirely), and it even
+  contains an item asking for exactly this treatment of other files. Mark it historical at
+  the top or retire it; a reader who finds it before this file gets the wrong model. The
+  fidelity plan's other M3.9 leftovers are closed: the in-panel concept copy shipped in
+  shift 10, and the DEVELOPERS/CHANGELOG re-read happened this shift.
 
 ## Screenshot recipe, already paid for
 
