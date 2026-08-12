@@ -8,7 +8,7 @@ Ride a wave to the edge of space.
 
 ## How to play
 
-Hold `SPACE` — or hold anywhere on a touchscreen — to catch the wave and climb. Let go before your
+Hold `SPACE`, or hold anywhere on a touchscreen, to catch the wave and climb. Let go before your
 magnets run flat, then catch it again. Get 3 kg to the Kármán line as fast as you can.
 
 | Key | Action |
@@ -28,7 +28,7 @@ throughput: kilograms to the Kármán line per hour.
 
 Nothing flashes above 3 Hz, `prefers-reduced-motion` is honoured, and an Okabe-Ito palette keeps
 colour from being the only signal. It plays on a phone: the game takes exactly one input, so the
-whole screen is the button — hold anywhere.
+whole screen is the button, so hold anywhere.
 
 ---
 
@@ -93,7 +93,7 @@ That gets you 100 km in 6:20, averaging 947 km/h and cruising at 1132 km/h. Crui
 `v_max`, which is an asymptote here, not a speed limit. Switching costs 12 kW.
 
 The stack is small on purpose: 8 opposed pairs is 16 magnets, 33 cm and 1.4 kg, carrying 3 kg at
-about 3:1 thrust-to-weight — so the 16 units drawn beside the climber are the 16 units in the
+about 3:1 thrust-to-weight, so the 16 units drawn beside the climber are the 16 units in the
 model. Gassend's own §2.5 anchor, ~64 pairs holding 50 kg, is the same ratio eight times bigger
 and is still the top of the pairs slider.
 
