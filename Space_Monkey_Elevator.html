@@ -1368,12 +1368,18 @@
         // climbing it is the live pace projection; after delivery it locks to the
         // recorded figure plus the persisted best. Short enough for the 390 px phone
         // plate; the words pace/delivered carry the state, so colour never has to.
+        //
+        // The pace branch needs a POSITIVE elapsed, not just a started clock: on the
+        // frame liftoff is detected the climb clock is exactly 0 s old, and a projection
+        // over zero time is 0 kg/h, which would print a score of zero as though it were
+        // one. A null, zero or non-finite elapsed all mean "no projection yet", so the
+        // goal line stands until there is a real one.
         function minimalScoreLine({ cargoKg, altitudeM, climbElapsedS, delivered, deliveredKg, deliveredInS, bestKgH }) {
             if (delivered) {
                 const kgH = throughputKgPerHour(deliveredKg, deliveredInS || 0);
                 return `delivered ${kgH.toFixed(0)} kg/h · best ${Math.round(bestKgH || 0)} kg/h`;
             }
-            if (climbElapsedS !== null && altitudeM > 0.5) {
+            if (climbElapsedS > 0 && altitudeM > 0.5) {
                 const frac = altitudeM / GameConfig.MISSION.DELIVER_ALTITUDE_M;
                 const pace = throughputKgPerHour(cargoKg * frac, climbElapsedS);
                 return `pace ${pace.toFixed(0)} kg/h to Kármán`;

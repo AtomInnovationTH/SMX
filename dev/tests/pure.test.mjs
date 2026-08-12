@@ -1572,6 +1572,13 @@ test('minimalScoreLine: the goal before liftoff, the live pace while climbing', 
   // renderMissionHud's own condition.
   assert.equal(minimalScoreLine({ ...base, altitudeM: 0.4, climbElapsedS: 3 }),
     'score: kg/h to Kármán · cargo 3 kg');
+  // Airborne but the climb clock is 0 s old (the liftoff frame itself), or the elapsed
+  // is not a usable number at all: a projection over zero time is 0 kg/h, and printing
+  // "pace 0 kg/h" would show a score of zero as though it were one.
+  for (const climbElapsedS of [0, null, undefined, NaN, -1]) {
+    assert.equal(minimalScoreLine({ ...base, altitudeM: 5000, climbElapsedS }),
+      'score: kg/h to Kármán · cargo 3 kg', `elapsed ${climbElapsedS} must not print a pace`);
+  }
   // Climbing: cargo x altitude fraction over climb time, the same projection as full.
   // 3 kg, halfway up, 100 s on the clock: 3 * 0.5 * 3600 / 100 = 54 kg/h.
   assert.equal(minimalScoreLine({ ...base, altitudeM: 50000, climbElapsedS: 100 }),

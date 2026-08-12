@@ -42,7 +42,27 @@ extension).
   altitude exceeds 0.5 m (the run clock doing its job), so any placed capture or smoke
   state above ground is the pace state, never the goal state. The goal line
   ("score: kg/h to Kármán · cargo N kg") is pinned by check 20's fresh-reload capture
-  and by a real 390 px boot shot.
+  and by a real 390 px boot shot. The pace branch also needs a POSITIVE elapsed, not
+  just a started clock: on the liftoff frame the climb clock is 0 s old and a projection
+  over zero time is 0 kg/h, which would print a score of zero as though it were one.
+- **The committed screenshots predate the film band.** `screenshots/hero.png` and
+  `screenshots/climb.png` still show the film as a thin line and the climber's hands as
+  closed fists, which is the pre-shift-10 renderer. `hero.png` is also the social card
+  (`deploy.yml` copies it to `_site/social.png`), so the picture the world sees is two
+  shifts behind the drawing. Re-shoot both as part of the moving-picture task below.
+- **`dev/docs/DEVELOPERS.md` and `dev/docs/CHANGELOG.md` were several shifts stale** and
+  were refreshed this shift: the gate numbers (119 unit tests, 48 pure helpers, 26 smoke
+  checks, 353 KB), the pure-helper ritual (four edits, and the arrow-inside-a-helper
+  trap), the HUD levels and the bottom compact plate's band, where the score is
+  displayed, and per-meaning key versioning (the score keys are `.v3`, not `.v2`).
+  Neither doc had recorded touch play, the instrument levels, the film band or the crest
+  overlay; the changelog now carries all four. Keep them current in the same commit as
+  the change, or the next shift inherits numbers it cannot trust.
+- **The smoke suite has timing-sensitive checks.** One standalone run out of six this
+  shift exited 1 and could not be reproduced in five re-runs; its log had been discarded,
+  so the culprit is unknown. Run it as `node dev/tests/smoke/smoke.mjs | tee /tmp/smoke.log`
+  when you are chasing a one-off, and suspect the timing-dependent checks first (brownout
+  recovery, the RAF ratio, the crest thresholds) before assuming a real regression.
 
 - **Slip is drawn, not numbered.** `renderVine` now overlays the crest train as chevrons
   straddling the film in a band (`CREST_BAND_HALF_PX` = 288 px) centred on the climber,
@@ -159,7 +179,9 @@ built and the traps are in "What last shift changed" above.
 
 An animated GIF or a short clip of a real climb would beat any still. Nothing in the repo
 does video capture yet. `screenshots/hero.png` is also the social card (`deploy.yml` copies
-it to `_site/social.png`), so whatever becomes the hero must read at thumbnail size.
+it to `_site/social.png`), so whatever becomes the hero must read at thumbnail size. Both
+committed stills are also two shifts out of date (thin-line film, closed fists), so
+re-shooting them is the floor even if the clip does not happen.
 
 ### 3. M4 physics, when the presentation work is done
 

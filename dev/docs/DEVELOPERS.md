@@ -76,15 +76,17 @@ node --test dev/tests/*.test.mjs
 and evaluates it with no-op DOM/WebGL/audio stubs (the bottom `load` handler only
 *registers* under the stub, so no game boots). [`dev/tests/pure.test.mjs`](../tests/pure.test.mjs)
 holds the assertions. When you add a pure top-level function or class worth testing you must
-make **three** edits or the new symbol is silently `undefined` in tests: (1) add its name to
+make **four** edits or the new symbol is silently `undefined` in tests: (1) add its name to
 `EXPORTED_SYMBOLS` in `extract.mjs`, (2) destructure it from the loaded module at the top of
-`pure.test.mjs`, and (3) add it to the extraction-sanity object literal (the "core pure
-symbols" test). A guard test also scans the delimited pure-helpers block and **fails
+`pure.test.mjs`, (3) add it to the extraction-sanity object literal (the "core pure
+symbols" test), and (4) bump the helper-count assertion. A guard test also scans the
+delimited pure-helpers block and **fails
 loudly** if a declared helper is missing from `EXPORTED_SYMBOLS`, so a forgotten export
 turns red instead of silently reading `undefined`. **Declare helpers with the `function`
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
-`function name(` and `const/let name = … =>` arrow forms, but writing a helper as
-`const foo = (x) => …` is still against convention; keep the 25-helper count assertion in
+`function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
+*inside* a helper is swept in too and breaks the count; write straight calls instead.
+Keep the 48-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -152,7 +154,18 @@ Rough top-to-bottom structure of `Space_Monkey_Elevator.html`:
 anything new has to claim its own (top-left: mission 16–30, thermal 44–85, act plate
 86–118; top-centre: landmark pill ≈48, shared toast ≈100, beat cards from 130, brownout
 banner 26–70; mid-screen: act-break banner; bottom-centre: the p.11 dashboard, 640×132,
-which stays clear of the controls box down to 1024 px wide).
+which stays clear of the controls box down to 1024 px wide; bottom band: the compact
+plate, which is the whole bottom band below 1024 px and at the minimal level at any
+width, 38 px for its two lines and 52 px when it also carries the minimal score line).
+
+Instrument detail is a level, not a toggle: `_uxHudLevel` is minimal (the default) /
+full / off, cycled by `H`, with `?clean` booting straight to off for captures. Every
+instrument is drawn on the canvas, so nothing can be hidden with CSS: anything new must
+read `_uxHudLevel` itself. Minimal is the badge, the energy bar, the compact plate (one
+instruction, the p.11 carrier line and the throughput score) and a beat's title; full
+adds the mission and act blocks, the thermal readout, the p.11 dashboard, the stack
+legend and the switching/skim/slip lines. Failures (UNLOADED, STALLED, brownout) are
+never gated at any level, because a failure has to explain itself.
 
 ---
 
@@ -266,6 +279,13 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   liftoff, locked at delivery.
   A persisted best and the cumulative "bootstrap %" meter survive. `missionScore` (kg·km) is
   gone; do not reintroduce an altitude-weighted score.
+  It is shown at **every** instrument level that draws instruments at all: the full mission
+  block top-left, the game-over report card, and (since shift 12) one line in the minimal
+  compact plate from the pure `minimalScoreLine`, which states the goal and cargo on the
+  ground, the live pace projection while climbing, and the locked figure plus the persisted
+  best after delivery. All three read the same `throughputKgPerHour`, so no level can quote
+  a figure another would not. A scoring system the default screen never mentions is the
+  failure mode that change fixed; do not fold it back behind `H`.
 - **M3.5–M3.8, the rest of the current surface**:
   - **Descending climbers** replace the deleted arcade pickups (`_updateDescenders`,
     `renderDescenders`). Riders spawn 150 m above the 30 km and 60 km crossings and ride
@@ -284,9 +304,12 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     derived readouts, plus five presets that apply through the **sliders' own DOM events**
     (never a parallel write path). Preset numbers were validated against the balance harness
     before shipping; Lofstrom 1000 Hz is a labelled stall demo, not a bug.
-  - **Persistence is `.v2`** for every key (`spaceMonkey.bestScore` became
-    `spaceMonkey.bestAltitude.v2` — it always stored altitude). v1 keys are deleted once at
-    the top of the load handler and never migrated: units and meaning both changed.
+  - **Persistence is versioned per meaning change**: `spaceMonkey.bestScore` became
+    `spaceMonkey.bestAltitude.v2` (it always stored altitude), and the two score keys are on
+    `.v3` (`cargoBest`, `bootstrapKg`) after the shift 9 payload re-scale. Stale keys are
+    deleted once at the top of the load handler and never migrated: units and meaning both
+    changed. Re-base a key only when its meaning does, and purge the old one in the same
+    change.
   - **Two shared helpers exist so displays cannot drift**: `weightN` (badge tier + stall
     detector) and `activeFreqCells` (the p.11 dashboard + the game-over report card).
 
@@ -309,14 +332,18 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **105 unit tests**
-  (pure 91, sliders 9, balance 5), **38 pure helpers** in the delimited block,
-  **98 = 98** asset references, **18 browser smoke checks**, `index.html` **305 KB**.
+- **Current gate numbers** (keep these updated when they move): **119 unit tests**
+  (pure 105, sliders 9, balance 5), **48 pure helpers** in the delimited block,
+  **98 = 98** asset references, **26 browser smoke checks**, `index.html` **353 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in
   `extract.mjs`, `dev/tests/sliders.test.mjs`, a `scaleSettingValue` case, a `UI_CONFIG`
   entry, and `initGame`'s `sliderDefaults` literal.
+- **A render change is not verified until you have shot the frame.** `check.sh` cannot see
+  "invisible": it has caught a correct overlay that no player could make out, twice. The
+  capture recipe, including the headless WebGL flags and the parallax and teleport traps,
+  is in [`NEXT-SHIFT.md`](NEXT-SHIFT.md).
 
 See [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) for PR process and
 [`CHANGELOG.md`](CHANGELOG.md) for release history.

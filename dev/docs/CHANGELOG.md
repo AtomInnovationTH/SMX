@@ -13,6 +13,30 @@ Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climb
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1–M2); the illustration layer is landing now (M3).
 
+#### Added (presentation shifts, August 2026)
+
+- **The throughput score is on the default screen.** One line in the bottom compact plate
+  at the minimal instrument level (`minimalScoreLine`): the goal and cargo before liftoff,
+  the live pace projection while climbing, and the locked figure plus the persisted best
+  after delivery. The full mission block and the report card are unchanged and share the
+  same `throughputKgPerHour`, so no level can quote a figure another would not. Before
+  this, the score existed only behind `H`.
+- **Slip is drawn, not numbered.** A chevron train straddles the film and scrolls past the
+  climber at the modelled overtaking rate (`slipGateFactor`, taken from the same thrust
+  integral the physics uses), parking beside the climber and fading to exactly zero push
+  as the climber approaches `v_max`. Capped under 3 flashes/s, frozen under reduced
+  motion, hidden at HUD off.
+- **The film reads as a band, not a line,** and the climber's hands are open clamps that
+  keep visible daylight to it at every film width. The air gap is the whole point of the
+  coupling, so the drawing had to stop implying contact.
+- **Three instrument levels** on `H`: minimal (the new default), all readouts, none. A
+  first visitor lands on the climb instead of four HUD blocks and a 640 px table, and
+  `?clean` boots straight to no HUD for captures.
+- **Touch play.** The game takes exactly one input, so the whole play surface is the
+  button: hold anywhere to pulse. Below 1024 px the bottom HUD band merges into one plate,
+  the settings panel fills the screen and scrolls, and the old "requires a keyboard"
+  notice now only appears for a viewport too small to place the HUD at all.
+
 #### Added (M3.5-M3.8, August 2026)
 
 - **Descending climbers** at ~30 km and ~60 km, replacing the deleted arcade pickups.

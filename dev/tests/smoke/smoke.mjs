@@ -732,7 +732,7 @@ try {
     // altitude, so cargoDeliveryCredit cannot fire); the delivered state is written
     // directly. Then restore the quiet ground state the crest check builds on.
     g.monkey.velocityY = 0;
-    g.monkey.y = -500000; g.camera.y = g.monkey.y + 400;
+    g.monkey.y = -500000; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
     g._runTimeS = 200; g._climbStartS = 100;
     await new Promise((r) => setTimeout(r, 80));
     out.climbing = await capture();
@@ -740,7 +740,11 @@ try {
     out.delivered = await capture();
     g.cargoDelivered = false; g.deliveredKg = 0; g._deliveredInS = null; g.cargoBest = 0;
     g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
-    g._runTimeS = 0; g._climbStartS = null; g.camera.y = g.monkey.y + 400;
+    g._runTimeS = 0; g._climbStartS = null; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
+    // The 50 km teleport crossed 40 km, so it armed the ACT II banner and a beat card.
+    // Both draw over mid-screen for seconds of sim time; clear them or they bleed into
+    // whatever check runs next.
+    g._actBreakTimer = 0; g._beatCardTimer = 0;
     await new Promise((r) => setTimeout(r, 80));
     await setLevel(0);
     g._beatCard = null;
@@ -756,7 +760,10 @@ try {
     // Minimal still says what to press: the compact plate is the one instruction left.
     has(drawn.minimal, /SPACE: pulse/) &&
     // Shift 12: the throughput score at minimal, in all three states, and not at full.
-    has(drawn.minimal, /score: kg\/h to Kármán · cargo 3 kg/) &&
+    // The goal line is matched without its cargo figure on purpose: the settings the
+    // reload restores are not this check's business, and pure.test.mjs pins the whole
+    // string. The delivered figures ARE pinned, because this check writes them.
+    has(drawn.minimal, /score: kg\/h to Kármán/) &&
     has(drawn.climbing, /pace \d+ kg\/h to Kármán/) &&
     has(drawn.delivered, /delivered 28 kg\/h · best 31 kg\/h/) &&
     !has(drawn.full, /score: kg\/h to Kármán/),
