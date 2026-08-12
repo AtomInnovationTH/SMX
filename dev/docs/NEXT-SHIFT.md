@@ -119,6 +119,11 @@ needs its own balance-harness verification before it ships.
 
 - Headless Chromium renders **no WebGL sky** unless you launch with
   `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`.
+- `playwright-core` in `dev/tests/smoke/node_modules` expects a browser build it does not
+  have, so `chromium.launch()` fails with "Executable doesn't exist". Pass `executablePath`
+  from `~/Library/Caches/ms-playwright/chromium_headless_shell-*/…/chrome-headless-shell`,
+  exactly as `smoke.mjs`'s own `discoverChromium()` does. Do not run `npx playwright install`
+  to fix it.
 - `paused = true` draws a **wash-out veil**. Never pause for a shot.
 - Landmark sprites have **parallax**, so aligning the climber to a sprite altitude by
   arithmetic does not work. Read the sprite's `getBoundingClientRect` and walk the altitude
