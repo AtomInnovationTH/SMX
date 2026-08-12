@@ -210,9 +210,10 @@ try {
     window.__cue = 0;
     const orig = g.audio.brownout.bind(g.audio);
     g.audio.brownout = () => { window.__cue++; orig(); };
-    // The magnet ladder is gone (M2.6) and M2.8's drain is switching watts (188 kW at
-    // the 92 Hz defaults ≈ 18.8 charge-points/s): trip the latch from a small charge
-    // instead of a large tier — deterministic: 0.2 / (18.8 - TRICKLE 3.0) ≈ 13 ms to brownout.
+    // The magnet ladder is gone (M2.6) and M2.8's drain is switching watts. At the shift 9
+    // demo defaults that is 11.8 kW over a 0.19 MJ buffer ≈ 6.2 charge-points/s (the same
+    // drain rate the 128-pair stack had over 3 MJ): trip the latch from a small charge
+    // instead of a large tier — 0.2 / (6.2 - TRICKLE 3.0) ≈ 63 ms to brownout.
     g.waveSystem.amplitude = 0;               // no film velocity -> no thrust -> pure drain
     g.epmCharge = 0.2; g.epmBrownout = false; g.monkey.isGrabbing = true;
     await new Promise((r) => setTimeout(r, 400));
@@ -379,22 +380,25 @@ try {
     latch.d1Armed === true && latch.callsAfterD1 === 1,
     JSON.stringify(latch));
 
-  // 10) M3.1: the FG40 sandwich renders — 8 schematic opposed pairs every frame (it is
-  //     the vehicle, drawn engaged or not), and the firing sweep advances while engaged.
-  //     Reads the live render handles the game exposes on window.__smokeGame.
+  // 10) M3.1: the FG40 sandwich renders every frame (it is the vehicle, drawn engaged or
+  //     not) and the firing sweep advances while engaged. Shift 9 added the LITERAL check:
+  //     the demo stack is 8 pairs and the drawing is 8 pairs, so what is on screen is what
+  //     is in the model. Reads the live render handles on window.__smokeGame.
   const stack = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
     await new Promise((r) => setTimeout(r, 150));
-    const out = { grab: g.monkey.isGrabbing, pairs: g._stackDrawnPairs, sweepA: g._stackSweepPos };
+    const out = { grab: g.monkey.isGrabbing, pairs: g._stackDrawnPairs, literal: g._stackDrawnLiteral,
+                  nPairs: g.nPairs, sweepA: g._stackSweepPos };
     await new Promise((r) => setTimeout(r, 300));
     out.sweepB = g._stackSweepPos;
     window.dispatchEvent(new KeyboardEvent('keyup', { key: ' ' }));
     return out;
   });
-  record('FG40 stack renders (8 schematic pairs) and the firing sweep advances',
-    stack.grab === true && stack.pairs === 8 && stack.sweepA !== stack.sweepB,
+  record('FG40 stack renders the LITERAL 8 pairs of the demo stack; the firing sweep advances',
+    stack.grab === true && stack.pairs === 8 && stack.nPairs === 8 && stack.literal === true &&
+    stack.sweepA !== stack.sweepB,
     JSON.stringify(stack));
 
   // 11) M3.1 photosafety: the firing gradient is a SLOWED schematic. Each unit modulates
@@ -468,8 +472,10 @@ try {
 
   // 14) M3.7: presets apply a whole configuration through the SAME slider path (DOM
   //     events -> existing listeners -> eventBus), so labels, readouts and game state
-  //     all track one click. Wessels pins his 60 cm stroke; Lofstrom's 1000 Hz lights
-  //     the 2 MW wall on the new switching readout; Paper baseline restores 92 Hz.
+  //     all track one click. Wessels pins his 60 cm stroke; Lofstrom's 1000 Hz lights the
+  //     switching wall (128 kW on the shift 9 demo stack — small against the ground
+  //     station's 4 MW, lethal to the climber's own 0.19 MJ buffer); Paper baseline
+  //     restores 92 Hz and its 12 kW.
   const presets = await page.evaluate(() => {
     const g = window.__smokeGame;
     const click = (id) => document.querySelector(`[data-preset="${id}"]`).click();
@@ -484,36 +490,39 @@ try {
     click('paper'); const p = read();
     return { w, l, p };
   });
-  record('presets: Wessels 60 cm stroke, Lofstrom 2 MW wall, Paper baseline restores',
+  record('presets: Wessels 60 cm stroke, Lofstrom switching wall, Paper baseline restores',
     Math.abs(presets.w.amp - 0.6) < 1e-9 && presets.w.ampLabel.includes('0.60') &&
-    Math.abs(presets.l.hz - 1000) < 1 && presets.l.sw.includes('2048 kW') &&
-    Math.abs(presets.p.hz - 92) < 1 && presets.p.freqLabel.includes('92.0') && presets.p.sw.includes('188 kW'),
+    Math.abs(presets.l.hz - 1000) < 1 && presets.l.sw.includes('128 kW') &&
+    Math.abs(presets.p.hz - 92) < 1 && presets.p.freqLabel.includes('92.0') && presets.p.sw.includes('12 kW'),
     JSON.stringify(presets));
 
   // 15) M3.8: every persistence key moved to .v2 (bestScore -> bestAltitude.v2 — it
   //     always stored altitude). v1 values are NOT migrated (units and meaning both
-  //     changed); they are deleted on first v2 load. Seed the v1 keys, reload, and
-  //     assert they are gone and nothing carried over.
-  await page.evaluate(() => {
-    for (const k of ['spaceMonkey.bestScore', 'spaceMonkey.bestRun.v1', 'spaceMonkey.cargoBest.v1',
-                     'spaceMonkey.bootstrapKg.v1', 'spaceMonkey.settings.v1', 'spaceMonkey.audioMuted.v1']) {
-      localStorage.setItem(k, '12345');
-    }
-  });
+  //     changed); they are deleted on first v2 load. Shift 9 adds the two v2 SCORE keys
+  //     to the same purge, because the demo payload went 50 kg -> 3 kg and the bootstrap
+  //     target 5000 kg -> 600 kg: a kept record would be unbeatable and a kept total
+  //     would read 8x its real progress. Seed them all, reload, assert they are gone.
+  const STALE_KEYS = ['spaceMonkey.bestScore', 'spaceMonkey.bestRun.v1', 'spaceMonkey.cargoBest.v1',
+                      'spaceMonkey.bootstrapKg.v1', 'spaceMonkey.settings.v1', 'spaceMonkey.audioMuted.v1',
+                      'spaceMonkey.cargoBest.v2', 'spaceMonkey.bootstrapKg.v2'];
+  await page.evaluate((keys) => {
+    for (const k of keys) localStorage.setItem(k, '12345');
+  }, STALE_KEYS);
   await page.reload({ waitUntil: 'load' });
   // __smokeGame is exposed in the constructor, BEFORE the first frame — wait on the
   // render handle, not just the game object.
   await page.waitForFunction(
     () => window.__smokeGame && typeof window.__smokeGame._stackSweepPos === 'number',
     null, { timeout: 20000, polling: 100 });
-  const migrated = await page.evaluate(() => ({
-    v1Left: ['spaceMonkey.bestScore', 'spaceMonkey.bestRun.v1', 'spaceMonkey.cargoBest.v1',
-             'spaceMonkey.bootstrapKg.v1', 'spaceMonkey.settings.v1', 'spaceMonkey.audioMuted.v1']
-            .filter((k) => localStorage.getItem(k) !== null),
+  const migrated = await page.evaluate((keys) => ({
+    left: keys.filter((k) => localStorage.getItem(k) !== null),
     bestAlt: window.__smokeGame.bestAltitude,   // must NOT inherit the seeded 12345
-  }));
-  record('persistence: v1 keys purged on first v2 load, values not migrated',
-    migrated.v1Left.length === 0 && migrated.bestAlt === 0, JSON.stringify(migrated));
+    cargoBest: window.__smokeGame.cargoBest,
+    bootstrap: window.__smokeGame.bootstrapKg,
+  }), STALE_KEYS);
+  record('persistence: stale-unit keys purged on load, values not migrated',
+    migrated.left.length === 0 && migrated.bestAlt === 0 &&
+    migrated.cargoBest === 0 && migrated.bootstrap === 0, JSON.stringify(migrated));
 
   // 16) Shift 9, touch play. A phone used to get "requires a keyboard" instead of the
   //     game. Boot a real touch viewport (390x844) and check the whole path: the game

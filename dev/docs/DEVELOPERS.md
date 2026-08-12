@@ -237,7 +237,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   all to 2 s.f., and they only reproduce at the paper's ρ = 2300); `k ≈ 0.043 N/(m/s)` per
   pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; switching power
   **266 kW = 6.7 % of 4 MW at §2.5's reference config** (260 Hz × 64 pairs) and
-  **188 kW = 4.7 % at the shipped defaults** (92 Hz × 128 pairs); and the balance harness's
+  **12 kW at the shipped demo defaults** (92 Hz × 8 pairs); and the balance harness's
   **target bands** (100 km in 240–480 s, mean
   900–1300 km/h, terminal speed < `v_max`, brownout episodes 2–8 s).
 - **Units chain** (`GameConfig.TETHER`): the tether carries a **longitudinal** (compression)
@@ -245,16 +245,25 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   (~20.9 km/s at the paper's E ≈ 1 TPa, ρ = 2300), shown in settings. Cross-section is
   `filmCrossSectionM2(widthMm, thicknessMm)`: the paper's ribbon is 45 mm × 0.2 mm = 9 mm².
   (The old `√(T/μ)` coupling-momentum proxy and the cylinder cross-section are deleted.)
-- **Shipped defaults after the M2.11 rebalance**: 100 GPa Polycrystalline Graphene (the
-  strongest non-speculative rung), carrier **92 Hz**, air gap 0.15 mm, 128 pairs, 30% stress
-  budget, 1.00 m stroke, 50 kg cargo → 100 km in ~390 s at a ~930 km/h mean. The carrier
+- **Shipped defaults after the M2.11 rebalance and the shift 9 demo re-scale**: 100 GPa
+  Polycrystalline Graphene (the strongest non-speculative rung), carrier **92 Hz**, air gap
+  0.15 mm, **8 pairs**, 30% stress budget, 1.00 m stroke, **3 kg cargo** → 100 km in ~380 s at
+  a ~947 km/h mean. Shift 9 cut the stack 128 → 8 and the payload 50 → 3 kg, which holds
+  thrust-to-weight (and therefore the pace) while making the stack a size the renderer can draw
+  literally — `STACK_MAX_DRAWN_PAIRS` is 16, so at the defaults the units on screen ARE the
+  units in the model. Two things had to move with it: `EPM.CAPACITY_J` 3 MJ → 0.19 MJ, because
+  switching fell 16× and the ambient trickle would otherwise have covered the drain and made
+  brownout impossible; and the two score keys went to `.v3`, because a 50 kg-scale best is
+  unbeatable at 3 kg. The carrier
   default sits at the **low** end of the 92–1000 Hz band because switching watts grow with
   `f` while extraction is capped by `v_max`: above ~200 Hz this film class cannot pay for
   its own switching and the climb stalls. That trade is the point — the slider keeps the
   whole band so a player can find the wall.
 - **Scoring** (`throughputKgPerHour`, M3.6): the Weight slider is cargo, and the score is
   **throughput — kg delivered to the Kármán Line per hour of climb** (the reference climb is
-  50 kg in 387.6 s ≈ 464 kg/h). The clock is sim time from first liftoff, locked at delivery.
+  3 kg in 380.4 s ≈ 28 kg/h; it was 50 kg in 387.6 s ≈ 464 kg/h before the shift 9 demo scale,
+  which is why `cargoBest`/`bootstrapKg` moved to `.v3`). The clock is sim time from first
+  liftoff, locked at delivery.
   A persisted best and the cumulative "bootstrap %" meter survive. `missionScore` (kg·km) is
   gone; do not reintroduce an altitude-weighted score.
 - **M3.5–M3.8, the rest of the current surface**:

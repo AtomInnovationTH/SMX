@@ -198,7 +198,13 @@ test('M2.11: a hotter carrier forces the emergent engage/release rhythm into the
   // 150 Hz on this film class: switching watts outrun extraction through the mid-slip
   // region, so the physics forces brownout releases — the rhythm §2.3 promised, not a
   // script. (The shipped 92 Hz default is the energy-feasible end and needs no rhythm.)
-  const r = runClimb(1 / 60, WALL_S, { carrierHz: 150, nPairs: 256 });
+  //
+  // Shift 9 re-based the fixture with the demo scale. It was 256 pairs against a 128-pair
+  // default and a 3 MJ buffer; it is now 16 against an 8-pair default and 0.19 MJ, which
+  // is the SAME energy condition: 2x the shipped stack, drawing 38.4 kW of switching for
+  // 20.2 charge-points/s of drain, where the old fixture drew 614 kW for 20.5. Left at
+  // 256 the climber would brown out at 323 points/s and never leave the ground.
+  const r = runClimb(1 / 60, WALL_S, { carrierHz: 150, nPairs: 16 });
   assert.notEqual(r.doneAt, null, 'the 150 Hz loaded climb stalled');
   assert.ok(r.brownoutEpisodes.length >= 3,
     `expected >= 3 emergent brownout episodes at 150 Hz, got ${r.brownoutEpisodes.length}`);

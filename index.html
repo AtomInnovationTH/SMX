@@ -383,7 +383,7 @@
             <button data-preset="lofstrom">Lofstrom 1000 Hz</button>
             <button data-preset="maxspeed">Max speed</button>
             <button data-preset="maxpayload">Max payload</button>
-            <small class="setting-hint">Entry points, all applied through the sliders below. <b>Lofstrom 1000 Hz is the wall demo</b>: 1000 Hz × 128 pairs draws ~2 MW of switching against the paper's 4 MW wave budget — the climb stalls, and that wall is the paper's p.11 story. Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed; his 40 m wavelength implies a slower tether than this film (c = 3.7 vs 20.9 km/s), so λ comes out 227 m here.</small>
+            <small class="setting-hint">Entry points, all applied through the sliders below. <b>Lofstrom 1000 Hz is the wall demo</b>: at 1000 Hz the same 8-pair stack draws 128 kW of switching, which empties the climber's own 0.19 MJ buffer in about a second and a half — it browns out no matter how much thrust it has. That wall is Gassend's p.11 story. Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed; his 40 m wavelength implies a slower tether than this film (c = 3.7 vs 20.9 km/s), so λ comes out 227 m here.</small>
         </div>
 
         <h4>Ground station</h4>
@@ -454,9 +454,9 @@
 
         <h4>Climber</h4>
         <div class="slider-container">
-            <label>FG40 pairs: <span id="nPairsValue">128 pairs</span></label>
-            <input type="range" id="nPairs" min="1" max="256" step="1" value="128">
-            <small class="setting-hint">Opposed pairs in the climber's FG40 sandwich — the REAL scaling axis (not a magnet-material ladder: Alnico + NdFeB co-exist in every unit). More pairs: more thrust, but more stack mass and more switching watts. ~64 pairs holds 50 kg at 1 g (paper §2.5).</small>
+            <label>FG40 pairs: <span id="nPairsValue">8 pairs</span></label>
+            <input type="range" id="nPairs" min="2" max="64" step="1" value="8">
+            <small class="setting-hint">Opposed pairs in the climber's FG40 sandwich — the REAL scaling axis (not a magnet-material ladder: Alnico + NdFeB co-exist in every unit). More pairs: more thrust, but more stack mass and more switching watts. The demo default is 8 pairs (16 units, 33 cm, 1.4 kg) carrying 3 kg at about 3:1 thrust-to-weight; the same ratio at Gassend's §2.5 anchor is ~64 pairs for 25 kg, and 64 is the top of this slider.</small>
         </div>
         <div class="slider-container">
             <label>Air gap: <span id="airGapValue">0.15 mm</span></label>
@@ -472,9 +472,9 @@
             <small class="setting-hint">2 FG40 units per opposed pair, 72 g each, plus 25% structure. Dry mass is dead weight you carry; cargo (below) is what scores.</small>
         </div>
         <div class="slider-container">
-            <label>Cargo: <span id="weightValue">50 kg</span></label>
-            <input type="range" id="weight" min="0.2" max="200" step="0.2" value="50">
-            <small class="setting-hint">Scored payload, kg. More cargo: more inertia (a = F/m), but cargo delivered to 100 km is your score.</small>
+            <label>Cargo: <span id="weightValue">3 kg</span></label>
+            <input type="range" id="weight" min="0.2" max="24" step="0.2" value="3">
+            <small class="setting-hint">Scored payload, kg. More cargo: more inertia (a = F/m), but cargo delivered to 100 km is your score. The top of this slider is roughly what a full 64-pair stack lifts at the same thrust-to-weight the 8-pair demo flies.</small>
         </div>
         <div class="slider-container">
             <label>Gravity: <span id="gravityValue">1.00 G</span></label>
@@ -538,7 +538,11 @@
         // high-frequency strobe. The gradient scrolls at 1 / 0.8 s = 1.25 Hz per point,
         // comfortably under the 3 flashes/s photosensitive-seizure ceiling (WCAG 2.3.1),
         // and freezes to a static lit state under prefers-reduced-motion.
-        const STACK_SCHEMATIC_PAIRS = 8;
+        // Most pairs the sandwich schematic will draw. Shift 9 dropped the default stack to
+        // 8 pairs precisely so this is a LITERAL count at the defaults: 16 units on screen,
+        // 16 units in the model. Above this the drawing clamps and the legend says
+        // "schematic" — a 64-pair stack in 150 px is a smear, not information.
+        const STACK_MAX_DRAWN_PAIRS = 16;
         const STACK_SWEEP_PERIOD_S = 0.8;
 
         // UX (M3.5, decision 19): descending climbers replace the arcade pickups. The
@@ -560,21 +564,24 @@
 
         // UX (M3.7, decision 17): presets — an entry point instead of a slider wall.
         // Each reproduces its source's own numbers where the source gives them, and each
-        // was validated against the balance harness's integrator (same step order):
-        //   paper    388 s (the shipped reference climb), wessels 749 s, maxspeed 293 s,
-        //   maxpayload 495 s — lofstrom never closes its energy loop, BY DESIGN:
-        //   1000 Hz × 128 pairs draws ~2 MW of switching against a 4 MW wave budget, so
-        //   the preset IS the high-carrier wall demo (the hint in the panel says so).
+        // was validated against the balance harness's integrator (same step order).
+        // Lofstrom never closes its energy loop, BY DESIGN: it is the high-carrier wall
+        // demo. Shift 9 re-based every stack and payload to the 8-pair / 6 kg demo scale
+        // (see FG40.DEFAULT_N_PAIRS), which moved WHERE the wall comes from: at 128 pairs,
+        // 1000 Hz drew ~2 MW against the ground station's 4 MW wave budget; at 8 pairs it
+        // draws 128 kW, which is small against 4 MW but empties the climber's own 0.19 MJ
+        // buffer in ~1.5 s. Same wall, same cause (switching scales with carrier), now
+        // measured against the battery the player can see instead of a budget they cannot.
         // Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed exactly; his 40 m
         // wavelength implies c = 3.7 km/s, not this film's 20.9 km/s, so his λ cannot
         // reproduce here — the panel footnote says that rather than fake it (§0).
         // Amplitude goes last at apply time so it clamps against the final stress cap.
         const PRESETS = [
-            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 128, airGap: 0.15, weight: 50,  gravity: 1 },
-            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 128, airGap: 0.10, weight: 50,  gravity: 1 },
-            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 128, airGap: 0.15, weight: 50,  gravity: 1 },
-            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 192, airGap: 0.15, weight: 50,  gravity: 1 },
-            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 256, airGap: 0.10, weight: 200, gravity: 1 },
+            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
+            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
         ];
 
         // UX: game-over gate (2e)
@@ -676,8 +683,13 @@
         let _uxHudLevel = HUD_MINIMAL;
 
         // SIM (M3.6, decision 11): throughput scoring + cumulative bootstrap progress.
-        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v2';      // best single-run throughput (kg/h)
-        const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v2';  // cumulative kg delivered to Kármán
+        // Shift 9 bumped both to .v3 because the demo scale changed what they MEAN: the
+        // payload went 50 kg -> 3 kg, so a best of 464 kg/h can never be approached again
+        // and would sit there as a permanently unbeatable record; and the bootstrap target
+        // went 5000 kg -> 600 kg, so an old cumulative total would read 8x its real
+        // progress. Same reasoning as the v1 -> v2 purge below, same treatment.
+        const CARGO_BEST_KEY = 'spaceMonkey.cargoBest.v3';      // best single-run throughput (kg/h)
+        const BOOTSTRAP_KG_KEY = 'spaceMonkey.bootstrapKg.v3';  // cumulative kg delivered to Kármán
 
         // Polish (Stage 4 / 3.1): audio mute preference (audio starts MUTED per A4).
         const AUDIO_MUTED_KEY = 'spaceMonkey.audioMuted.v2';
@@ -690,16 +702,24 @@
         // the new units. The v1 keys are deleted once, on first v2 load (see the call
         // at the top of the window load handler). These names are literals, not the
         // live consts — they must stay even though nothing else references them.
-        const PERSIST_V1_KEYS = [
+        //
+        // Shift 9 adds the two v2 SCORE keys for the same reason: the demo payload went
+        // 50 kg -> 3 kg and the bootstrap target 5000 kg -> 600 kg, so both stored numbers
+        // now describe a game that no longer exists. bestAltitude.v2 is deliberately NOT
+        // here: the climb is still a climb to 100 km, so that record still means what it
+        // said. Neither is settings.v2 — a colourblind preference is scale-free.
+        const PERSIST_STALE_KEYS = [
             'spaceMonkey.bestScore',
             'spaceMonkey.bestRun.v1',
             'spaceMonkey.cargoBest.v1',
             'spaceMonkey.bootstrapKg.v1',
             'spaceMonkey.settings.v1',
             'spaceMonkey.audioMuted.v1',
+            'spaceMonkey.cargoBest.v2',
+            'spaceMonkey.bootstrapKg.v2',
         ];
-        function purgeV1Persistence() {
-            try { for (const k of PERSIST_V1_KEYS) localStorage.removeItem(k); } catch (e) {}
+        function purgeStalePersistence() {
+            try { for (const k of PERSIST_STALE_KEYS) localStorage.removeItem(k); } catch (e) {}
         }
         
         // Store originals so we can swap back
@@ -982,9 +1002,12 @@
 
         // SIM (M3.6, decision 11): the mission score is THROUGHPUT — kg delivered to
         // Kármán per hour of climb. It subsumes "max load, max speed" in one number
-        // (the reference climb: 50 kg in 387.6 s ≈ 464 kg/h). Single source shared by
-        // the in-play mission HUD (live pace) and the game-over report card so the two
-        // displays cannot drift. bootstrapPct survives: cumulative progress is separate.
+        // (the reference climb after shift 9: 3 kg in 380.4 s ≈ 28 kg/h; it was 50 kg in
+        // 387.6 s ≈ 464 kg/h before the demo scale — the same climb, an eighth the load,
+        // so the score is an eighth the size and best-run history from the old scale is
+        // not comparable). Single source shared by the in-play mission HUD (live pace) and
+        // the game-over report card so the two displays cannot drift. bootstrapPct
+        // survives: cumulative progress is separate.
         function throughputKgPerHour(cargoKg, timeS) {
             return timeS > 0 ? cargoKg * 3600 / timeS : 0;
         }
@@ -2136,8 +2159,13 @@
             static MONKEY = {
                 WIDTH: 100,
                 HEIGHT: 160,
-                WEIGHT: 50,   // DEFAULT CARGO (kg) — the scored payload. Total mass = cargo
+                WEIGHT: 3,    // DEFAULT CARGO (kg) — the scored payload. Total mass = cargo
                               // + dry stack (magnets + structure); see M2.7's dryMassKg().
+                              // Shift 9: was 50 kg, which forced a 128-pair / 5.2 m stack
+                              // nobody could draw honestly. 3 kg on 8 pairs flies the SAME
+                              // thrust-to-weight (~3.3:1, so the same ~6 min climb) at an
+                              // eighth of the size, and the stack on screen is then the
+                              // stack you actually have.
                 COLOR: COLOR_PALETTE.MONKEY_BROWN,
                 INITIAL_Y_OFFSET: 200,
                 BADGE_WIDTH: 80,  // Smaller to fit on chest patch
@@ -2232,10 +2260,14 @@
             static EPM = {
                 CAPACITY: 100,
                 START_CHARGE: 100,
-                // ESTIMATE (M2.11 owns the tune): joules behind the gauge, chosen so the
-                // full buffer bridges the low-speed extraction deficit (11 s of the default
-                // 269 kW switching draw) — the engage/release rhythm then lands in seconds.
-                CAPACITY_J: 3.0e6,
+                // ESTIMATE (M2.11 owns the tune): joules behind the gauge. It MUST track the
+                // switching draw, or the gauge stops being a decision. Shift 9 cut the stack
+                // from 128 pairs to 8, which cut switching from 188 kW to 11.8 kW: at the old
+                // 3 MJ the ambient trickle alone would have covered the drain and brownout
+                // would have become impossible. 0.19 MJ (~53 Wh — a laptop battery, which is
+                // also a far more honest number to hang on a 7 kg climber than 833 Wh) keeps
+                // the drain at the same 6.3 charge-points/s the rhythm was tuned around.
+                CAPACITY_J: 1.9e5,
                 TRICKLE: 3.0,            // charge-points/s ambient regen — tuned so a latched
                                          // brownout recovers in RECOVER/TRICKLE = 5 s, inside
                                          // the plan's 2-8 s engage/release rhythm band (M2.11)
@@ -2300,8 +2332,15 @@
                 POLE_AREA_M2: 1.2e-3,   // ESTIMATE: pole-face area (4×4 cm package)
                 UNIT_MASS_KG: 0.072,    // datasheet: 72 g
                 PITCH_M: 0.041,         // ESTIMATE: opposed-pair pitch — a 64-pair stack ≈ 2.6 m (decision 6)
-                DEFAULT_N_PAIRS: 128,   // shipped default (M2.11): 2× §2.5's 64-pair hold-50-kg
-                                        // anchor, needed to carry stack + 50 kg cargo up 100 km
+                DEFAULT_N_PAIRS: 8,     // shift 9. Gassend's §2.5 anchor — ~64 pairs holding
+                                        // 50 kg at 1 g — is still reproduced by this model
+                                        // (64 pairs, 50 kg cargo: 1170 N thrust vs 604 N of
+                                        // weight, T/W 1.9). The DEMO flies the same ratio one
+                                        // eighth the size: 8 pairs (16 units, 33 cm, 1.4 kg
+                                        // dry) carrying 6 kg at 146 N vs 73 N, T/W 2.0. That
+                                        // matters because 8 pairs is a stack that can be DRAWN
+                                        // literally — 128 could only ever be a schematic with
+                                        // an apology attached.
                 // ESTIMATE (decision 16): structure mass around the magnets (frame, wiring,
                 // controller, film guides) as a fraction of magnet mass. §2.5's ~10:1
                 // thrust-to-weight counts magnets only; this keeps that honest. Never
@@ -2323,7 +2362,10 @@
             //     (S16): the seed tether growing on what climbers carry up.
             static MISSION = {
                 DELIVER_ALTITUDE_M: 100000,   // Kármán Line
-                BOOTSTRAP_TARGET_KG: 5000     // cumulative kg for a full bootstrap meter
+                // Cumulative kg for a full bootstrap meter. Re-based with the payload in
+                // shift 9 (was 5000 kg against a 50 kg cargo): 600 kg is the same ~100
+                // deliveries of work at 6 kg a run.
+                BOOTSTRAP_TARGET_KG: 600
             };
 
             // SIM (educational thermal layer): standard-atmosphere temperature + a protective-suit
@@ -3402,9 +3444,9 @@
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
                     airGap:     { value: 0.15,   label: '0.15 mm' },
-                    nPairs:     { value: 128,    label: '128 pairs' },
+                    nPairs:     { value: 8,      label: '8 pairs' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
-                    weight:     { value: 50,     label: '50 kg' }
+                    weight:     { value: 3,      label: '3 kg' }
                 };
                 Object.entries(sliderDefaults).forEach(([id, def]) => {
                     const el = document.getElementById(id);
@@ -4417,29 +4459,37 @@
 
             // M3.1: the FG40 sandwich — the climber IS the stack, so it is drawn ALWAYS
             // (dim when disengaged), not just while pulsing: the old "hands gripping a
-            // vine" visual taught the wrong mechanism. STACK_SCHEMATIC_PAIRS opposed pairs
-            // flank the film on a FIXED schematic span (a real-scale stack is 26-105 px —
-            // illegible next to a 240 px sprite that is itself not to scale; decision 6
-            // says draw schematically and carry the true dimensions in the label and the
-            // settings telemetry). While engaged, the units light in a TRAVELLING sequence
-            // whose DIRECTION is physical — stackPhaseOffset < 0 for the up-travelling
-            // carrier means upper units lag, so the firing band sweeps bottom→top — and
-            // whose RATE is a slowed schematic: the real band crosses the stack in
-            // L/c ≈ 0.25 ms, an undrawable and unsafe strobe. The gradient scrolls at
-            // 1/STACK_SWEEP_PERIOD_S = 1.25 Hz per point (under the 3 flashes/s
-            // photosafety ceiling) and freezes to a static lit state under reduced motion.
+            // vine" visual taught the wrong mechanism. Opposed pairs flank the film on a
+            // FIXED span (the sprite itself is not to scale, so a real-scale stack cannot
+            // be; decision 6 says draw the span schematically and carry the true dimensions
+            // in the label and the settings telemetry).
+            //
+            // Shift 9: the COUNT is no longer schematic. The demo stack is 8 pairs, so the
+            // 16 units on screen are the 16 units in the model, and the label stops
+            // apologising. Only above STACK_MAX_DRAWN_PAIRS does the count clamp.
+            //
+            // While engaged, the units light in a TRAVELLING sequence whose DIRECTION is
+            // physical — stackPhaseOffset < 0 for the up-travelling carrier means upper
+            // units lag, so the firing band sweeps bottom→top — and whose RATE is a slowed
+            // schematic: the real band crosses the stack in L/c ≈ 0.25 ms, an undrawable and
+            // unsafe strobe. The gradient scrolls at 1/STACK_SWEEP_PERIOD_S = 1.25 Hz per
+            // point (under the 3 flashes/s photosafety ceiling) and freezes to a static lit
+            // state under reduced motion.
             // Drawn AFTER renderMonkey so the hardware reads as what the monkey rides.
             renderFg40Stack(ctx) {
                 const cy = this.monkey.y - this.camera.getY() + this.monkey.height / 2;
                 const stackLenM = stackLengthM(this.nPairs, GameConfig.FG40.PITCH_M);
-                const stackPx = 150;   // fixed schematic span — see the header comment
+                const stackPx = 150;   // fixed span — see the header comment
+                const drawnPairs = Math.min(this.nPairs, STACK_MAX_DRAWN_PAIRS);
+                const literal = drawnPairs === this.nPairs;
                 const engaged = this.monkey.isGrabbing && !this.epmBrownout;
                 const cMps = tetherWaveSpeed();
                 const sweepsUp = stackPhaseOffset(1, GameConfig.FG40.PITCH_M, this.waveSystem.frequency, cMps) < 0;
                 const sweep = _uxReducedMotion ? 0.3 : (this.waveSystem.time / STACK_SWEEP_PERIOD_S) % 1;
-                // Live render handles for the smoke test (stack renders; sweep ≤ 3 Hz;
-                // sweep frozen under reduced motion).
-                this._stackDrawnPairs = STACK_SCHEMATIC_PAIRS;
+                // Live render handles for the smoke test (stack renders; the drawn count is
+                // literal at the defaults; sweep ≤ 3 Hz; sweep frozen under reduced motion).
+                this._stackDrawnPairs = drawnPairs;
+                this._stackDrawnLiteral = literal;
                 this._stackSweepPos = sweep;
                 this._stackSweepPeriodS = STACK_SWEEP_PERIOD_S;
                 this._stackSweepFrozen = _uxReducedMotion;
@@ -4455,7 +4505,7 @@
 
                 const railDX = 58;              // opposed faces flank the climber sprite
                 const unitW = 14, unitH = 8;    // a real unit is 4 cm = 0.4 px — schematic
-                const slotH = stackPx / STACK_SCHEMATIC_PAIRS;
+                const slotH = stackPx / drawnPairs;
                 const sy0 = cy - stackPx / 2;
                 ctx.save();
                 // One rail per opposed face; the film (renderVine) runs between them.
@@ -4467,8 +4517,8 @@
                     ctx.lineTo(this.wave.x + side * railDX, sy0 + stackPx);
                     ctx.stroke();
                 }
-                for (let j = 0; j < STACK_SCHEMATIC_PAIRS; j++) {
-                    const yFrac = j / (STACK_SCHEMATIC_PAIRS - 1);   // 0 bottom → 1 top
+                for (let j = 0; j < drawnPairs; j++) {
+                    const yFrac = drawnPairs > 1 ? j / (drawnPairs - 1) : 0.5;   // 0 bottom → 1 top
                     const uy = sy0 + slotH * (j + 0.5);
                     // Travelling brightness gradient. Each unit modulates at exactly
                     // 1/STACK_SWEEP_PERIOD_S = 1.25 Hz < 3 Hz; a smooth cosine, never a
@@ -4508,7 +4558,10 @@
                 const margin = this._gapMarginMm;
                 const lines = [];
                 if (_uxHudLevel === HUD_FULL) {
-                    lines.push({ text: `FG40 ×${this.nPairs} pr · ${stackLenM.toFixed(1)} m — schematic`, col: 'rgba(159, 212, 160, 0.95)' });
+                    lines.push({ text: literal
+                            ? `FG40 ×${this.nPairs} pr · ${(stackLenM * 100).toFixed(0)} cm · dry ${this.dryMassKg().toFixed(1)} kg`
+                            : `FG40 ×${this.nPairs} pr · ${stackLenM.toFixed(1)} m — ${drawnPairs} drawn (schematic)`,
+                        col: 'rgba(159, 212, 160, 0.95)' });
                 }
                 lines.push(margin > 0
                     ? { text: narrow
@@ -5313,8 +5366,9 @@
         }
         
         window.addEventListener('load', () => {
-            // M3.8: first v2 load deletes the v1 keys (no migration — see PERSIST_V1_KEYS).
-            purgeV1Persistence();
+            // M3.8 + shift 9: delete records whose units no longer exist. No migration —
+            // see PERSIST_STALE_KEYS for which keys and why each one is on the list.
+            purgeStalePersistence();
             // UX: detect reduced-motion preference (2f)
             _uxReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             

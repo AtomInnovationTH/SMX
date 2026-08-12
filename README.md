@@ -9,7 +9,7 @@ Ride a wave to the edge of space.
 ## How to play
 
 Hold `SPACE` — or hold anywhere on a touchscreen — to catch the wave and climb. Let go before your
-magnets run flat, then catch it again. Get 50 kg to the Kármán line as fast as you can.
+magnets run flat, then catch it again. Get 3 kg to the Kármán line as fast as you can.
 
 | Key | Action |
 |---|---|
@@ -86,12 +86,16 @@ mass, air drag, battery size.
 
 ## The default climb
 
-100 GPa graphene, 92 Hz, 1 m stroke, 30% stress budget, 9 mm² film, 0.15 mm gap, 128 magnet pairs,
-50 kg cargo.
+100 GPa graphene, 92 Hz, 1 m stroke, 30% stress budget, 9 mm² film, 0.15 mm gap, 8 magnet pairs,
+3 kg cargo.
 
-That gets you 100 km in 6:28, averaging 929 km/h and cruising at 1115 km/h. Cruise is 49% of
-`v_max`, which is an asymptote here, not a speed limit. Switching costs 188 kW, or 4.7% of the
-paper's 4 MW budget.
+That gets you 100 km in 6:20, averaging 947 km/h and cruising at 1132 km/h. Cruise is 50% of
+`v_max`, which is an asymptote here, not a speed limit. Switching costs 12 kW.
+
+The stack is small on purpose: 8 opposed pairs is 16 magnets, 33 cm and 1.4 kg, carrying 3 kg at
+about 3:1 thrust-to-weight — so the 16 units drawn beside the climber are the 16 units in the
+model. Gassend's own §2.5 anchor, ~64 pairs holding 50 kg, is the same ratio eight times bigger
+and is still the top of the pairs slider.
 
 92 Hz is a result, not a preference. Switching power rises with frequency while extraction stays
 capped by `v_max`, so this film stalls above roughly 200 Hz. The slider still reaches 1000 Hz

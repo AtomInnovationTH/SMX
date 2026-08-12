@@ -36,7 +36,10 @@ test('slider defaults agree across the static input, label span and initGame res
 test('weight slider default maps to GameConfig.MONKEY.WEIGHT', () => {
   const d = sliderDefaults().weight;
   assert.equal(scaleSettingValue('weight', parseFloat(d.inputValue)), GameConfig.MONKEY.WEIGHT);
-  assert.equal(GameConfig.MONKEY.WEIGHT, 50, 'the config default the UI must match');
+  // Shift 9: 3 kg, not 50. A 50 kg payload needed a 128-pair / 5.2 m stack, which could
+  // only ever be drawn as a schematic; 3 kg on 8 pairs holds the same thrust-to-weight
+  // (and the same ~6 minute climb) at a scale the picture can be honest about.
+  assert.equal(GameConfig.MONKEY.WEIGHT, 3, 'the config default the UI must match');
 });
 
 test('amplitude/frequency slider defaults map to the wave config', () => {
@@ -74,12 +77,17 @@ test('air-gap slider is real millimetres (M2.4 — the grip multiplier is gone)'
   assert.equal(d.max, '5');
 });
 
-test('N-pairs slider is the real scaling axis (M2.6), default 128 pairs', () => {
-  // M2.11: 128 pairs = 2× §2.5's hold-50-kg anchor, to carry stack + 50 kg cargo up
-  // 100 km. Raw value IS the pair count.
+test('N-pairs slider is the real scaling axis (M2.6), default 8 pairs', () => {
+  // Shift 9: the demo stack. 8 pairs = 16 units = 33 cm, carrying 3 kg at the same
+  // thrust-to-weight the old 128-pair / 50 kg default flew. Raw value IS the pair count,
+  // and 8 is also the count renderFg40Stack draws, so the schematic is now literal.
   const d = sliderDefaults().nPairs;
   assert.equal(parseFloat(d.inputValue), GameConfig.FG40.DEFAULT_N_PAIRS);
-  assert.equal(d.staticLabel, '128 pairs');
+  assert.equal(GameConfig.FG40.DEFAULT_N_PAIRS, 8);
+  assert.equal(d.staticLabel, '8 pairs');
+  // Gassend's §2.5 anchor — ~64 pairs for 50 kg — stays reachable at the top of the
+  // slider, so the deck's own operating point is still one drag away.
+  assert.equal(parseFloat(d.max), 64);
 });
 
 test('carrier default is the energy-feasible end of the band (M2.11): 92 Hz', () => {

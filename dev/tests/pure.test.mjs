@@ -558,14 +558,18 @@ test('§2.5 stack: dry mass is magnets-only and the thrust-to-weight is ~10:1', 
   const thrustPerPair = 15;   // N, from pairCouplingK's documented anchor above
   const ratio = thrustPerPair / (stackDryMassKg(1) * 9.81);
   assert.ok(ratio > 8 && ratio < 13, `magnet thrust-to-weight ${ratio} should be ~10`);
-  // Stack length: the shipped default is 128 pairs ≈ 5.2 m (decision 6: 64 pairs ≈ 2.6 m),
-  // a few percent of a wavelength (λ ≈ 227 m at the 92 Hz default) — compact against λ,
-  // so the stack reads the LOCAL film phase, with a real travelling firing sequence.
+  // Stack length: Gassend's §2.5 anchor is ~64 pairs ≈ 2.6 m (decision 6). The shipped
+  // DEMO default is 8 pairs ≈ 33 cm (shift 9) — an eighth of the anchor at an eighth of
+  // the payload, so the same thrust-to-weight. Either way the stack is small against a
+  // wavelength (λ ≈ 227 m at the 92 Hz default), which is what lets it read the LOCAL
+  // film phase and still fire as a travelling sequence.
   approx(stackLengthM(64, GameConfig.FG40.PITCH_M), 64 * GameConfig.FG40.PITCH_M, 1e-12);
   assert.ok(stackLengthM(64, GameConfig.FG40.PITCH_M) > 2.3 && stackLengthM(64, GameConfig.FG40.PITCH_M) < 2.9);
+  const demoLen = stackLengthM(GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.PITCH_M);
+  assert.ok(demoLen > 0.3 && demoLen < 0.35, `demo stack ${demoLen.toFixed(2)} m`);
   const lambdaDefault = tetherWaveSpeed() / GameConfig.WAVE.DEFAULT_FREQUENCY;
-  const stackFrac = stackLengthM(GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.PITCH_M) / lambdaDefault;
-  assert.ok(stackFrac > 0.01 && stackFrac < 0.06, `default stack spans ${(stackFrac * 100).toFixed(1)}% of λ`);
+  const stackFrac = demoLen / lambdaDefault;
+  assert.ok(stackFrac > 0 && stackFrac < 0.06, `default stack spans ${(stackFrac * 100).toFixed(2)}% of λ`);
 });
 
 // M3.1: the travelling firing sequence. Unit i sits i·pitch above unit 0, so for the
@@ -583,9 +587,13 @@ test('stackPhaseOffset: upper units LAG — the sign is the sweep direction', ()
 
 test('stackPhaseOffset: span fixtures — the shipped stack, and the paper\u2019s 10 m @ 260 Hz', () => {
   const c = tetherWaveSpeed();
-  // Shipped default: 128 × 0.041 m = 5.248 m at 92 Hz → ~0.023 λ (near-unison firing).
+  // Shipped demo default (shift 9): 8 × 0.041 m = 0.328 m at 92 Hz → ~0.0014 λ, so the
+  // units fire very nearly in unison. The deck's 64-pair anchor is ~0.0116 λ; both are
+  // small enough that the sweep DIRECTION carries the physics, not the span.
   const spanDefault = Math.abs(stackPhaseOffset(GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.PITCH_M, 92, c)) / (2 * Math.PI);
-  assert.ok(Math.abs(spanDefault - 0.0232) < 2e-3, `default stack spans ${spanDefault.toFixed(4)} λ`);
+  assert.ok(Math.abs(spanDefault - 0.00145) < 2e-4, `demo stack spans ${spanDefault.toFixed(5)} λ`);
+  const spanAnchor = Math.abs(stackPhaseOffset(64, GameConfig.FG40.PITCH_M, 92, c)) / (2 * Math.PI);
+  assert.ok(Math.abs(spanAnchor - 0.0116) < 1e-3, `64-pair stack spans ${spanAnchor.toFixed(4)} λ`);
   // The paper's spatial-phasing anchor (§2.5 of the plan): a 10 m stack at 260 Hz spans
   // "~0.11 λ". The paper's own λ ≈ 91 m implies c = 23.7 km/s — inconsistent with slide
   // 3's 21 km/s; with the shipped c = 20.85 km/s the span is 0.125 λ. Assert the BAND,
@@ -874,10 +882,17 @@ test('switchingPowerW reproduces §2.5\'s 266 kW / 6.7% of 4 MW at the documente
   // Flat in duty by construction — and linear in carrier, pairs, and energy per switch.
   approx(switchingPowerW(520, 64, 4), 2 * switchingPowerW(260, 64, 4), 1e-9);
   approx(switchingPowerW(260, 128, 4), 2 * switchingPowerW(260, 64, 4), 1e-9);
-  // At the shipped defaults (92 Hz carrier, 128 pairs): ≈188 kW = 4.7% of the paper's
-  // 4 MW budget — the low carrier is what keeps the switching draw feasible (M2.11).
+  // At the shipped demo defaults (92 Hz carrier, 8 pairs): ≈11.8 kW. The low carrier is
+  // still what keeps the draw feasible (M2.11) — switching is linear in f — but shift 9's
+  // 8-pair stack made it 16x smaller, which is why EPM.CAPACITY_J came down with it: the
+  // gauge has to stay a decision, so drain must stay ~6.3 charge-points/s.
   const shipW = switchingPowerW(GameConfig.WAVE.DEFAULT_FREQUENCY, GameConfig.FG40.DEFAULT_N_PAIRS, GameConfig.FG40.E_SWITCH_J);
-  assert.ok(shipW > 180e3 && shipW < 200e3, `shipped default switching ${shipW} W`);
+  assert.ok(shipW > 11e3 && shipW < 13e3, `shipped default switching ${shipW} W`);
+  const drainPtsPerS = shipW / GameConfig.EPM.CAPACITY_J * GameConfig.EPM.CAPACITY;
+  assert.ok(drainPtsPerS > 5.5 && drainPtsPerS < 7,
+    `default drain ${drainPtsPerS.toFixed(2)} points/s must stay in the tuned band`);
+  assert.ok(drainPtsPerS > GameConfig.EPM.TRICKLE,
+    'the ambient trickle must never cover the switching drain, or brownout is impossible');
 });
 
 test('epm: coasting only trickles, and saturates at CAPACITY', () => {
