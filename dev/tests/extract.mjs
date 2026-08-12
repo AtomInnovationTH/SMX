@@ -74,6 +74,7 @@ const EXPORTED_SYMBOLS = [
   'grabHintText',
   'nextHudLevel',
   'hudLevelToast',
+  'minimalScoreLine',
   'HUD_MINIMAL',
   'HUD_FULL',
   'HUD_OFF',

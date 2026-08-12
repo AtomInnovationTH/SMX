@@ -63,6 +63,7 @@ const {
   grabHintText,
   nextHudLevel,
   hudLevelToast,
+  minimalScoreLine,
   HUD_MINIMAL,
   HUD_FULL,
   HUD_OFF,
@@ -96,7 +97,7 @@ test('extraction exposes the core pure symbols', () => {
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
-    filmBandHalfPx,
+    filmBandHalfPx, minimalScoreLine,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -119,11 +120,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 47 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 48 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 47);
+  assert.equal(declaredPureHelpers().length, 48);
 });
 
 // ---------------------------------------------------------------------------
@@ -1557,4 +1558,52 @@ test('hudLevelToast names the key that brings the instruments back', () => {
   assert.match(hudLevelToast(HUD_MINIMAL), /minimal/i);
   assert.match(hudLevelToast(HUD_FULL), /readouts/i);
   assert.match(hudLevelToast(HUD_OFF), /hidden/i);
+});
+
+// Shift 12, priority 1: the score survives as ONE line in the minimal compact plate.
+// The helper mirrors renderMissionHud's maths exactly, so the two levels can never
+// quote different figures for the same run.
+test('minimalScoreLine: the goal before liftoff, the live pace while climbing', () => {
+  const base = { cargoKg: 3, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 };
+  // On the ground with the clock not started: state the goal and the cargo.
+  assert.equal(minimalScoreLine({ ...base, altitudeM: 0, climbElapsedS: null }),
+    'score: kg/h to Kármán · cargo 3 kg');
+  // Clock started but still on the deck (altitude <= 0.5): still the goal, matching
+  // renderMissionHud's own condition.
+  assert.equal(minimalScoreLine({ ...base, altitudeM: 0.4, climbElapsedS: 3 }),
+    'score: kg/h to Kármán · cargo 3 kg');
+  // Climbing: cargo x altitude fraction over climb time, the same projection as full.
+  // 3 kg, halfway up, 100 s on the clock: 3 * 0.5 * 3600 / 100 = 54 kg/h.
+  assert.equal(minimalScoreLine({ ...base, altitudeM: 50000, climbElapsedS: 100 }),
+    'pace 54 kg/h to Kármán');
+});
+
+test('minimalScoreLine: after delivery it locks to the figure plus the best', () => {
+  // 3 kg in 380.4 s = 28.4 kg/h; the best is the persisted one (28 kg/h -> "28").
+  assert.equal(minimalScoreLine({
+    cargoKg: 3, altitudeM: 100000, climbElapsedS: 400,
+    delivered: true, deliveredKg: 3, deliveredInS: 380.4, bestKgH: 31,
+  }), 'delivered 28 kg/h · best 31 kg/h');
+  // Delivery wins over every other state, exactly as the mission block's branch order.
+  const locked = minimalScoreLine({
+    cargoKg: 50, altitudeM: 90000, climbElapsedS: 10,
+    delivered: true, deliveredKg: 3, deliveredInS: 380.4, bestKgH: 0,
+  });
+  assert.equal(locked, 'delivered 28 kg/h · best 0 kg/h');
+});
+
+test('minimalScoreLine: one short line that fits the 390 px plate, no em dash', () => {
+  const states = [
+    { cargoKg: 3, altitudeM: 0, climbElapsedS: null, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 },
+    { cargoKg: 3, altitudeM: 50000, climbElapsedS: 100, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 },
+    { cargoKg: 50, altitudeM: 100000, climbElapsedS: 400, delivered: true, deliveredKg: 50, deliveredInS: 388, bestKgH: 464 },
+  ];
+  for (const s of states) {
+    const line = minimalScoreLine(s);
+    // 9px monospace is ~5.4 px/char; the 390 px phone plate has 390 - 12 - 16 = 362 px
+    // of text room. A line wider than that is one the plate cannot say.
+    assert.ok(line.length * 5.4 < 362, `too wide for the 390 px plate: ${line}`);
+    // The owner's standing rule: no em dash in player-facing prose.
+    assert.ok(!/\u2014/.test(line), `em dash in the score line: ${line}`);
+  }
 });

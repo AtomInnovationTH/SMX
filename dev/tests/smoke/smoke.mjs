@@ -697,7 +697,10 @@ try {
   //     wraps ctx.fillText for one frame and diffs the strings drawn at minimal against
   //     full. Pins the two cuts that make the default friendly: an event beat is a title at
   //     minimal (its body is two or three lines of paper citation) and the energy gauge is a
-  //     bar, not four lines of kilowatts and a slip ratio.
+  //     bar, not four lines of kilowatts and a slip ratio. Shift 12 adds the third pin: the
+  //     throughput score rides the minimal compact plate as one line, in all three of its
+  //     states (goal pre-climb, live pace while climbing, locked figure + best after
+  //     delivery), and never leaks into the full level's own mission block.
   const drawn = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
@@ -723,20 +726,43 @@ try {
     out.minimalSet = await setLevel(0); out.minimal = await capture();
     out.fullSet = await setLevel(1);    out.full = await capture();
     await setLevel(0);
+    // The minimal capture above ran in the pre-climb state (fresh reload, on the
+    // ground, clock not started). These two set up the line's other states: 50 km
+    // with 100 s on the climb clock is the climbing state (below the 100 km delivery
+    // altitude, so cargoDeliveryCredit cannot fire); the delivered state is written
+    // directly. Then restore the quiet ground state the crest check builds on.
+    g.monkey.velocityY = 0;
+    g.monkey.y = -500000; g.camera.y = g.monkey.y + 400;
+    g._runTimeS = 200; g._climbStartS = 100;
+    await new Promise((r) => setTimeout(r, 80));
+    out.climbing = await capture();
+    g.cargoDelivered = true; g.deliveredKg = 3; g._deliveredInS = 380.4; g.cargoBest = 31;
+    out.delivered = await capture();
+    g.cargoDelivered = false; g.deliveredKg = 0; g._deliveredInS = null; g.cargoBest = 0;
+    g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
+    g._runTimeS = 0; g._climbStartS = null; g.camera.y = g.monkey.y + 400;
+    await new Promise((r) => setTimeout(r, 80));
+    await setLevel(0);
     g._beatCard = null;
     return out;
   });
   const has = (a, re) => a.some((s) => re.test(s));
-  record('levels: minimal draws the beat TITLE and a bare energy bar; full adds the readouts',
+  record('levels: minimal draws the beat TITLE, a bare energy bar and the score line; full adds the readouts',
     drawn.minimalSet && drawn.fullSet &&
     has(drawn.minimal, /SMOKE-TITLE/) && !has(drawn.minimal, /SMOKE-BODY-LINE/) &&
     has(drawn.full, /SMOKE-TITLE/) && has(drawn.full, /SMOKE-BODY-LINE/) &&
     has(drawn.minimal, /^EPM$/) && !has(drawn.minimal, /switch \d+ kW/) && !has(drawn.minimal, /slip u =/) &&
     has(drawn.full, /switch \d+ kW/) && has(drawn.full, /slip u =/) &&
     // Minimal still says what to press: the compact plate is the one instruction left.
-    has(drawn.minimal, /SPACE: pulse/),
+    has(drawn.minimal, /SPACE: pulse/) &&
+    // Shift 12: the throughput score at minimal, in all three states, and not at full.
+    has(drawn.minimal, /score: kg\/h to Kármán · cargo 3 kg/) &&
+    has(drawn.climbing, /pace \d+ kg\/h to Kármán/) &&
+    has(drawn.delivered, /delivered 28 kg\/h · best 31 kg\/h/) &&
+    !has(drawn.full, /score: kg\/h to Kármán/),
     JSON.stringify({ minimalSet: drawn.minimalSet, fullSet: drawn.fullSet,
-                     minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14) }));
+                     minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14),
+                     climbing: drawn.climbing.slice(0, 14), delivered: drawn.delivered.slice(0, 14) }));
 
   // 21) Shift 11, slip crests: the wave OVERTAKING the climber is drawn, not numbered.
   //     Held at u = 0 the chevron stream scrolls at the capped rate and the push factor

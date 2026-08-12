@@ -1,8 +1,9 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that made slip visible
-(crest overlay, slipGateFactor, smoke check 21).
+that have already cost time. Updated at the end of the shift that surfaced the score at
+the minimal HUD (minimalScoreLine, the compact plate's third line, smoke check 20
+extension).
 
 ## Where things stand
 
@@ -10,8 +11,8 @@ that have already cost time. Updated at the end of the shift that made slip visi
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 116 unit tests, 26 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 350 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 119 unit tests, 26 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 353 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2 and M3.1-M3.8 are complete. The deferred list is taper (p.9), drag on
   the wave itself (p.7), standing-wave resonance (p.10), powering more than one climber
@@ -21,6 +22,27 @@ that have already cost time. Updated at the end of the shift that made slip visi
   brownouts, 28 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The score is on the default screen now.** `minimalScoreLine` (pure helper, the
+  four-edit ritual, count 47 -> 48) gives the minimal compact plate a THIRD line, gated
+  to `_uxHudLevel === HUD_MINIMAL`: the goal before liftoff, the live pace projection
+  while climbing (the same `throughputKgPerHour(cargoKg x altitude fraction, climb
+  time)` the mission block computes, so the levels cannot quote different figures), and
+  the locked figure plus persisted best after delivery. The plate grows 38 -> 52 px
+  only at minimal, so the full-compact layout is pixel-identical to before, the full
+  level keeps its own mission block top-left, and HUD off draws nothing. Static text:
+  no flash budget spent, reduced motion satisfied by construction, and the words
+  pace/delivered carry the state so colour never has to (the hue mirrors the mission
+  block's). Smoke check 20 now pins all three states at minimal plus the line's absence
+  at full; it also restores the ground state it borrows, so keep that teardown if you
+  touch it. `.v3` keys, `throughputKgPerHour`, `cargoDeliveryCredit` and the balance
+  harness are all untouched: this was presentation only. Verified with real captures at
+  390 px (fresh boot, pace, delivered, full, clean) before believing it reads.
+- **Pre-climb exists only on the ground.** `_climbStartS` auto-fires the moment
+  altitude exceeds 0.5 m (the run clock doing its job), so any placed capture or smoke
+  state above ground is the pace state, never the goal state. The goal line
+  ("score: kg/h to Kármán · cargo N kg") is pinned by check 20's fresh-reload capture
+  and by a real 390 px boot shot.
 
 - **Slip is drawn, not numbered.** `renderVine` now overlays the crest train as chevrons
   straddling the film in a band (`CREST_BAND_HALF_PX` = 288 px) centred on the climber,
@@ -125,13 +147,13 @@ that have already cost time. Updated at the end of the shift that made slip visi
 
 ## Priorities for this shift
 
-### 1. Decide whether the score survives
+### 1. Decide whether the score survives: DECIDED, shipped this shift
 
-The score is throughput, kg to the Kármán line per hour, and a player will not encounter it
-unless they press `H` for the full HUD. Either surface it in the minimal level or drop it and
-score altitude and time. Do not leave a scoring system nobody is told about.
-`cargoBest`/`bootstrapKg` are already on `.v3` after the payload change, so re-basing again
-is cheap.
+The score stays throughput (kg to the Kármán line per hour), surfaced at the minimal
+level, and the `.v3` keys were not re-based. One short line in the existing compact
+plate: the live pace projection while climbing, the locked figure plus best after
+delivery, the goal on the ground before liftoff. Full keeps the block it has. What was
+built and the traps are in "What last shift changed" above.
 
 ### 2. A moving picture
 
@@ -187,7 +209,7 @@ needs its own balance-harness verification before it ships.
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 47). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 48). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.
