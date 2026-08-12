@@ -11,7 +11,7 @@ that have already cost time. Updated at the end of the shift that made slip visi
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
   Currently 116 unit tests, 26 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 348 KB. Only assets under 20 KB are inlined; the clouds,
+- **Payload**: `index.html` is 350 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2 and M3.1-M3.8 are complete. The deferred list is taper (p.9), drag on
   the wave itself (p.7), standing-wave resonance (p.10), powering more than one climber
@@ -23,20 +23,31 @@ that have already cost time. Updated at the end of the shift that made slip visi
 ## What last shift changed, so you do not undo it
 
 - **Slip is drawn, not numbered.** `renderVine` now overlays the crest train as chevrons
-  straddling the film in a band (`CREST_BAND_HALF_PX` = 256 px) centred on the climber,
+  straddling the film in a band (`CREST_BAND_HALF_PX` = 288 px) centred on the climber,
   scrolling UP past it at `CREST_MAX_SCROLL_PX_S` × `slipGateFactor(u)`. Open slip
-  streams; u → 1 parks the ladder beside the climber and fades it to a faint static
-  remnant; u ≥ 1 is exactly zero push and zero scroll (absence, not a clamp). The push
-  curve is the new pure helper `slipGateFactor`: `slipThrustMeanN` normalised at u = 0,
-  shape-aware for harmonic carriers, so the drawn push IS the modelled push (u = 0.17 →
-  0.75, cruise u = 0.5 → 0.34). Scroll speed, chevron size and brightness all carry the
-  signal, never colour alone; the pass rate caps at 2.5 Hz (`CREST_PASS_MAX_HZ`, under
-  the 3 Hz ceiling); reduced motion freezes the scroll and keeps the static
-  size/brightness channel. Hidden at HUD off: it is an instrument overlay, not the
-  vehicle, and ?clean captures must stay clean. The numeric `slip u` line stays at full
-  HUD as the precise readout. `tetherPhaseAt`, the slip integral, `updateContinuous` and
-  the balance harness are untouched; the full-HUD stack plate admits the slowdown with a
-  "crest pass slowed ×N" line next to the firing sweep's own.
+  streams; u → 1 parks the ladder beside the climber and shrinks it to faint stubs;
+  u ≥ 1 is exactly zero push and zero scroll (absence, not a clamp). The push curve is
+  the new pure helper `slipGateFactor`: `slipThrustMeanN` normalised at u = 0, shape-aware
+  for harmonic carriers, so the drawn push IS the modelled push (u = 0.17 → 0.75, cruise
+  u = 0.5 → 0.34). Scroll speed, chevron span and brightness all carry the signal, never
+  colour alone; the pass rate caps at 2.5 Hz (`CREST_PASS_MAX_HZ`, under the 3 Hz
+  ceiling); reduced motion freezes the scroll, parks the ladder half a spacing off centre
+  and keeps the static span/brightness channel. Hidden at HUD off: it is an instrument
+  overlay, not the vehicle, and ?clean captures must stay clean. The numeric `slip u` line
+  stays at full HUD as the precise readout. `tetherPhaseAt`, the slip integral,
+  `updateContinuous` and the balance harness are untouched; the full-HUD stack plate
+  admits the slowdown with a "crest pass slowed ×N" line next to the firing sweep's own.
+- **The crest GEOMETRY is load-bearing, so do not shrink it.** The first pass drew 2 px
+  chevrons only 26 px wide and captures proved it said nothing: they vanished into the
+  film's own strain rungs and behind the climber sprite, at cruise especially. The span
+  now runs `CREST_HALF_MIN_PX` 26 px (parked, barely clear of the sprite) to
+  `CREST_HALF_MAX_PX` 74 px (open slip, past the FG40 rails at 58 px but short of the
+  stack legend plate at railDX + 18 = 76 px), spacing is 96 px, and every stroke carries
+  a dark under-stroke so it reads on bright sky and on the green film alike. Shoot the
+  frame before believing a render change: `dev/tools/check.sh` cannot see "invisible".
+- **`_crestScrollPx` accumulates unbounded on purpose.** The draw takes it modulo the
+  spacing; the smoke check reads the difference between two samples to prove the stream
+  advances, so wrapping the counter would make that read go negative.
 - **A staged `index.html` can outlive its source.** This shift started with a leftover
   crest implementation sitting in the git index: staged, never in
   `Space_Monkey_Elevator.html`, worktree reverted. Regenerating with `embed_assets.py`

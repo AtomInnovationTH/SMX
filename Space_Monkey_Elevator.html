@@ -550,18 +550,28 @@
         // film, in a band centred on the climber. It is a SLOWED SCHEMATIC of the real
         // crest pass rate (f x (1 - v/c), ~92 passes/s at the default carrier: a strobe,
         // not a picture), and the mapping is the true slip curve, not an invented one:
-        // scroll speed, size and brightness all follow slipGateFactor(u), the cycle-mean
-        // overtaking rate the slip integral gives. Open slip (u -> 0): the crests stream
-        // past at the capped rate. As u -> 1 they slow to a standstill beside the climber
-        // and fade to a faint parked ladder, so the push visibly dies exactly as the
+        // scroll speed, span and brightness all follow slipGateFactor(u), the cycle-mean
+        // overtaking rate the slip integral gives. Open slip (u -> 0): wide arrowheads
+        // stream past at the capped rate. As u -> 1 they slow to a standstill beside the
+        // climber and shrink to faint stubs, so the push visibly dies exactly as the
         // crests stop overtaking (the v_max asymptote). The cap keeps the fastest case
         // under the 3 Hz flash ceiling; the scroll freezes under prefers-reduced-motion
-        // (size and brightness then carry u statically, no motion). Motion, size and
+        // (span and brightness then carry u statically, no motion). Motion, span and
         // brightness all carry the signal, so colour is never the only channel.
-        const CREST_SPACING_PX = 64;
+        //
+        // The GEOMETRY is load-bearing, not taste. A first pass drew 2 px chevrons only
+        // 26 px wide: they vanished into the film's own strain rungs and behind the
+        // climber sprite, so the picture said nothing at cruise. The span therefore runs
+        // from a stub (CREST_HALF_MIN_PX, behind the sprite: no push) to well clear of
+        // the FG40 rails at 58 px (CREST_HALF_MAX_PX), stopping short of the stack
+        // legend plate at railDX + 18, and every stroke carries a dark under-stroke so
+        // it reads on bright sky and on the green film alike.
+        const CREST_SPACING_PX = 96;
         const CREST_PASS_MAX_HZ = 2.5;   // <= 3 Hz photosafety ceiling even at open slip
         const CREST_MAX_SCROLL_PX_S = CREST_PASS_MAX_HZ * CREST_SPACING_PX;
-        const CREST_BAND_HALF_PX = 256;  // the overlay's claimed band, centred on the climber
+        const CREST_BAND_HALF_PX = 288;  // the overlay's claimed band, centred on the climber
+        const CREST_HALF_MIN_PX = 26;    // push -> 0: a stub, barely clear of the sprite
+        const CREST_HALF_MAX_PX = 74;    // push -> 1: clear of the rails, short of the plate
         // Film band geometry (renderVine / filmBandHalfPx). The band is drawn SEGMENT_WIDTH px
         // each side of the tether at the slider's 45 mm default and scales linearly with film
         // width, so the slider keeps the visible effect it had when it set a line thickness.
@@ -4570,9 +4580,10 @@
                 // CREST_MAX_SCROLL_PX_S x slipGateFactor(u): open slip streams, u -> 1
                 // parks and fades, u >= 1 is exactly zero push and zero scroll. The push
                 // factor is the same slipThrustMeanN curve the thrust model integrates
-                // (shape-aware for harmonic carriers), never an invented one. The taper
-                // is position-based so the spacing-periodic wrap is seamless. Pauses with
-                // sim time; frozen under reduced motion (alpha/arm still carry u
+                // (shape-aware for harmonic carriers, which costs two gate integrals a
+                // frame, the same order as the physics' own). Never an invented curve. The
+                // taper is position-based so the spacing-periodic wrap is seamless. Pauses
+                // with sim time; frozen under reduced motion (span/alpha still carry u
                 // statically); hidden at HUD_OFF because it is an instrument overlay, not
                 // the vehicle, and ?clean captures must stay clean.
                 const filmVelNorm = this.waveSystem.type === 'sine' ? null
@@ -4582,26 +4593,39 @@
                 const dtCrest = Math.max(0, t - this._crestLastT);   // restart resets t: no jump
                 this._crestLastT = t;
                 const crestSpeed = _uxReducedMotion ? 0 : CREST_MAX_SCROLL_PX_S * crestPush;
+                // Accumulates UNBOUNDED on purpose (the draw takes it modulo the spacing):
+                // the smoke check reads the difference between two samples to prove the
+                // stream advances, and a wrapped counter would make that read negative.
                 this._crestScrollPx += crestSpeed * dtCrest;
                 this._crestDrawn = false;
                 if (_uxHudLevel !== HUD_OFF) {
                     this._crestDrawn = true;
-                    const scroll = this._crestScrollPx % CREST_SPACING_PX;
-                    const alpha0 = 0.14 + 0.5 * crestPush;
-                    const arm = 6 + 8 * crestPush;
+                    // Reduced motion parks the ladder half a spacing off centre, so a crest
+                    // sits visibly above and below the climber instead of hiding behind it.
+                    const scroll = _uxReducedMotion ? CREST_SPACING_PX * 0.5
+                                                    : this._crestScrollPx % CREST_SPACING_PX;
+                    const half = CREST_HALF_MIN_PX + (CREST_HALF_MAX_PX - CREST_HALF_MIN_PX) * crestPush;
+                    const drop = half * 0.35;   // how deep the V is: wide crests are tall
+                    const alpha0 = 0.30 + 0.45 * crestPush;
                     const kMax = Math.ceil(CREST_BAND_HALF_PX / CREST_SPACING_PX) + 1;
-                    ctx.lineWidth = 2;
                     for (let k = -kMax; k <= kMax; k++) {
                         const yy = cy + k * CREST_SPACING_PX - scroll;
                         if (yy < -20 || yy > height + 20) continue;
                         const taper = 1 - Math.abs(yy - cy) / CREST_BAND_HALF_PX;
                         if (taper <= 0) continue;
-                        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha0 * taper).toFixed(3)})`;
-                        ctx.beginPath();
-                        ctx.moveTo(this.wave.x - bandHalf - arm, yy + arm * 0.6);
-                        ctx.lineTo(this.wave.x, yy - arm * 0.6);
-                        ctx.lineTo(this.wave.x + bandHalf + arm, yy + arm * 0.6);
-                        ctx.stroke();
+                        // Two passes: a dark under-stroke so the crest reads against the
+                        // bright low sky AND the green film, then the bright core.
+                        for (const pass of [0, 1]) {
+                            ctx.strokeStyle = pass === 0
+                                ? `rgba(8, 20, 28, ${(0.22 * taper).toFixed(3)})`
+                                : `rgba(255, 255, 255, ${(alpha0 * taper).toFixed(3)})`;
+                            ctx.lineWidth = pass === 0 ? 5 : 2.5;
+                            ctx.beginPath();
+                            ctx.moveTo(this.wave.x - half, yy + drop);
+                            ctx.lineTo(this.wave.x, yy - drop);
+                            ctx.lineTo(this.wave.x + half, yy + drop);
+                            ctx.stroke();
+                        }
                     }
                 }
                 // Live render handles for the smoke test: what the crest overlay did.
