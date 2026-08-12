@@ -35,6 +35,7 @@ const {
   freqDecadeColumn,
   switchingPowerW,
   slipThrustMeanN,
+  slipGateFactor,
   safePersistedNumber,
   throughputKgPerHour,
   bootstrapPct,
@@ -89,7 +90,7 @@ test('extraction exposes the core pure symbols', () => {
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
-    freqDecadeColumn, switchingPowerW, slipThrustMeanN,
+    freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipGateFactor,
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
@@ -118,11 +119,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 46 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 47 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 46);
+  assert.equal(declaredPureHelpers().length, 47);
 });
 
 // ---------------------------------------------------------------------------
@@ -354,6 +355,45 @@ test('slipThrustMeanN: closed form, endpoints, monotonic fade, no clamp anywhere
   assert.ok(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps: V, vClimberMps: 0,
     filmVelocityAt: (phi) => WAVE_CALCULATORS.sawtooth.velocity(1, V, phi) }) > 0,
     'the sawtooth ratchet must thrust a stationary climber');
+});
+
+// Shift 11: the crest overlay's push curve. It must BE the slip integral normalised,
+// not a lookalike: the drawn push and the modelled push can never drift apart.
+test('slipGateFactor is the normalised slip curve: 1 at rest, 0 at the asymptote', () => {
+  approx(slipGateFactor(0), 1);
+  // Closed-form sine gate at a known mid-slip point (u = 0.5):
+  // g(u) = [2√(1-u²) − u(π − 2·asin u)] / 2.
+  approx(slipGateFactor(0.5), Math.sqrt(1 - 0.25) - 0.5 * (Math.PI - 2 * Math.asin(0.5)) / 2);
+  // u >= 1: the gate is empty, so there is no push to draw: exactly 0, not a clamp.
+  assert.equal(slipGateFactor(1), 0);
+  assert.equal(slipGateFactor(3), 0);
+  // Fast descent (u <= -1): the gate never closes (full Lenz brake) -> factor 1.
+  assert.equal(slipGateFactor(-2), 1);
+  // Monotone non-increasing on [0, 1] and bounded: the push fades, never revives.
+  let prev = Infinity;
+  for (let u = 0; u <= 1.0001; u += 0.05) {
+    const f = slipGateFactor(u);
+    assert.ok(f <= prev + 1e-12, `factor must fade monotonically (u=${u.toFixed(2)})`);
+    assert.ok(f >= 0 && f <= 1, `factor ${f} out of [0,1] at u=${u.toFixed(2)}`);
+    prev = f;
+  }
+  // And it is literally the thrust ratio: k, N and V cancel.
+  const num = slipThrustMeanN({ kPerPair: 2, nPairs: 8, vFilmPeakMps: 300, vClimberMps: 120 });
+  const den = slipThrustMeanN({ kPerPair: 2, nPairs: 8, vFilmPeakMps: 300, vClimberMps: 0 });
+  approx(slipGateFactor(0.4), num / den);
+});
+
+test('slipGateFactor follows harmonic carriers through the same numeric gate', () => {
+  // The renderer passes the shape's normalised velocity exactly as the physics passes
+  // the real one, so a square carrier's drawn push comes from its own gate integral.
+  const sq = (phi) => WAVE_CALCULATORS.square.velocity(1, 1, phi);
+  approx(slipGateFactor(0, sq), 1);
+  assert.equal(slipGateFactor(1, sq), 0);
+  const f = slipGateFactor(0.4, sq);
+  assert.ok(f > 0 && f < 1, `square-carrier factor ${f} must sit inside (0,1)`);
+  // Shape matters: the band-limited square's velocity peaks at the carrier edges and is
+  // quiet mid-cycle, so at the same slip its gate window is NARROWER than the sine's.
+  assert.ok(f < slipGateFactor(0.4), 'the square gate must fade faster than the sine gate at u = 0.4');
 });
 
 test('applyGravityAndDrag always applies gravity — there is no attached state', () => {

@@ -543,6 +543,25 @@
         // One pass every 2.2 s — a drift, far under the 3 Hz flash ceiling, and frozen under
         // prefers-reduced-motion like the stack sweep.
         const FILM_HIGHLIGHT_PERIOD_S = 2.2;
+
+        // Shift 11: the slip-crest overlay (renderVine). Thrust exists because the wave
+        // overtakes the climber, and that was readable only as "slip u = 0.17" in a
+        // full-HUD corner. The overlay draws the crest train as chevrons straddling the
+        // film, in a band centred on the climber. It is a SLOWED SCHEMATIC of the real
+        // crest pass rate (f x (1 - v/c), ~92 passes/s at the default carrier: a strobe,
+        // not a picture), and the mapping is the true slip curve, not an invented one:
+        // scroll speed, size and brightness all follow slipGateFactor(u), the cycle-mean
+        // overtaking rate the slip integral gives. Open slip (u -> 0): the crests stream
+        // past at the capped rate. As u -> 1 they slow to a standstill beside the climber
+        // and fade to a faint parked ladder, so the push visibly dies exactly as the
+        // crests stop overtaking (the v_max asymptote). The cap keeps the fastest case
+        // under the 3 Hz flash ceiling; the scroll freezes under prefers-reduced-motion
+        // (size and brightness then carry u statically, no motion). Motion, size and
+        // brightness all carry the signal, so colour is never the only channel.
+        const CREST_SPACING_PX = 64;
+        const CREST_PASS_MAX_HZ = 2.5;   // <= 3 Hz photosafety ceiling even at open slip
+        const CREST_MAX_SCROLL_PX_S = CREST_PASS_MAX_HZ * CREST_SPACING_PX;
+        const CREST_BAND_HALF_PX = 256;  // the overlay's claimed band, centred on the climber
         // Film band geometry (renderVine / filmBandHalfPx). The band is drawn SEGMENT_WIDTH px
         // each side of the tether at the slider's 45 mm default and scales linearly with film
         // width, so the slider keeps the visible effect it had when it set a line thickness.
@@ -1339,6 +1358,23 @@
         function filmBandHalfPx(vineWidth, refPx = 12) {
             const scaled = refPx * (vineWidth * 10) / FILM_BAND_REF_MM;
             return Math.max(FILM_BAND_MIN_HALF_PX, Math.min(FILM_BAND_MAX_HALF_PX, scaled));
+        }
+
+        // SIM (§2.3 / M2.5): the slip-gate factor, i.e. the cycle-mean overtaking rate at
+        // slip u as a FRACTION of the open-gate value (u = 0), taken from the same
+        // slipThrustMeanN the thrust model integrates (sine: closed form; harmonic
+        // carriers: pass the shape's normalised velocity as filmVelocityAt, exactly as
+        // calculateContinuousCoupling passes the real one). 1 at rest, -> 0 as u -> 1
+        // (the gate window [asin u, pi - asin u] shrinks to nothing: the v_max
+        // asymptote), exactly 0 at u >= 1 (the film never outruns the climber, so there
+        // is no push to draw: absence, not a clamp), and 1 for any descent (the gate
+        // never closes: full Lenz brake). Shift 11's crest overlay reads this so the
+        // drawn push IS the modelled push; the physics itself never calls this.
+        function slipGateFactor(u, filmVelocityAt = null) {
+            const open = slipThrustMeanN({ kPerPair: 1, nPairs: 1, vFilmPeakMps: 1, vClimberMps: 0, filmVelocityAt });
+            if (open <= 0) return 0;
+            const f = slipThrustMeanN({ kPerPair: 1, nPairs: 1, vFilmPeakMps: 1, vClimberMps: u, filmVelocityAt }) / open;
+            return Math.max(0, Math.min(1, f));
         }
 
         // ===== END PURE SIM HELPERS ===== //
@@ -4528,6 +4564,51 @@
                         ctx.shadowBlur = 0;
                     }
                 }
+                // Shift 11: the slip crests, drawn instead of numbered (see the constants
+                // block for the full contract). Chevrons straddle the film in a band
+                // centred on the climber and scroll UP past it at
+                // CREST_MAX_SCROLL_PX_S x slipGateFactor(u): open slip streams, u -> 1
+                // parks and fades, u >= 1 is exactly zero push and zero scroll. The push
+                // factor is the same slipThrustMeanN curve the thrust model integrates
+                // (shape-aware for harmonic carriers), never an invented one. The taper
+                // is position-based so the spacing-periodic wrap is seamless. Pauses with
+                // sim time; frozen under reduced motion (alpha/arm still carry u
+                // statically); hidden at HUD_OFF because it is an instrument overlay, not
+                // the vehicle, and ?clean captures must stay clean.
+                const filmVelNorm = this.waveSystem.type === 'sine' ? null
+                    : (phi) => shape.velocity(1, 1, phi);
+                const crestPush = slipGateFactor(this.slipU(), filmVelNorm);
+                if (this._crestScrollPx === undefined) { this._crestScrollPx = 0; this._crestLastT = t; }
+                const dtCrest = Math.max(0, t - this._crestLastT);   // restart resets t: no jump
+                this._crestLastT = t;
+                const crestSpeed = _uxReducedMotion ? 0 : CREST_MAX_SCROLL_PX_S * crestPush;
+                this._crestScrollPx += crestSpeed * dtCrest;
+                this._crestDrawn = false;
+                if (_uxHudLevel !== HUD_OFF) {
+                    this._crestDrawn = true;
+                    const scroll = this._crestScrollPx % CREST_SPACING_PX;
+                    const alpha0 = 0.14 + 0.5 * crestPush;
+                    const arm = 6 + 8 * crestPush;
+                    const kMax = Math.ceil(CREST_BAND_HALF_PX / CREST_SPACING_PX) + 1;
+                    ctx.lineWidth = 2;
+                    for (let k = -kMax; k <= kMax; k++) {
+                        const yy = cy + k * CREST_SPACING_PX - scroll;
+                        if (yy < -20 || yy > height + 20) continue;
+                        const taper = 1 - Math.abs(yy - cy) / CREST_BAND_HALF_PX;
+                        if (taper <= 0) continue;
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha0 * taper).toFixed(3)})`;
+                        ctx.beginPath();
+                        ctx.moveTo(this.wave.x - bandHalf - arm, yy + arm * 0.6);
+                        ctx.lineTo(this.wave.x, yy - arm * 0.6);
+                        ctx.lineTo(this.wave.x + bandHalf + arm, yy + arm * 0.6);
+                        ctx.stroke();
+                    }
+                }
+                // Live render handles for the smoke test: what the crest overlay did.
+                this._crestPush = crestPush;
+                this._crestScrollPxS = crestSpeed;
+                this._crestPassHzMax = CREST_PASS_MAX_HZ;
+                this._crestScrollFrozen = _uxReducedMotion;
                 ctx.restore();
             }
 
@@ -4666,6 +4747,10 @@
                 if (engaged && !narrow && _uxHudLevel === HUD_FULL) {
                     const slowdown = Math.round(STACK_SWEEP_PERIOD_S * cMps / stackLenM);
                     lines.push({ text: `firing sweep slowed ×${slowdown}`, col: 'rgba(190, 240, 255, 0.65)' });
+                    // Shift 11: the crest overlay is the same kind of slowed schematic as
+                    // the sweep. The true crest pass rate at the climber is the carrier
+                    // itself (f x (1 - v/c) ~ f), so the slowdown is f / the drawn cap.
+                    lines.push({ text: `crest pass slowed ×${Math.round(this.waveSystem.frequency / CREST_PASS_MAX_HZ)}`, col: 'rgba(190, 240, 255, 0.65)' });
                 }
                 const fontPx = narrow ? 7.5 : 9;
                 ctx.font = `${fontPx}px monospace`;

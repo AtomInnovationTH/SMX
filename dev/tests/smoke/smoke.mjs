@@ -738,6 +738,74 @@ try {
     JSON.stringify({ minimalSet: drawn.minimalSet, fullSet: drawn.fullSet,
                      minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14) }));
 
+  // 21) Shift 11, slip crests: the wave OVERTAKING the climber is drawn, not numbered.
+  //     Held at u = 0 the chevron stream scrolls at the capped rate and the push factor
+  //     is 1; flung past the film peak (u = 3) the gate is empty and the overlay must
+  //     show exactly zero push and zero scroll — absence, not a clamp. The pass-rate cap
+  //     respects the 3 Hz photosafety ceiling, the overlay hides at HUD off (?clean
+  //     captures stay clean), and a reduced-motion boot gets a frozen scroll with the
+  //     push channel still live (size/brightness carry u statically). Reads the live
+  //     render handles renderVine sets every frame.
+  const crests = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    g.monkey.velocityY = 0;
+    await wait(150);
+    const open = { drawn: g._crestDrawn, push: g._crestPush, speed: g._crestScrollPxS,
+                   capHz: g._crestPassHzMax, hud: g._hudLevelDrawn, a: g._crestScrollPx };
+    await wait(300);
+    open.advanced = g._crestScrollPx - open.a;
+    // u = 3: outrunning the crest, the gate never opens. Gravity over 300 ms adds only
+    // ~3 m/s (GRAVITY = 98.1 px/s² at 10 px/m), so u cannot fall back under 1 here.
+    g.monkey.velocityY = -3 * g.waveSystem.amplitude * g.waveSystem.frequency * 2 * Math.PI
+        * 10;   // px/s (ALTITUDE_CONVERSION = 10 px/m)
+    await wait(150);
+    const closed = { push: g._crestPush, speed: g._crestScrollPxS, a: g._crestScrollPx };
+    await wait(300);
+    closed.advanced = g._crestScrollPx - closed.a;
+    // Back to a quiet parked state on the ground (no game-over left behind).
+    g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: ' ' }));
+    // HUD off must hide the overlay: it is an instrument, not the vehicle.
+    for (let i = 0; i < 4 && g._hudLevelDrawn !== 2; i++) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+      await wait(100);
+    }
+    const hiddenAtOff = g._hudLevelDrawn === 2 && g._crestDrawn === false;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));   // back to minimal
+    await wait(100);
+    return { open, closed, hiddenAtOff, restored: g._hudLevelDrawn };
+  });
+  //     ...and the reduced-motion boot, on its own page like check 11's.
+  const crestRmCtx = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } });
+  const crestRmPage = await crestRmCtx.newPage();
+  await crestRmPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await crestRmPage.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._crestPush === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const crestRm = await crestRmPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.velocityY = 0;
+    await new Promise((r) => setTimeout(r, 150));
+    const a = g._crestScrollPx;
+    await new Promise((r) => setTimeout(r, 300));
+    return { frozen: g._crestScrollFrozen, a, b: g._crestScrollPx,
+             push: g._crestPush, speed: g._crestScrollPxS };
+  });
+  await crestRmCtx.close();
+  record('slip crests: overtaking drawn (scroll + push), fades to exactly 0 past the gate, frozen under reduced motion, hidden at HUD off',
+    crests.open.drawn === true && crests.open.hud === 0 &&
+    Math.abs(crests.open.push - 1) < 0.05 && crests.open.speed > 100 &&
+    crests.open.capHz <= 3 && crests.open.advanced > 10 &&
+    crests.closed.push === 0 && crests.closed.speed === 0 && crests.closed.advanced === 0 &&
+    crests.hiddenAtOff === true && crests.restored === 0 &&
+    crestRm.frozen === true && crestRm.speed === 0 && crestRm.a === crestRm.b &&
+    Math.abs(crestRm.push - 1) < 0.05,
+    JSON.stringify({ ...crests, crestRm }));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

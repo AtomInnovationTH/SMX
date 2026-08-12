@@ -1,8 +1,8 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that fixed the non-contact
-visuals (film band, open clamps, stack-as-vehicle copy).
+that have already cost time. Updated at the end of the shift that made slip visible
+(crest overlay, slipGateFactor, smoke check 21).
 
 ## Where things stand
 
@@ -10,8 +10,8 @@ visuals (film band, open clamps, stack-as-vehicle copy).
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 114 unit tests, 25 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 338 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 116 unit tests, 26 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 348 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2 and M3.1-M3.8 are complete. The deferred list is taper (p.9), drag on
   the wave itself (p.7), standing-wave resonance (p.10), powering more than one climber
@@ -21,6 +21,33 @@ visuals (film band, open clamps, stack-as-vehicle copy).
   brownouts, 28 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **Slip is drawn, not numbered.** `renderVine` now overlays the crest train as chevrons
+  straddling the film in a band (`CREST_BAND_HALF_PX` = 256 px) centred on the climber,
+  scrolling UP past it at `CREST_MAX_SCROLL_PX_S` × `slipGateFactor(u)`. Open slip
+  streams; u → 1 parks the ladder beside the climber and fades it to a faint static
+  remnant; u ≥ 1 is exactly zero push and zero scroll (absence, not a clamp). The push
+  curve is the new pure helper `slipGateFactor`: `slipThrustMeanN` normalised at u = 0,
+  shape-aware for harmonic carriers, so the drawn push IS the modelled push (u = 0.17 →
+  0.75, cruise u = 0.5 → 0.34). Scroll speed, chevron size and brightness all carry the
+  signal, never colour alone; the pass rate caps at 2.5 Hz (`CREST_PASS_MAX_HZ`, under
+  the 3 Hz ceiling); reduced motion freezes the scroll and keeps the static
+  size/brightness channel. Hidden at HUD off: it is an instrument overlay, not the
+  vehicle, and ?clean captures must stay clean. The numeric `slip u` line stays at full
+  HUD as the precise readout. `tetherPhaseAt`, the slip integral, `updateContinuous` and
+  the balance harness are untouched; the full-HUD stack plate admits the slowdown with a
+  "crest pass slowed ×N" line next to the firing sweep's own.
+- **A staged `index.html` can outlive its source.** This shift started with a leftover
+  crest implementation sitting in the git index: staged, never in
+  `Space_Monkey_Elevator.html`, worktree reverted. Regenerating with `embed_assets.py`
+  and re-staging overwrote it cleanly. Never commit an `index.html` that did not come
+  from the build.
+- **The helper guard regex also sweeps const arrows INSIDE a helper.** `slipGateFactor`'s
+  first draft had an inner `const at = (v) => ...`; `declaredPureHelpers()` matched it
+  and the count assertion failed. Write straight calls inside helpers, or expect the
+  loud failure (the count went 46 → 47 with `slipGateFactor`).
+
+### From the shift before (non-contact visuals: film band, open clamps, stack-as-vehicle copy)
 
 - **The film is a band, not a line.** `renderVine` now draws the ribbon as foil seen
   slightly oblique: a shaded fill (one edge dark, a specular stripe off-centre), two glowing
@@ -51,7 +78,7 @@ visuals (film band, open clamps, stack-as-vehicle copy).
   of electro-permanent magnets (EPMs)". The stack is the vehicle in the deck; the copy
   moved, not the drawing.
 
-### From the shift before (touch, HUD levels, demo scale, climbing pose)
+### From two shifts back (touch, HUD levels, demo scale, climbing pose)
 
 - **Touch is a first-class input.** The game takes exactly one input, so the whole play
   surface is the button: `InputManager.setupPointerHandlers` emits the same `input:grab` the
@@ -87,14 +114,7 @@ visuals (film band, open clamps, stack-as-vehicle copy).
 
 ## Priorities for this shift
 
-### 1. Make slip visible instead of numeric (highest value)
-
-Thrust comes from the wave overtaking the climber, and that is currently a number in a
-corner (`slip u = 0.17`) at the full HUD level only. The crests travel at 20.9 km/s and the
-climber at about 0.3 km/s, so drawing the crests **visibly overtaking**, and the push fading
-as they stop overtaking, teaches momentum transfer with no text at all.
-
-### 2. Decide whether the score survives
+### 1. Decide whether the score survives
 
 The score is throughput, kg to the Kármán line per hour, and a player will not encounter it
 unless they press `H` for the full HUD. Either surface it in the minimal level or drop it and
@@ -102,13 +122,13 @@ score altitude and time. Do not leave a scoring system nobody is told about.
 `cargoBest`/`bootstrapKg` are already on `.v3` after the payload change, so re-basing again
 is cheap.
 
-### 3. A moving picture
+### 2. A moving picture
 
 An animated GIF or a short clip of a real climb would beat any still. Nothing in the repo
 does video capture yet. `screenshots/hero.png` is also the social card (`deploy.yml` copies
 it to `_site/social.png`), so whatever becomes the hero must read at thumbnail size.
 
-### 4. M4 physics, when the presentation work is done
+### 3. M4 physics, when the presentation work is done
 
 Taper, wave drag, resonance and multi-climber, in the order the deck presents them. Each
 needs its own balance-harness verification before it ships.
@@ -156,7 +176,7 @@ needs its own balance-harness verification before it ships.
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 46). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 47). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.
