@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-373 KB and must be served alongside the
+364 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -226,9 +226,10 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `slipU()` read the LOCAL film speed at the climber's altitude, and the stress cap
   binds at the thin top, tightening the anchor's stroke budget to `v_max/(ω·√R)`. The
   trade is real: the anchor runs √R easier for the same `v_max` aloft, but the low
-  climb's ceiling drops by the same factor. Past about R = 3 the low-altitude skim
-  can no longer cover the flat switching draw (the break-even is per pair, so a bigger
-  stack does not help; the harness pins R = 4 starving the demo stack). Taper is in the
+  climb's ceiling drops by the same factor. From about R = 3 the low-altitude skim
+  can no longer cover the flat switching draw (R = 2.5 flies clean, R = 3 stalls; the
+  break-even is per pair, so a bigger stack does not help), and the harness pins R = 4
+  starving the demo stack. Taper is in the
   ribbon width; thickness (what `pairCouplingK` reads) is uniform, and tether mass is
   marked not-modelled in the slider hint. R = 1 is the uniform film and the pre-taper
   model exactly, which is why the committed balance trace is untouched. The drawn film
@@ -371,7 +372,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   browser smoke suite.
 - **Current gate numbers** (keep these updated when they move): **122 unit tests**
   (pure 106, sliders 10, balance 6), **50 pure helpers** in the delimited block,
-  **98 = 98** asset references, **27 browser smoke checks**, `index.html` **373 KB**.
+  **98 = 98** asset references, **27 browser smoke checks**, `index.html` **364 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

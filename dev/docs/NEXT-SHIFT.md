@@ -11,7 +11,7 @@ that have already cost time. Updated at the end of the shift that shipped M4 tap
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
   Currently 122 unit tests, 27 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 373 KB. Only assets under 20 KB are inlined; the clouds,
+- **Payload**: `index.html` is 364 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and M4's first item (taper, p.9) are complete. The
   deferred list is drag on the wave itself (p.7), standing-wave resonance (p.10),
