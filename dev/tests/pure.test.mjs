@@ -46,6 +46,10 @@ const {
   densityColumnKgM2,
   waveDragSpeedFactorAt,
   waveDragColumnPowerW,
+  resonanceModeAt,
+  resonanceBoostFactor,
+  resonanceSupplyW,
+  resonantFilmPeakMps,
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
@@ -100,6 +104,7 @@ test('extraction exposes the core pure symbols', () => {
     freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipGateFactor,
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW,
+    resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
@@ -127,11 +132,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 53 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 57 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 53);
+  assert.equal(declaredPureHelpers().length, 57);
 });
 
 // ---------------------------------------------------------------------------
@@ -947,6 +952,110 @@ test('waveDragColumnPowerW: the drag table\'s longitudinal row is a regression f
     * (1000 / 3.6) ** 3 * densityColumnKgM2(100000);
   assert.ok(Math.abs(firstOrder - row) / row < 0.02,
     `first-order ${(firstOrder / 1e6).toFixed(3)} MW vs exact ${(row / 1e6).toFixed(3)} MW`);
+});
+
+// ---------------------------------------------------------------------------
+// M4 (paper p.10): standing-wave resonance — the anchor as a node. The p.10
+// table ships as a regression fixture next to slide 6's and the drag row's:
+// Long + resonance 2.5 MW/mm² at 200 km/h, 12.5 MW/mm² at 1000 km/h.
+// ---------------------------------------------------------------------------
+test('resonanceModeAt: the cavity law — f falls as you rise, reset at the 100 km wavelength floor', () => {
+  const c = tetherWaveSpeed();
+  // Both ends nodes: f_n = n·c/2h. Below 50 km the fundamental holds; its
+  // wavelength 2h reaches the paper's 100 km floor exactly at 50 km, where the
+  // anchor retunes to n = 2, which then holds to 100 km (one reset per climb).
+  assert.equal(resonanceModeAt(1000, c).n, 1);
+  assert.equal(resonanceModeAt(49999, c).n, 1);
+  assert.equal(resonanceModeAt(50000, c).n, 1);   // 2h = 100 km exactly: still inside the floor
+  assert.equal(resonanceModeAt(50001, c).n, 2);
+  assert.equal(resonanceModeAt(100000, c).n, 2);
+  // The frequency FALLS as the climber rises within each mode, and the floor
+  // c/lambda_max is never crossed: the reset keeps lambda = 2h/n <= 100 km
+  // everywhere. (Across the reset itself f jumps UP, the whole point of the
+  // retune — pinned separately below.)
+  const floorHz = c / GameConfig.TETHER.RESONANCE_LAMBDA_MAX_M;
+  for (const seg of [[100, 1000, 10000, 40000, 49999], [50001, 70000, 100000]]) {
+    let prevF = Infinity;
+    for (const h of seg) {
+      const m = resonanceModeAt(h, c);
+      assert.ok(m.freqHz >= floorHz, `f(${h} m) = ${m.freqHz.toFixed(3)} Hz under the ${floorHz.toFixed(3)} Hz floor`);
+      assert.ok(m.freqHz < prevF, `f must fall as the climber rises within a mode: ${m.freqHz} !< ${prevF}`);
+      prevF = m.freqHz;
+    }
+  }
+  // The reset doubles the frequency at 50 km (n 1 -> 2), and the transient is
+  // one cavity round trip: 2h/c = 4.8 s there.
+  approx(resonanceModeAt(50001, c).freqHz / resonanceModeAt(49999, c).freqHz, 2, 1e-3);
+  approx(resonanceModeAt(50000, c).roundTripS, 2 * 50000 / c, 1e-9);
+  // The paper's "period ~low 10s of seconds for longitudinal waves": the game's
+  // own c gives 4.8 s at the top (in the retuned n = 2 mode) and 9.6 s for the
+  // un-reset fundamental there — the paper's figure reads the full-tether
+  // fundamental, so the game's periods sit at the bottom edge of its range.
+  const top = resonanceModeAt(100000, c);
+  assert.ok(top.periodS > 4 && top.periodS < 6, `top period ${top.periodS.toFixed(1)} s in the retuned mode`);
+  approx(2 * 100000 / c, 9.59, 0.01, 'the un-reset fundamental at 100 km is the paper\'s low 10s of seconds');
+  // The 1 m floor: a zero-length cavity has no mode; on the pad it rings at kHz,
+  // which is why the mode is an aloft tool.
+  assert.ok(resonanceModeAt(0, c).freqHz > 1000, 'on the pad the cavity rings at kHz');
+});
+
+test('resonanceSupplyW: the p.10 resonance row EXACTLY — P = sigma·v per unit section', () => {
+  // The paper's table, Long + resonance: 2.5 MW/mm² at 200 km/h, 12.5 MW/mm² at
+  // 1000 km/h. sigma = 45 GPa (the paper's working stress), one square millimetre.
+  const sigma = 45e9, mm2 = 1e-6;
+  // Drive speed = stroke x cavity rate: pick the stroke that gives the table's
+  // anchor speeds at 1 Hz (the law is linear in both, so any pair making the
+  // speed reproduces the row).
+  const row200 = resonanceSupplyW(200 / 3.6 / (2 * Math.PI), 1, sigma, mm2);
+  const row1000 = resonanceSupplyW(1000 / 3.6 / (2 * Math.PI), 1, sigma, mm2);
+  approx(row200 / 1e6, 2.5, 1e-9, '2.5 MW/mm² at 200 km/h');
+  approx(row1000 / 1e6, 12.5, 1e-9, '12.5 MW/mm² at 1000 km/h');
+  // Linear in drive speed (the table's 5x speed -> 5x power), linear in section.
+  approx(row1000 / row200, 5, 1e-12, 'resonant power is linear in anchor speed');
+  approx(resonanceSupplyW(200 / 3.6 / (2 * Math.PI), 1, sigma, 9 * mm2) / row200, 9, 1e-12);
+});
+
+test('resonanceBoostFactor: the p.10 table as a ratio against the plain travelling wave', () => {
+  // The plain rows are rho·c·v² (slide 6's law): 150 kW/mm² at 200 km/h, 3.7 MW/mm²
+  // at 1000 km/h. The boost v_cap/v_anchor with v_cap at the paper's 45 GPa working
+  // stress (maxMaterialVelocityMps at 100% budget) must turn those into the
+  // resonance rows to the table's own significant figures.
+  const vCap45 = maxMaterialVelocityMps(45, GameConfig.TETHER.YOUNGS_MODULUS, GameConfig.TETHER.CARBON_DENSITY, 1.0);
+  const b200 = resonanceBoostFactor(200 / 3.6, vCap45);
+  const b1000 = resonanceBoostFactor(1000 / 3.6, vCap45);
+  assert.ok(Math.abs(b200 * 150e3 - 2.5e6) / 2.5e6 < 0.02,
+    `200 km/h: boost x${b200.toFixed(1)} on 150 kW -> ${(b200 * 150e3 / 1e6).toFixed(2)} MW, the table's 2.5`);
+  assert.ok(Math.abs(b1000 * 3.7e6 - 12.5e6) / 12.5e6 < 0.01,
+    `1000 km/h: boost x${b1000.toFixed(2)} on 3.7 MW -> ${(b1000 * 3.7e6 / 1e6).toFixed(1)} MW, the table's 12.5`);
+  // Always >= 1 in play (the stress cap keeps the anchor at or under v_cap), and
+  // the guard: no drive, no boost.
+  assert.equal(resonanceBoostFactor(0, vCap45), 1);
+  assert.ok(resonanceBoostFactor(vCap45, vCap45) >= 1);
+});
+
+test('resonantFilmPeakMps: the film runs the local stress ceiling, drag-damped, times the buildup', () => {
+  const mDef = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX];
+  const vMax = maxMaterialVelocityMps(mDef.strengthGpa, mDef.youngsPa, mDef.densityKgM3, 0.30);
+  const span = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+  // Uniform film, full buildup, no air below: the ceiling is v_max itself.
+  approx(resonantFilmPeakMps({ altitudeM: 0, taperRatio: 1, spanM: span, vMaxMps: vMax, widthMm: 45, thicknessMm: 0.2, buildup: 1 }),
+    vMax * waveDragSpeedFactorAt(0, vMax, 45, 0.2), 1e-9);
+  // With a taper the ceiling is the LOCAL one: v_max at the top, v_max/sqrt(R) at
+  // the anchor — the taper's own altitude profile, filled to the budget.
+  approx(resonantFilmPeakMps({ altitudeM: span, taperRatio: 4, spanM: span, vMaxMps: vMax, widthMm: 45, thicknessMm: 0.2, buildup: 1 }),
+    vMax * waveDragSpeedFactorAt(span, vMax / 2, 45, 0.2), 1e-9, 'the tapered top runs v_max');
+  // The buildup is the retune transient: 0 kills the film, the ramp is monotonic.
+  approx(resonantFilmPeakMps({ altitudeM: 50000, taperRatio: 1, spanM: span, vMaxMps: vMax, widthMm: 45, thicknessMm: 0.2, buildup: 0 }), 0, 1e-12);
+  const b1 = resonantFilmPeakMps({ altitudeM: 50000, taperRatio: 1, spanM: span, vMaxMps: vMax, widthMm: 45, thicknessMm: 0.2, buildup: 0.5 });
+  const b2 = resonantFilmPeakMps({ altitudeM: 50000, taperRatio: 1, spanM: span, vMaxMps: vMax, widthMm: 45, thicknessMm: 0.2, buildup: 1 });
+  approx(b2 / b1, 2, 1e-12, 'the buildup scales the film linearly');
+  // And the boost over the plain film is the constant v_cap/v_anchor ratio: at the
+  // default stroke (1.00 m x 92 Hz) the resonant film is the plain film x 1.082.
+  const omega = GameConfig.WAVE.DEFAULT_FREQUENCY * 2 * Math.PI;
+  const vAnchor = GameConfig.WAVE.DEFAULT_AMPLITUDE * omega;
+  const plain = vAnchor * taperVelocityFactorAt(50000, 1, span) * waveDragSpeedFactorAt(50000, vAnchor, 45, 0.2);
+  assert.ok(Math.abs(b2 / plain - vMax / vAnchor) / (vMax / vAnchor) < 0.01,
+    `the boost is v_cap/v_anchor: ${(b2 / plain).toFixed(3)} vs ${(vMax / vAnchor).toFixed(3)}`);
 });
 
 test('B.14 split is gone, and M4 took the aero half too: gravity only, no drag on the climber', () => {

@@ -57,6 +57,10 @@ const EXPORTED_SYMBOLS = [
   'densityColumnKgM2',
   'waveDragSpeedFactorAt',
   'waveDragColumnPowerW',
+  'resonanceModeAt',
+  'resonanceBoostFactor',
+  'resonanceSupplyW',
+  'resonantFilmPeakMps',
   'temperatureAtAltitude',
   'thermalSuitIndex',
   'coldGripFactor',
@@ -230,7 +234,7 @@ export function exportedSymbols() {
 // back onto the simulation default, so the next drifted default fails loudly.
 export function sliderDefaults() {
   const html = readFileSync(SOURCE_HTML, 'utf8');
-  const ids = ['frequency', 'amplitude', 'width', 'thickness', 'tension', 'stressBudget', 'taper', 'airGap', 'nPairs', 'gravity', 'weight'];
+  const ids = ['frequency', 'amplitude', 'width', 'thickness', 'tension', 'stressBudget', 'taper', 'resonance', 'airGap', 'nPairs', 'gravity', 'weight'];
   const out = {};
   for (const id of ids) {
     const inputMatch = html.match(new RegExp(`<input type="range" id="${id}"([^>]*)>`));

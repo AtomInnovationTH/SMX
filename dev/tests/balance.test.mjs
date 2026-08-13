@@ -37,6 +37,7 @@ const {
   epmChargeStep, thermalStep, climbSpeedKmh,
   maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK, stackDryMassKg,
   switchingPowerW, flutterAmplitudeMm, waveDragSpeedFactorAt,
+  resonanceModeAt, resonanceSupplyW, resonantFilmPeakMps, filmCrossSectionM2,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly (M2.11 tuning): film 100 GPa
@@ -51,6 +52,8 @@ const {
 // (widthMm/thicknessMm, the section aloft — the drag law damps the film by the air
 // column below the climber, so the default trace DOES move with this one: AIR_DRAG's
 // linear low-altitude cap on the climber is gone, the film pays a few per cent aloft).
+// M4 (p.10) adds resonanceOn false (the plain travelling wave — the pre-resonance
+// model exactly, so the default trace cannot move with this one either).
 const DEFAULTS = {
   gravityMultiplier: 1.0,
   vineWidth: 4.5,
@@ -59,6 +62,7 @@ const DEFAULTS = {
   filmThicknessMm: 0.2,
   cargoKg: GameConfig.MONKEY.WEIGHT,
   taperRatio: 1.0,
+  resonanceOn: false,
 };
 
 // M2.4/M2.5: the hardware chain — air gap -> pole flux (FG40's published curve), flux ->
@@ -90,6 +94,9 @@ const DEFAULT_CFG = {
   taperRatio: DEFAULTS.taperRatio,
   widthMm: DEFAULTS.vineWidth * 10,
   thicknessMm: DEFAULTS.filmThicknessMm,
+  resonanceOn: DEFAULTS.resonanceOn,
+  startAltM: 0,
+  amplitudeM: GameConfig.WAVE.DEFAULT_AMPLITUDE,
 };
 
 // One climb at fixed dt. The step order below mirrors Game.update() ->
@@ -103,19 +110,25 @@ function runClimb(dt, wallS, over = {}) {
   // same. At the shipped 92 Hz carrier the 1.00 m default stroke sits just under the
   // 1.08 m cap (no-op); on a hotter carrier the cap binds and this is what enforces it.
   // M4 (p.9): the cap binds at the taper's thin TOP, so the anchor's budget tightens by
-  // 1/√R — the same clamp strokeCapM() applies in game.
+  // 1/√R — the same clamp strokeCapM() applies in game. M4 (p.10): the boot clamp is
+  // the plain-mode one (initGame always boots with resonance off; engaging it is a
+  // post-boot act, and the in-game cap then reads the cavity rate per frame).
   {
     const m = GameConfig.MATERIALS[cfg.materialIndex];
     const vMax = maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, 0.30);
-    ws.amplitude = Math.min(ws.amplitude, maxAmplitudeM(vMax / Math.sqrt(cfg.taperRatio), ws.frequency * 2 * Math.PI));
+    ws.amplitude = Math.min(cfg.amplitudeM, maxAmplitudeM(vMax / Math.sqrt(cfg.taperRatio), ws.frequency * 2 * Math.PI));
   }
   const phys = new PhysicsEngine(GameConfig, { emit() {} });
-  const monkey = { x: 600, y: 0, width: 80, height: 80, velocityY: 0,
-                   isGrabbing: true, altitude: 0 };
+  const monkey = { x: 600, y: -cfg.startAltM * GameConfig.PHYSICS.ALTITUDE_CONVERSION,
+                   width: 80, height: 80, velocityY: 0,
+                   isGrabbing: true, altitude: cfg.startAltM };
   const kPerPair = kPerPairFor(cfg);
   const massKg = totalMassKgFor(cfg.nPairs, cfg.cargoKg);
   let charge = GameConfig.EPM.START_CHARGE, brownout = false, thermalTier = -1;
   let coldFactor = 1;
+  // M4 (p.10): the resonance state, mirroring updateContinuous's block call for call.
+  let resMode = null, resTransientS = 0, resonanceResets = 0;
+  let lastExtractionW = 0, lastSupplyW = 0;
 
   const targetM = GameConfig.MISSION.DELIVER_ALTITUDE_M;
   const trace = [];
@@ -131,18 +144,47 @@ function runClimb(dt, wallS, over = {}) {
     thermalTier = th.tier; coldFactor = th.coldFactor;
     const prevAlt = monkey.altitude;
     phys.applyGravityAndDrag(monkey, dt, DEFAULTS.gravityMultiplier);
+    // M4 (p.10): the resonance block, mirroring updateContinuous call for call —
+    // the cavity mode tracks altitude, the retune pays one round trip of buildup,
+    // and switching reads the cavity rate while engaged.
+    let resonance = null;
+    if (cfg.resonanceOn) {
+      const mode = resonanceModeAt(monkey.altitude, Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY));
+      if (!resMode) {
+        resTransientS = mode.roundTripS;
+      } else if (mode.n !== resMode.n) {
+        resTransientS = mode.roundTripS;
+        resonanceResets++;
+      }
+      // Track the drift EVERY frame (mirrors updateContinuous): f = n·c/2h falls
+      // as the climber rises, so switching and the supply read the live rate.
+      resMode = mode;
+      resTransientS = Math.max(0, resTransientS - dt);
+      const m = GameConfig.MATERIALS[cfg.materialIndex];
+      const vMax = maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, 0.30);
+      const buildup = resMode.roundTripS > 0 ? Math.max(0, Math.min(1, 1 - resTransientS / resMode.roundTripS)) : 1;
+      resonance = {
+        freqHz: resMode.freqHz,
+        buildup,
+        supplyCapW: resonanceSupplyW(ws.amplitude, resMode.freqHz,
+          0.30 * m.strengthGpa * 1e9, filmCrossSectionM2(cfg.widthMm, cfg.thicknessMm)),
+        vMaxMps: vMax,
+      };
+    }
     const engaged = monkey.isGrabbing && !brownout;
     let quality = 0, thrustFrameN = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
-        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio, widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm });
+        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio, widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm, vMaxMps: resonance ? resonance.vMaxMps : 0, resonance });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
       thrustFrameN = c.thrustN;
     }
     // M2.8: switching watts out, extracted mechanical power in (mirrors updateContinuous).
-    const switchW = switchingPowerW(ws.frequency, cfg.nPairs, GameConfig.FG40.E_SWITCH_J);
+    const switchW = switchingPowerW(resonance ? resonance.freqHz : ws.frequency, cfg.nPairs, GameConfig.FG40.E_SWITCH_J);
     const extractW = thrustFrameN * Math.max(0, -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+    lastExtractionW = extractW;
+    lastSupplyW = resonance ? resonance.supplyCapW : 0;
     const toRate = (w) => w / GameConfig.EPM.CAPACITY_J * GameConfig.EPM.CAPACITY;
     const step = epmChargeStep({ charge, brownout, pulsing: engaged,
       drainPerSec: toRate(switchW), regenPerSec: toRate(extractW), dt });
@@ -171,7 +213,9 @@ function runClimb(dt, wallS, over = {}) {
   }
   return { doneAt, dips, chargeInRange, trace, crossings, brownoutEpisodes,
            finalSpeedKmh: climbSpeedKmh(monkey.velocityY), finalAltM: monkey.altitude,
-           amplitudeM: ws.amplitude, taperRatio: cfg.taperRatio };
+           amplitudeM: ws.amplitude, taperRatio: cfg.taperRatio,
+           resonanceResets, finalExtractionW: lastExtractionW, finalSupplyW: lastSupplyW,
+           finalModeN: resMode ? resMode.n : null, finalFreqHz: resMode ? resMode.freqHz : null };
 }
 
 const WALL_S = 2000; // ~5.8x the observed default climb (~345 s); a miss means the climb stalled
@@ -318,6 +362,79 @@ test('M4 wave drag (p.7): the film pays the dense-air tax aloft, and the law\'s 
   // the air), the 10x narrower one keeps ~78%.
   assert.ok(peakUni / (uni.amplitudeM * omega * 3.6) > 0.96, 'default film damping at the top should be a few per cent');
   assert.ok(peakNar / (narrow.amplitudeM * omega * 3.6) < 0.85, 'the narrower film must feel the air honestly');
+});
+
+test('M4 resonance (p.10): the anchor-node mode flies with the boost, resets once at 50 km, and its supply cap binds', () => {
+  // The resonance verification, in the integrator itself (always engaged, mirrors
+  // updateContinuous's resonance block call for call). All four runs share the
+  // shipped defaults; the resonance runs differ only in resonanceOn / startAltM /
+  // amplitudeM. The DEFAULT trace cannot move: resonanceOn false is the plain
+  // travelling wave, and the snapshot test above guards it.
+  //
+  // THE BOOST: resonance from 2 km against the plain film from 2 km. The standing
+  // wave fills the local stress budget the anchor's stroke leaves unused, so the
+  // film runs v_cap = v_max (x1.082 at the default stroke) instead of the plain
+  // 578 m/s — the p.10 table's ratio. The resonant climb is strictly faster on
+  // every band and cruises strictly higher, yet still strictly BELOW its own
+  // boosted film peak: the u -> 1 asymptote reads the boosted film, no clamp.
+  const uni2k = runClimb(1 / 60, WALL_S, { startAltM: 2000 });
+  const res2k = runClimb(1 / 60, WALL_S, { startAltM: 2000, resonanceOn: true });
+  assert.notEqual(uni2k.doneAt, null, 'plain 2 km climb stalled');
+  assert.notEqual(res2k.doneAt, null, 'the resonant 2 km climb stalled');
+  assert.ok(res2k.chargeInRange, 'resonant charge left [0, CAPACITY]');
+  // The engage transient from a standing start: the film builds over one cavity
+  // round trip (~0.2 s at 2 km), and the climber falls a few frames before it
+  // catches. Physical, bounded, and never a sustained descent.
+  assert.ok(res2k.dips <= 10, `resonant climb dipped on ${res2k.dips} steps — more than the engage transient explains`);
+  assert.equal(res2k.brownoutEpisodes.length, 0,
+    'switching follows the cavity rate (Hz-class aloft): the energy loop never trips while resonant');
+  assert.ok(res2k.doneAt < uni2k.doneAt,
+    `resonant climb ${res2k.doneAt}s not faster than plain ${uni2k.doneAt}s on the same segment`);
+  for (const band of [5000, 25000, 50000, 75000, 95000]) {
+    assert.ok(res2k.crossings.get(band) < uni2k.crossings.get(band),
+      `resonant ${band / 1000} km crossing ${res2k.crossings.get(band)}s not earlier than plain ${uni2k.crossings.get(band)}s`);
+  }
+  assert.ok(res2k.finalSpeedKmh > uni2k.finalSpeedKmh,
+    `resonant cruise ${res2k.finalSpeedKmh.toFixed(0)} not above plain ${uni2k.finalSpeedKmh.toFixed(0)} km/h`);
+  const mDef = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX];
+  const vMax = maxMaterialVelocityMps(mDef.strengthGpa, mDef.youngsPa, mDef.densityKgM3, 0.30);
+  const topM = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+  const peakRes = resonantFilmPeakMps({ altitudeM: topM, taperRatio: 1, spanM: topM, vMaxMps: vMax, widthMm: 45, thicknessMm: 0.2, buildup: 1 }) * 3.6;
+  assert.ok(res2k.finalSpeedKmh < peakRes,
+    `resonant terminal ${res2k.finalSpeedKmh.toFixed(0)} km/h must sit strictly below the boosted film peak ${peakRes.toFixed(0)} km/h`);
+  // THE RETUNE: one reset per climb, at 50 km (the wavelength hits the paper's
+  // 100 km floor), landing in the M3.4 schedule's marked 40-70 km band. After it
+  // the n = 2 mode holds to 100 km, and the frequency keeps DRIFTING DOWN inside
+  // the mode (0.417 Hz just after the reset, 0.209 Hz at the top) — the paper's
+  // "frequency must lower as climber rises".
+  assert.equal(res2k.resonanceResets, 1, `expected exactly one retune per climb (at 50 km), got ${res2k.resonanceResets}`);
+  assert.equal(res2k.finalModeN, 2, 'the n = 2 mode must hold to 100 km after the 50 km retune');
+  const floorHz = Math.sqrt(GameConfig.TETHER.YOUNGS_MODULUS / GameConfig.TETHER.CARBON_DENSITY)
+    / GameConfig.TETHER.RESONANCE_LAMBDA_MAX_M;
+  assert.ok(res2k.finalFreqHz < 0.417 && res2k.finalFreqHz >= floorHz,
+    `the cavity rate must keep drifting inside the mode: ${res2k.finalFreqHz} Hz`);
+  // THE SUPPLY CAP: conservation, not prose. With a 3 cm stroke (below the
+  // slider's 5 cm floor, to force the bind and pin the LAW) the anchor's resonant
+  // injection falls under the cruise skim, so the climber rides exactly at the
+  // cap: extraction == supply at the top, a slower cruise, a longer trip — and
+  // still a completion, because the cap throttles thrust, never speed.
+  const resCap = runClimb(1 / 60, WALL_S, { startAltM: 2000, resonanceOn: true, amplitudeM: 0.03 });
+  assert.notEqual(resCap.doneAt, null, 'the supply-capped climb stalled');
+  assert.ok(resCap.finalSpeedKmh < res2k.finalSpeedKmh,
+    `supply-capped cruise ${resCap.finalSpeedKmh.toFixed(0)} not below the uncapped ${res2k.finalSpeedKmh.toFixed(0)} km/h`);
+  assert.ok(resCap.doneAt > res2k.doneAt, 'the supply cap must cost time');
+  assert.ok(Math.abs(resCap.finalExtractionW - resCap.finalSupplyW) / resCap.finalSupplyW < 0.01,
+    `at the cap the skim IS the injection: extraction ${(resCap.finalExtractionW / 1e3).toFixed(1)} kW vs supply ${(resCap.finalSupplyW / 1e3).toFixed(1)} kW`);
+  // THE TEETH: engaged on the pad the 1 m cavity rings at ~10 kHz and the stack
+  // cannot pay the switching — the mode browns out, coasts, re-engages and never
+  // leaves the ground. The mode is an aloft tool; pin the mechanism (many
+  // episodes, trapped low), not just the non-completion. Same shape as the
+  // taper's R = 4 starvation: the honest edge of the trade, not a bug.
+  const resPad = runClimb(1 / 60, WALL_S, { resonanceOn: true });
+  assert.equal(resPad.doneAt, null, 'resonance engaged on the pad should NOT complete — the kHz cavity starves the stack');
+  assert.ok(resPad.brownoutEpisodes.length >= 10,
+    `pad engagement should cycle brownouts (got ${resPad.brownoutEpisodes.length}) — the energy loop never closes low`);
+  assert.ok(resPad.finalAltM < 1000, `pad engagement reached ${resPad.finalAltM.toFixed(0)} m — expected to stay trapped low`);
 });
 
 test('trace is frame-rate independent (dt = 1/60 vs 1/240)', () => {

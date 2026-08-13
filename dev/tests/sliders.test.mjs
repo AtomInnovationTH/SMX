@@ -137,3 +137,16 @@ test('taper slider is the anchor:top section ratio (M4, p.9), default 1.0 = unif
   assert.equal(parseFloat(d.max), 10);
   assert.ok((4 - parseFloat(d.min)) % parseFloat(d.step) === 0, 'the paper\'s R = 4 example is selectable');
 });
+
+test('resonance slider is the anchor-node toggle (M4, p.10), default off', () => {
+  // The raw value IS the flag (0/1, documented pass-through in scaleSettingValue).
+  // Default OFF is the plain travelling wave — the pre-resonance model exactly, which
+  // is what keeps the committed balance trace valid. Every preset pins it to 0 for
+  // the same reason the presets pin taper to 1.
+  const d = sliderDefaults().resonance;
+  assert.equal(scaleSettingValue('resonance', parseFloat(d.inputValue)), 0);
+  assert.equal(d.staticLabel, 'off');
+  assert.equal(d.min, '0');
+  assert.equal(d.max, '1');
+  assert.equal(d.step, '1', 'a toggle: no half-engaged state');
+});

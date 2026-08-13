@@ -404,6 +404,11 @@
             <label>Switching: <span id="switchingValue">—</span></label>
             <small class="setting-hint">4·N·E_switch·f — flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
         </div>
+        <div class="slider-container">
+            <label>Standing-wave resonance: <span id="resonanceValue">off</span></label>
+            <input type="range" id="resonance" min="0" max="1" step="1" value="0">
+            <small class="setting-hint">The paper's p.10 lever: the anchor becomes a node and a standing wave fills the film between anchor and climber. Its tension holds the full stress budget, so the film runs its LOCAL stress ceiling whatever your stroke: power per unit anchor speed rises by v_cap/v_anchor, the table's 2.5 MW/mm² at 200 km/h against 150 kW plain. The price: the cavity only accepts its own modes, so the carrier is overridden by f = n·c/2h, the frequency falls as you rise, and each time the wavelength reaches the 100 km floor the anchor retunes to the next harmonic and pays one cavity round trip of weakened film (the 50 km transient). The stack's switching follows the cavity rate: nearly free aloft, kHz on the pad, so engage it once you are a kilometre up, not on the grass. While resonant the amplitude slider becomes the power budget: the skim cannot exceed the anchor's injection (stress budget × drive speed × section, the table's own P = σ·v). The boundary-value buildup is summarised as the one-round-trip ramp; the reflection interplay the paper calls tricky for multi-climber is not modelled.</small>
+        </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
             An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
@@ -623,13 +628,14 @@
         // Amplitude goes last at apply time so it clamps against the final stress cap.
         // Taper (M4) sits with the cap-affecting group (it tightens the cap by 1/√R) and
         // every preset pins it to 1 (uniform film), so a tapered setting can never leak
-        // through a preset click.
+        // through a preset click. Resonance (M4, p.10) is pinned off the same way: it
+        // also moves the stroke cap (the cavity rate), so it fires in the same group.
         const PRESETS = [
-            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
-            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, taper: 1, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
+            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
+            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, taper: 1, resonance: 0, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
         ];
 
         // UX: game-over gate (2e)
@@ -1188,6 +1194,73 @@
             const f = waveDragSpeedFactorAt(GameConfig.MISSION.DELIVER_ALTITUDE_M,
                 anchorSpeedMps, widthMm, thicknessMm);
             return z * aM2 * anchorSpeedMps * anchorSpeedMps * (1 - f * f);
+        }
+
+        // SIM (paper p.10 / M4): STANDING-WAVE RESONANCE — the anchor becomes a node.
+        // A standing wave on the film holds tension, so the anchor trades speed for
+        // power: P = sigma x v_anchor instead of the plain travelling wave's
+        // P = rho.c.v^2 (the p.10 table: 2.5 MW/mm2 at 200 km/h and 12.5 MW/mm2 at
+        // 1000 km/h against 150 kW and 3.7 MW plain, reproduced exactly by
+        // resonanceSupplyW). The cavity is anchor-to-climber with both ends nodes
+        // (p.3: climbers are near-perfect reflectors), so mode n rings at
+        // f_n = n.c/2h. The paper's condition "not if lambda >> 100 km since the
+        // anchor is a node" sets the floor: n = ceil(2h/lambda_max) keeps
+        // lambda = 2h/n <= lambda_max, so the resonant frequency FALLS as the
+        // climber rises (f ~ c/2h between resets) and RESETS to the next harmonic
+        // each time it reaches c/lambda_max. The reset costs one cavity round trip
+        // (2h/c) of buildup: the transient the M3.4 schedule's 40-70 km beat pays.
+        // With the game's own c = 20.85 km/s and lambda_max = 100 km the single
+        // reset per climb lands at 50 km, inside that band, and the top-of-climb
+        // period is 4.8 s in the retuned n = 2 mode (9.6 s un-reset: the paper's
+        // "low 10s of seconds" reads the full-tether fundamental). altitudeM is
+        // floored at 1 m: a zero-length cavity has no mode (on the pad the 1 m
+        // cavity rings at ~10 kHz, which is exactly why resonance is an aloft tool).
+        function resonanceModeAt(altitudeM, waveSpeedMps) {
+            const h = Math.max(1, altitudeM);
+            const n = Math.max(1, Math.ceil(2 * h / GameConfig.TETHER.RESONANCE_LAMBDA_MAX_M));
+            const freqHz = n * waveSpeedMps / (2 * h);
+            return { n, freqHz, periodS: 1 / freqHz, roundTripS: 2 * h / waveSpeedMps };
+        }
+
+        // The p.10 table as a ratio: with the standing wave holding the full stress
+        // budget, power per unit anchor speed is sigma_b.v against the plain
+        // travelling wave's rho.c.v^2, so the boost is v_cap/v_anchor with
+        // v_cap = sigma_b/sqrt(E.rho) — the section's own stress-limited speed (the
+        // game's v_max, taper-tightened). At the paper's 45 GPa working stress this
+        // is 16.9x at 200 km/h and 3.4x at 1000 km/h: the table's 150 kW -> 2.5 MW
+        // and 3.7 -> 12.5 MW/mm2 rows. Always >= 1 in play: the stress cap already
+        // keeps the anchor at or under v_cap, so resonance can only fill the budget
+        // the anchor's stroke leaves unused. Guard: no drive, no boost.
+        function resonanceBoostFactor(anchorSpeedMps, vCapMps) {
+            if (anchorSpeedMps <= 0) return 1;
+            return vCapMps / anchorSpeedMps;
+        }
+
+        // The anchor's resonant power injection, the paper's P = sigma.v per unit
+        // section: the standing wave's tension (the stress budget) times the
+        // anchor's drive speed (stroke x cavity rate), times the section. This is
+        // the p.10 table's resonance row EXACTLY: 45 GPa x 200 km/h = 2.5 MW/mm2,
+        // and 45 GPa x 1000 km/h = 12.5 MW/mm2. It caps what the climber can skim
+        // (extraction F.v cannot exceed the injection — conservation, never a speed
+        // clamp): the amplitude slider becomes the power budget while resonant.
+        function resonanceSupplyW(anchorStrokeM, freqHz, stressBudgetPa, sectionM2) {
+            return stressBudgetPa * (anchorStrokeM * 2 * Math.PI * freqHz) * sectionM2;
+        }
+
+        // The film the climber rides while resonant: the standing wave fills the
+        // LOCAL stress budget the anchor's stroke leaves unused, so the film's peak
+        // particle velocity is the local stress ceiling v_max/sqrt(R_local(y)) —
+        // the taper's own altitude profile — drag-damped by the same p.7 law
+        // (reading the envelope's anchor value v_cap = v_max/sqrt(R)). buildup in
+        // [0,1] is the resonant buildup after an engage or a retune: one cavity
+        // round trip from 0 to full (the transient; the wave cannot arrive faster
+        // than it reflects). Composes the three existing factors so the coupling,
+        // the slip readout and the balance harness cannot disagree about the film.
+        function resonantFilmPeakMps({ altitudeM, taperRatio, spanM, vMaxMps, widthMm, thicknessMm, buildup = 1 }) {
+            const r = Math.max(1, taperRatio);
+            const vCap = vMaxMps / Math.sqrt(r);
+            const drag = waveDragSpeedFactorAt(altitudeM, vCap, widthMm, thicknessMm);
+            return vCap * taperVelocityFactorAt(altitudeM, r, spanM) * drag * buildup;
         }
 
         // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
@@ -2493,6 +2566,12 @@
                 // and the whole in-atmosphere power limit hangs off it (its transverse
                 // row, Cd 1.17 capping at 45 km/h, is the 12 km beat's caption).
                 DRAG_CD_LONGITUDINAL: 0.02,
+                // Paper p.10: standing-wave resonance works "not if lambda >> 100 km
+                // since the anchor is a node" — the wavelength floor at which the
+                // anchor must retune to the next harmonic (resonanceModeAt). With the
+                // game's own c = 20.85 km/s the reset lands at lambda_max/2 = 50 km,
+                // inside the M3.4 schedule's marked 40-70 km retune band.
+                RESONANCE_LAMBDA_MAX_M: 100000,
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 // ESTIMATE (order-of-magnitude placeholder): film flutter amplitude at
                 // 100 kgf pretension, scaling as 1/sqrt(tension) for fixed buffeting energy.
@@ -2755,7 +2834,14 @@
             // drag reads (quadratic drag on the film's two edges, waveDragSpeedFactorAt):
             // the wave arrives at the climber's altitude damped by the air column it
             // climbed through. The climber feels the air ONLY here, as a slower film.
-            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1, widthMm = 45, thicknessMm = 0.2 }) {
+            // M4 (p.10): resonance is null in plain mode, or { freqHz, buildup,
+            // supplyCapW } while the anchor runs a standing wave (anchor as node). The
+            // film then runs the LOCAL stress ceiling (resonantFilmPeakMps: the standing
+            // wave fills the budget the anchor's stroke leaves unused), the cavity rings
+            // a single mode (the carrier's harmonic content is filtered out, so the sine
+            // path is the honest one), and the skim is capped by the anchor's resonant
+            // injection (resonanceSupplyW, the p.10 table's own P = sigma.v).
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1, widthMm = 45, thicknessMm = 0.2, vMaxMps = 0, resonance = null }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
                 // Film peak velocity in m/s at the CLIMBER's altitude (amplitude is the
                 // anchor's stroke in real metres, ≤ v_max/(ω·√R) via the §2.1+p.9 stress
@@ -2764,15 +2850,32 @@
                 // m/s, up-positive.
                 const taper = taperVelocityFactorAt(monkey.altitude, taperRatio,
                     GameConfig.MISSION.DELIVER_ALTITUDE_M);
-                const drag = waveDragSpeedFactorAt(monkey.altitude,
-                    waveSystem.amplitude * omega, widthMm, thicknessMm);
-                const vFilmPeakMps = waveSystem.amplitude * omega * taper * drag;
+                let vFilmPeakMps, filmVelAmpM, omegaActive = omega;
+                if (resonance) {
+                    vFilmPeakMps = resonantFilmPeakMps({ altitudeM: monkey.altitude,
+                        taperRatio, spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
+                        vMaxMps, widthMm, thicknessMm, buildup: resonance.buildup });
+                    omegaActive = resonance.freqHz * 2 * Math.PI;
+                    filmVelAmpM = omegaActive > 0 ? vFilmPeakMps / omegaActive : 0;
+                } else {
+                    const drag = waveDragSpeedFactorAt(monkey.altitude,
+                        waveSystem.amplitude * omega, widthMm, thicknessMm);
+                    vFilmPeakMps = waveSystem.amplitude * omega * taper * drag;
+                    filmVelAmpM = waveSystem.amplitude * taper * drag;
+                }
                 const vClimberMps = -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION;
-                const type = waveSystem.type;
+                const type = resonance ? 'sine' : waveSystem.type;
                 // Harmonic carriers integrate the gate numerically (the closed form is sine-only).
                 const filmVelocityAt = type === 'sine' ? null
-                    : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude * taper * drag, omega, phi);
-                const thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
+                    : (phi) => WAVE_CALCULATORS[type].velocity(filmVelAmpM, omegaActive, phi);
+                let thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
+                if (resonance && resonance.supplyCapW != null && vClimberMps > 0) {
+                    // Conservation: the skim cannot exceed the anchor's resonant
+                    // injection. As v_climber -> 0 the cap recedes (extraction F.v
+                    // vanishes there anyway); it binds at cruise when the stroke's
+                    // power budget is the limit. Never a clamp on SPEED.
+                    thrustN = Math.min(thrustN, resonance.supplyCapW / vClimberMps);
+                }
                 const impulse = -(thrustN / Math.max(1e-9, massKg)) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
                 // M3.6: display quality is thrust against the load the player actually
                 // carries — thrust / (2 × weight), so 1.0 means net acceleration ≥ 1 g.
@@ -2991,6 +3094,9 @@
                     // Film taper (M4, p.9): the anchor:top section ratio. 1.0 is the
                     // uniform film; 4.0 is the paper's own worked example.
                     taper: { unit: ' : 1', formatter: (v) => parseFloat(v).toFixed(1) },
+                    // Standing-wave resonance (M4, p.10): the anchor-node toggle. Off
+                    // is the plain travelling wave (the shipped default).
+                    resonance: { unit: '', formatter: (v) => parseFloat(v) >= 0.5 ? 'on · anchor is a node' : 'off' },
                     nPairs: { unit: ' pairs', formatter: null },
                     gravity: { unit: ' G', formatter: (v) => parseFloat(v).toFixed(2) },
                     weight: { unit: ' kg', formatter: null }
@@ -3013,6 +3119,7 @@
                         fire('material', p.material, 'change');
                         fire('stressBudget', p.stressBudget);
                         fire('taper', p.taper);
+                        fire('resonance', p.resonance);
                         fire('frequency', freqToLogSlider(p.hz));
                         fire('amplitude', p.amplitude);
                         fire('width', p.width);
@@ -3578,6 +3685,11 @@
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
                 this.taperRatio = 1.0;        // p.9 taper (M4): uniform film at default
+                this.resonanceOn = false;     // p.10 standing-wave resonance (M4): off at
+                                              // default, so the default trace cannot move
+                this._resMode = null;         // cavity mode while resonant (resonanceModeAt)
+                this._resTransientS = 0;      // engage/retune buildup countdown (one round trip)
+                this._resonanceResets = 0;    // retunes paid this run (the 50 km one, per climb)
                 this.gravityMultiplier = 1.0;
 
                 // SIM (Stage 2 / B.5): EPM energy loop state (used in continuous-coupling mode)
@@ -3677,6 +3789,7 @@
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
                     taper:      { value: 1,      label: '1.0 : 1' },
+                    resonance:  { value: 0,      label: 'off' },
                     airGap:     { value: 0.15,   label: '0.15 mm' },
                     nPairs:     { value: 8,      label: '8 pairs' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
@@ -3779,6 +3892,22 @@
                 // M4 (p.9): taper moves the stress cap (it binds at the thinnest section,
                 // the top), so it clamps the stroke exactly like a budget change.
                 this.eventBus.on('settings:taper', (data) => { this.taperRatio = scaleSettingValue('taper', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
+                // M4 (p.10): the anchor-node toggle. Engaging moves the stroke cap (it
+                // reads the active frequency), so it clamps exactly like a carrier
+                // change. Disengaging clears the cavity state and reverts the carrier
+                // label to the slider's own setting (the per-frame resonance readout
+                // owns it while engaged).
+                this.eventBus.on('settings:resonance', (data) => {
+                    this.resonanceOn = scaleSettingValue('resonance', data.value) >= 0.5;
+                    if (!this.resonanceOn) {
+                        this._resMode = null;
+                        this._resTransientS = 0;
+                        const fEl = document.getElementById('frequencyValue');
+                        if (fEl && this.waveSystem) fEl.textContent = this.waveSystem.frequency.toFixed(1) + ' Hz';
+                    }
+                    this.clampAmplitudeToStressCap();
+                    this.updateDerivedReadouts();
+                });
                 this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
@@ -3877,15 +4006,44 @@
             // at the climber's altitude, which the taper raises as 1/√A with height.
             // M4 (p.7): the same peak also carries the wave-drag factor, so the readout
             // and the thrust never disagree about the film the climber is riding.
+            // M4 (p.10): while resonant the film is the local stress ceiling with the
+            // retune buildup — the same resonantFilmPeakMps the coupling reads.
             slipU() {
-                const taper = taperVelocityFactorAt(this.monkey.altitude, this.taperRatio,
-                    GameConfig.MISSION.DELIVER_ALTITUDE_M);
-                const omega = this.waveSystem.frequency * 2 * Math.PI;
-                const drag = waveDragSpeedFactorAt(this.monkey.altitude,
-                    this.waveSystem.amplitude * omega, this.vineWidth * 10, this.filmThicknessMm);
-                const vFilmPeak = this.waveSystem.amplitude * omega * taper * drag;
+                let vFilmPeak;
+                if (this.resonanceOn && this._resMode) {
+                    vFilmPeak = resonantFilmPeakMps({ altitudeM: this.monkey.altitude,
+                        taperRatio: this.taperRatio, spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
+                        vMaxMps: this.vMaxMps(), widthMm: this.vineWidth * 10,
+                        thicknessMm: this.filmThicknessMm, buildup: this._resBuildup() });
+                } else {
+                    const taper = taperVelocityFactorAt(this.monkey.altitude, this.taperRatio,
+                        GameConfig.MISSION.DELIVER_ALTITUDE_M);
+                    const omega = this.waveSystem.frequency * 2 * Math.PI;
+                    const drag = waveDragSpeedFactorAt(this.monkey.altitude,
+                        this.waveSystem.amplitude * omega, this.vineWidth * 10, this.filmThicknessMm);
+                    vFilmPeak = this.waveSystem.amplitude * omega * taper * drag;
+                }
                 const vClimb = Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
                 return vFilmPeak > 0 ? vClimb / vFilmPeak : 0;
+            }
+
+            // M4 (p.10): the frequency the film actually oscillates at — the cavity's
+            // f_res while resonant (anchor node), else the carrier setting. Instruments
+            // (switching watts, the p.11 dashboard, the fatigue beat, the stroke cap,
+            // the report card) read this so they cannot quote a carrier the film is not
+            // running. The RENDERER keeps the carrier's travelling component: the
+            // standing arch is tens of km wide, sub-visible at screen scale (like the
+            // drag's sub-pixel damping), so drawing it would only move phase.
+            activeFreqHz() {
+                if (!this.resonanceOn) return this.waveSystem.frequency;
+                return (this._resMode || resonanceModeAt(this.monkey.altitude, this.tetherWaveSpeed())).freqHz;
+            }
+
+            // M4 (p.10): the resonant buildup after an engage or a retune — one cavity
+            // round trip from 0 to 1 (the transient the 40-70 km beat pays).
+            _resBuildup() {
+                if (!this._resMode || this._resMode.roundTripS <= 0) return 1;
+                return Math.max(0, Math.min(1, 1 - this._resTransientS / this._resMode.roundTripS));
             }
 
             // SIM (§2.2 / M2.2): the stroke budget at the current carrier — the largest
@@ -3893,9 +4051,11 @@
             // the wave's stress peaks at the THINNEST section (the top, factor √R), so
             // the anchor's stroke cap tightens to A·ω ≤ v_max/√R — that tightening IS
             // the taper's benefit: the ground station runs √R easier for the same v_max
-            // aloft.
+            // aloft. M4 (p.10): while resonant the anchor drives at the cavity rate, so
+            // the cap reads the active frequency (huge aloft, sub-metre on the pad —
+            // one more way the mode says "aloft tool").
             strokeCapM() {
-                const omega = this.waveSystem.frequency * 2 * Math.PI;
+                const omega = this.activeFreqHz() * 2 * Math.PI;
                 return maxAmplitudeM(this.vMaxMps() / Math.sqrt(this.taperRatio), omega);
             }
 
@@ -3948,13 +4108,14 @@
                 const vEl = document.getElementById('vmaxValue');
                 if (vEl) vEl.textContent = Math.round(vMax * 3.6) + ' km/h';
                 const capEl = document.getElementById('strokeCapValue');
-                if (capEl && this.waveSystem) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this.waveSystem.frequency.toFixed(1) + ' Hz';
+                if (capEl && this.waveSystem) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this.activeFreqHz().toFixed(1) + ' Hz';
                 // M3.7: the ground station's own cost, inline with its controls — the
                 // switching draw is what makes the carrier a two-sided trade (and what
-                // the Lofstrom preset demonstrates).
+                // the Lofstrom preset demonstrates). M4 (p.10): while resonant this
+                // reads the cavity rate (activeFreqHz), refreshed per frame below.
                 const swEl = document.getElementById('switchingValue');
                 if (swEl && this.waveSystem) {
-                    const swW = switchingPowerW(this.waveSystem.frequency, this.nPairs, GameConfig.FG40.E_SWITCH_J);
+                    const swW = switchingPowerW(this.activeFreqHz(), this.nPairs, GameConfig.FG40.E_SWITCH_J);
                     swEl.textContent = `${(swW / 1000).toFixed(0)} kW = ${(swW / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(1)}% of the paper's 4 MW`;
                 }
                 // M3.1: centering margin = gap per side − film flutter. Margin ≤ 0 unloads
@@ -3994,6 +4155,24 @@
             updateAirDensityReadout() {
                 if (!this.airDensityLabel) return;
                 this.airDensityLabel.textContent = airDensityReadout(this.monkey.altitude);
+            }
+
+            // M4 (p.10): while resonant the cavity rate drifts with altitude every
+            // frame, so the panel lines that quote the active frequency refresh every
+            // frame too (the carrier label shows the override honestly, the same class
+            // of fix as the amplitude label's "(capped)"). A no-op when disengaged;
+            // the settings:resonance handler restores the carrier label on disengage.
+            updateResonanceReadout() {
+                if (!this.resonanceOn || !this._resMode) return;
+                const fEl = document.getElementById('frequencyValue');
+                if (fEl) fEl.textContent = `cavity ${this._resMode.freqHz.toFixed(2)} Hz (n=${this._resMode.n}) · carrier set ${this.waveSystem.frequency.toFixed(1)} Hz`;
+                const swEl = document.getElementById('switchingValue');
+                if (swEl) {
+                    const swW = switchingPowerW(this._resMode.freqHz, this.nPairs, GameConfig.FG40.E_SWITCH_J);
+                    swEl.textContent = `${(swW / 1000).toFixed(1)} kW = ${(swW / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100).toFixed(2)}% of the paper's 4 MW (cavity rate)`;
+                }
+                const capEl = document.getElementById('strokeCapValue');
+                if (capEl) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this._resMode.freqHz.toFixed(2) + ' Hz';
             }
 
             // The ENGAGE LATCH. Pressing only engages the EPM coupling; the upward impulse is
@@ -4106,7 +4285,7 @@
                 if (reportEl) {
                     const swKw = (this._switchingW || 0) / 1000;
                     const swPct = (this._switchingW || 0) / GameConfig.EPM.REFERENCE_WAVE_POWER_W * 100;
-                    const f = this.waveSystem.frequency;
+                    const f = this.activeFreqHz();
                     const col = freqDecadeColumn(f);
                     // The p.11 span rule lives in ONE pure helper shared with the
                     // dashboard, so the card and the plate can never cite different
@@ -4184,6 +4363,41 @@
                 // source for the formula (the balance harness mirrors it).
                 this._flutterMm = flutterAmplitudeMm(this.vineTension);
                 this._gapMarginMm = this.airGapMm - this._flutterMm;
+                // M4 (p.10): standing-wave resonance. While engaged the anchor is a
+                // node: the anchor-to-climber cavity rings at f = n·c/2h with n chosen
+                // so the wavelength never exceeds the paper's 100 km floor
+                // (resonanceModeAt), so the frequency FALLS as the climber rises and
+                // RESETS to the next harmonic at the floor (the 50 km retune). An
+                // engage or a reset costs one cavity round trip of buildup: the
+                // transient the 40-70 km beat pays. The coupling, the slip readout,
+                // switching watts and the energy loop all read this state, and the
+                // balance harness mirrors this block call for call.
+                let resonance = null;
+                if (this.resonanceOn) {
+                    const mode = resonanceModeAt(this.monkey.altitude, this.tetherWaveSpeed());
+                    if (!this._resMode) {
+                        // Engaging: the standing wave builds from nothing over one round trip.
+                        this._resTransientS = mode.roundTripS;
+                    } else if (mode.n !== this._resMode.n) {
+                        // The drift reached the wavelength floor: retune to the next
+                        // harmonic, paying the transient again.
+                        this._resTransientS = mode.roundTripS;
+                        this._resonanceResets++;
+                    }
+                    // Track the drift EVERY frame: the frequency falls as the climber
+                    // rises (f = n·c/2h), so switching watts and the resonant supply
+                    // read the live cavity rate, not the rate at the last reset.
+                    this._resMode = mode;
+                    this._resTransientS = Math.max(0, this._resTransientS - dt);
+                    const sigmaBudgetPa = this.safetyFraction
+                        * GameConfig.MATERIALS[this.materialIndex].strengthGpa * 1e9;
+                    resonance = {
+                        freqHz: this._resMode.freqHz,
+                        buildup: this._resBuildup(),
+                        supplyCapW: resonanceSupplyW(this.waveSystem.amplitude, this._resMode.freqHz,
+                            sigmaBudgetPa, filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm)),
+                    };
+                }
                 // Compute `engaged` once, at frame entry: the recovery check inside epmChargeStep
                 // can clear the latch at the END of the previous frame, so the branch must read
                 // the value as it stands on entry or a frame could both pulse and recover.
@@ -4206,7 +4420,7 @@
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio, widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm });
+                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio, widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm, vMaxMps: this.vMaxMps(), resonance });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     thrustFrameN = c.thrustN;
@@ -4236,7 +4450,7 @@
                 // engage/release rhythm is emergent, not scripted. Ambient trickle keeps
                 // a latched brownout recoverable by coasting. `tripped` keeps the brownout
                 // audio cue single-fire.
-                const switchW = switchingPowerW(this.waveSystem.frequency, this.nPairs, GameConfig.FG40.E_SWITCH_J);
+                const switchW = switchingPowerW(resonance ? resonance.freqHz : this.waveSystem.frequency, this.nPairs, GameConfig.FG40.E_SWITCH_J);
                 const extractW = thrustFrameN * Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
                 this._switchingW = switchW;
                 this._extractionW = extractW;
@@ -4361,7 +4575,9 @@
                 const push = (id, title, lines) => {
                     if (!fired.has(id)) { fired.add(id); this._beatQueue.push({ title, lines }); }
                 };
-                const f = this.waveSystem.frequency;
+                // M4 (p.10): the ACTIVE frequency (the cavity rate while resonant), so
+                // every card below quotes the drive the film is actually running.
+                const f = this.activeFreqHz();
                 // 0-2 km — the anchor is the brutal part; taper helps (p.9). M4: now live.
                 // The decision the card carries is TAPER vs SLOW START: a uniform film
                 // needs the full v_max stroke at the anchor (1000 km/h machinery), while
@@ -4425,6 +4641,37 @@
                         `air ${airDensityReadout(alt)} of sea level and falling — drag is letting go.`,
                         `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(localVMax * 3.6)} km/h here.`,
                         'if you left margin in the stress budget, this is where it pays. (paper p.7)',
+                    ]);
+                }
+                // 40-70 km — standing-wave resonance (p.10). M4: now live. With
+                // resonance engaged the beat is the RETUNE itself: the drift reaches
+                // the paper's 100 km wavelength floor at 50 km and the anchor resets
+                // to the next harmonic, paying one cavity round trip of buildup (the
+                // reset physics lives in updateContinuous; this card is its story).
+                // With it off, the beat is the lever not pulled: the same live
+                // numbers, as an offer. The decision the card carries is ENGAGE IT
+                // ALOFT OR NOT AT ALL: on the pad the cavity rings at kHz and the
+                // stack cannot pay the switching.
+                if (this.resonanceOn) {
+                    if (upgradeCrossed(prev, alt, 50000, false) && this._resMode) {
+                        const mode = this._resMode;
+                        const floorHz = this.tetherWaveSpeed() / GameConfig.TETHER.RESONANCE_LAMBDA_MAX_M;
+                        push('resonance-retune', 'resonance drifted; the anchor retunes', [
+                            `the standing wave's wavelength fell to the paper's 100 km floor (${floorHz.toFixed(2)} Hz): the anchor is a node (p.10),`,
+                            `so it retunes to the next harmonic: n=${mode.n}, ${mode.freqHz.toFixed(2)} Hz. the rebuild costs one cavity round trip,`,
+                            `${mode.roundTripS.toFixed(1)} s of weakened film (the transient), then the full boost returns. the frequency keeps`,
+                            `falling as you rise; the n=${mode.n} mode now holds to 100 km. retuning is why multi-climber is tricky (p.10).`,
+                        ]);
+                    }
+                } else if (upgradeCrossed(prev, alt, 45000, false)) {
+                    const mode = resonanceModeAt(alt, this.tetherWaveSpeed());
+                    const vCap = this.vMaxMps() / Math.sqrt(this.taperRatio);
+                    const boost = resonanceBoostFactor(this.waveSystem.amplitude * f * 2 * Math.PI, vCap);
+                    push('resonance', 'the anchor could become a node', [
+                        `p.10: a standing wave on the film holds tension, trading anchor speed for power: x${boost.toFixed(1)} here.`,
+                        `the cavity would ring at ${mode.freqHz.toFixed(2)} Hz now (period ${mode.periodS.toFixed(1)} s), the frequency falling as you`,
+                        'rise and resetting at the 100 km wavelength floor. engage resonance in Settings (Ground station), but treat it as',
+                        'an aloft tool: on the pad the cavity rings at kHz and the stack cannot pay the switching. retune transients are the cost.',
                     ]);
                 }
                 // ~70 km — gigacycle fatigue, CONDITIONAL: only when the carrier sits in
@@ -4522,6 +4769,7 @@
                 if (speedKmhNow > this._topSpeedKmh) this._topSpeedKmh = speedKmhNow;
                 this.updateThermal();
                 this.updateAirDensityReadout();
+                this.updateResonanceReadout();
                 // M3.3 (§2.7): the two acts. Act I is drag-dominated, Act II is vacuum —
                 // read off the SAME densityRatio the drag model uses, no new physics.
                 // The 40 km crossing is the run's biggest beat: one banner, one chime,
@@ -5033,7 +5281,12 @@
                     // Shift 11: the crest overlay is the same kind of slowed schematic as
                     // the sweep. The true crest pass rate at the climber is the carrier
                     // itself (f x (1 - v/c) ~ f), so the slowdown is f / the drawn cap.
-                    lines.push({ text: `crest pass slowed ×${Math.round(this.waveSystem.frequency / CREST_PASS_MAX_HZ)}`, col: 'rgba(190, 240, 255, 0.65)' });
+                    // M4 (p.10): the ACTIVE frequency — while resonant the crests pass
+                    // at the cavity rate, which needs no slowing at all.
+                    const crestN = Math.round(this.activeFreqHz() / CREST_PASS_MAX_HZ);
+                    lines.push({ text: crestN > 0
+                        ? `crest pass slowed ×${crestN}`
+                        : `crest pass at the cavity rate (${this.activeFreqHz().toFixed(2)} Hz, no slowdown)`, col: 'rgba(190, 240, 255, 0.65)' });
                 }
                 const fontPx = narrow ? 7.5 : 9;
                 ctx.font = `${fontPx}px monospace`;
@@ -5333,7 +5586,7 @@
             // mission block top-left and HUD off must stay clean. Static text, so the
             // reduced-motion and 3 Hz rules are met by construction.
             renderCompactHud(ctx, width, height) {
-                const carrier = this.waveSystem.frequency;
+                const carrier = this.activeFreqHz();
                 const col = freqDecadeColumn(carrier);
                 const power = activeFreqCells(col).find((c) => c.tag === 'power');
                 const scoreLine = _uxHudLevel === HUD_MINIMAL ? minimalScoreLine({
@@ -5548,7 +5801,7 @@
                 const xOfF = (f) => plotX0 + ((Math.log10(f) + 2.5) / 6) * plotW;
                 const tickX = (i) => i === 0 ? plateX + 10 + gutterW + cabW / 2 : xOfF(T.columns[i].f);
                 const rowY = (i) => plateY + 52 + i * 12;
-                const carrier = this.waveSystem.frequency;
+                const carrier = this.activeFreqHz();
                 const col = freqDecadeColumn(carrier);
 
                 ctx.save();

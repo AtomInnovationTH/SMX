@@ -1,9 +1,9 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that shipped M4 wave drag
-(paper p.7: quadratic drag on the wave itself, so the film arrives at the climber's
-altitude damped by the air column below it).
+that have already cost time. Updated at the end of the shift that shipped M4 standing-wave
+resonance (paper p.10: the anchor as a node, the frequency falling as the climber rises
+and resetting at the 100 km wavelength floor, paying one cavity round trip of transient).
 
 ## Where things stand
 
@@ -11,22 +11,85 @@ altitude damped by the air column below it).
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 126 unit tests, 27 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 372 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 132 unit tests, 28 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 391 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
-- **Physics**: M1, M2, M3.1-M3.8 and M4's first two items (taper p.9, wave drag p.7)
-  are complete. The deferred list is standing-wave resonance (p.10), powering more than
+- **Physics**: M1, M2, M3.1-M3.8 and M4's first three items (taper p.9, wave drag p.7,
+  standing-wave resonance p.10) are complete. The deferred list is powering more than
   one climber (p.14), mode conversion (p.12) and the hot side of thermal. All are
   marked absent in-game rather than approximated. Do not fake them.
-- **Default climb**: moved deliberately with wave drag (the linear AIR_DRAG cap on the
-  low climb is gone; the film aloft is drag-damped a few per cent): 100 km in 350.7 s,
-  mean 1027 km/h, cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput
-  with 3 kg of cargo.
+- **Default climb**: unchanged by the resonance shift (the mode is off by default):
+  100 km in 350.7 s, mean 1027 km/h, cruise 1085 km/h = 0.48 v_max, no brownouts,
+  31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
 
+- **M4 standing-wave resonance (paper p.10) is live, and it unlocks the marked 40-70 km
+  retune beat.** Four new pure helpers (`resonanceModeAt`, `resonanceBoostFactor`,
+  `resonanceSupplyW`, `resonantFilmPeakMps`; count 53 -> 57) and ONE new slider
+  (Ground-station group, `resonance` 0/1, default off). The model: engaged, the anchor
+  is a node and the anchor-to-climber cavity rings at f = n·c/2h with
+  n = ceil(2h/lambda_max) keeping the wavelength under the paper's 100 km floor
+  (`TETHER.RESONANCE_LAMBDA_MAX_M`), so the frequency FALLS as the climber rises and
+  resets to the next harmonic once per climb at 50 km, paying one cavity round trip
+  (2h/c = 4.8 s there) of buildup: the transient. The standing wave's tension holds the
+  full stress budget, so the film runs the LOCAL stress ceiling (the boost is
+  v_cap/v_anchor, altitude-independent — exactly the p.10 table's ratio), drag-damped by
+  the same p.7 law reading the envelope. The stack's switching follows the cavity rate
+  (`activeFreqHz()` is the single source every instrument reads; the renderer keeps the
+  carrier's travelling component, the standing arch being tens of km wide and
+  sub-visible at screen scale). The skim is capped by the anchor's resonant injection
+  sigma_budget x drive speed x section (the table's own P = sigma.v law): the amplitude
+  slider becomes the power budget while resonant.
+- **The p.10 table ships as a regression fixture next to slide 6's and the drag
+  row's.** `resonanceSupplyW` reproduces the resonance row EXACTLY (45 GPa x 200 km/h
+  = 2.5 MW/mm2, x 1000 km/h = 12.5 MW/mm2), and `resonanceBoostFactor` turns the plain
+  rows into them to the table's own figures (16.9x at 200 km/h, 3.4x at 1000).
+- **The balance harness verified the law before it shipped, and the default trace did
+  NOT move (snapshot not regenerated).** The new test flies resonance from 2 km against
+  the plain film from 2 km: strictly faster on every band, cruising strictly higher yet
+  strictly below its boosted film peak (still no clamp), no brownouts aloft (switching
+  follows the cavity rate), exactly ONE retune at 50 km (the M3.4 band), the n = 2 mode
+  holding to 100 km with the frequency still drifting inside it. The supply cap is
+  pinned as physics, not prose: with a 3 cm stroke the climber rides extraction ==
+  supply at the top. And the pad is pinned as the honest teeth: engaged on the ground
+  the 1 m cavity rings at ~10 kHz and brownout-cycles, trapped low (the R = 4 taper
+  pattern). The harness grew three knobs for it (`resonanceOn`, `startAltM`,
+  `amplitudeM`) and mirrors the updateContinuous resonance block call for call; the
+  mirror tracks the drift EVERY frame (an early draft froze f at the reset value and a
+  supply-cap readout 2x off exposed it — if the frequency does not fall as the climber
+  rises, the block is wrong).
+- **Retunes happen on descent too.** The cavity state tracks altitude both ways:
+  crossing the 50 km floor downward re-locks n = 1 and pays the transient again. The
+  beat card fires once (the fired set), the physics every time. The smoke check engages
+  at 49.5 km BEFORE crossing for exactly this reason (teleporting down onto a mode
+  boundary is itself a retune).
+- **The new smoke check (13b) drives the resonance slider through its own DOM event**
+  and asserts the whole chain live: engage, the cavity-locked carrier label, one reset
+  at the 50 km crossing with the transient counting down, the retune card queued,
+  switching collapsed to watts, the renderer's carrier still 92 Hz, and disengage
+  restoring the label. The availability card (off-mode, 45 km) fires inside check 12's
+  existing 69.5 km teleport and is asserted from there.
+- **The stills did not move, verified by re-shooting them.** The renderer is untouched
+  (renderVine keeps the carrier; the crest overlay reads the boosted slip only when the
+  mode is on, and no committed shot uses the mode). hero.png / climb.png re-shot to
+  compositionally identical frames (256.3 m / 360.0 m, centres exact) and the committed
+  PNGs were restored rather than churned on shader noise. The resonance card's paint
+  was A/B-verified on a staged frame (canvas pixels at the card band with and without
+  the card). `capture.mjs` seeds the two new beat ids (`resonance`,
+  `resonance-retune`).
+- **The presets pin resonance to 0** (fired in the cap-affecting group, before
+  amplitude), so a resonant setting can never leak through a preset click — the same
+  pattern as taper's pin to 1. Every preset object carries `resonance: 0`; a preset
+  that omits it would leave the toggle where the player left it.
+- **Em dashes in new prose: none.** The six new player-facing strings (slider hint,
+  two beat cards, labels) were written clean; the backlog sweep stays its own task
+  (priority 2 below).
+
+## What the shift before changed, so you do not undo it
+
 - **M4 wave drag (paper p.7) is live, and it unlocks the 2-12 km beat.** Three new pure
-  helpers (`densityColumnKgM2`, `waveDragSpeedFactorAt`, `waveDragColumnPowerW`, count
+  helpers (`densityColumnKgM2`, `waveDragSpeedFactorAt`, `waveDragColumnPowerW`; count
   50 -> 53), no new slider. The model: per unit length the longitudinally oscillating
   foil presents its two edges (2t) and dissipates ½·ρ·Cd·2t·V³ with the paper's
   longitudinal Cd = 0.02 (`TETHER.DRAG_CD_LONGITUDINAL`; the paper labels it a guess,
@@ -297,25 +360,27 @@ altitude damped by the air column below it).
 
 ## Priorities for this shift
 
-Last shift's priority 1 is **done**: wave drag (p.7) shipped with its own
-balance-harness verification (a narrower film damps honestly more, the tax grows with
-the column, both terminal speeds strictly below their damped film peaks), the 2-12 km
-beat is live with the player's own bill in MW, the default trace moved deliberately
-(the AIR_DRAG deletion, explained above), and the stills did not move (a sub-pixel
-render no-op at the shot altitudes, verified by re-shoot). The taper shift before it
+Last shift's priority 1 is **done**: standing-wave resonance (p.10) shipped with its own
+balance-harness verification (the boost flies, exactly one retune at 50 km, the supply
+cap pinned as extraction == supply, the pad pinned as the honest teeth), the marked
+40-70 km retune beat is live (off-mode availability card at 45 km, on-mode retune card
+at the 50 km reset), the default trace did NOT move (the mode is off by default, the
+snapshot deliberately not regenerated), and the stills did not move (renderer
+untouched; re-shot, confirmed, restored). The taper and wave-drag shifts before it
 shipped the same way, and the moving picture and score work survive as is. Do not
 reopen any of them.
 
 ### 1. M4 physics, next item only
 
-Resonance (p.10), then multi-climber (p.14), in the order the deck presents them. Each
-needs its own balance-harness verification before it ships. The specs live in section 8
+Multi-climber (p.14) is the last deferred M4 physics item, and the p.10 note that
+resonance retuning makes multi-climber "tricky" is why it comes after resonance. It
+needs its own balance-harness verification before it ships. The spec lives in section 8
 of `.kilo/plans/1785893790322-fg40-film-coupling-fidelity-plan.md` (gitignored, local
 only; sections 4-9 are the milestone authority). That file's STATUS block lags this
-file, but **this file is the committed handoff and wins wherever they disagree**.
-Resonance unlocks the marked 40-70 km retune beat (anchor as node, the frequency
-falling as the climber rises and needing a reset); the p.10 note that retuning makes
-multi-climber "tricky" is why multi-climber comes after it.
+file, but **this file is the committed handoff and wins wherever they disagree**. The
+85 km second-climber beat already ships as the paper's open question; the item is the
+real power-sharing model, whatever the paper actually supports. Note section 8's
+"Touch support" bullet is DONE (shift 9); do not re-implement it.
 
 ### 2. Two contained hygiene tasks nobody has claimed
 
@@ -397,7 +462,7 @@ rediscover the traps:
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 53). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 57). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.

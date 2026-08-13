@@ -12,9 +12,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
-M4's deferred physics has started (taper, wave drag).
+M4's deferred physics has started (taper, wave drag, resonance).
 
 #### Added (M4 physics, August 2026)
+
+- **Standing-wave resonance (paper p.10), the third M4 item.** A new Ground-station
+  slider engages the anchor-as-node mode, off by default (the plain travelling wave, so
+  the committed balance trace and the default climb cannot move). Engaged, the
+  anchor-to-climber cavity rings at f = n·c/2h with the wavelength held under the
+  paper's 100 km floor, so the frequency falls as the climber rises and resets to the
+  next harmonic once per climb at 50 km, paying one cavity round trip (2h/c) of
+  weakened film: the M3.4 schedule's marked 40-70 km retune beat is now live, on the
+  player's own numbers, with the off-mode availability card quoting the same live
+  arithmetic at 45 km. The standing wave's tension holds the full stress budget, so
+  the film runs the local stress ceiling and the power per unit anchor speed rises by
+  v_cap/v_anchor: the p.10 table's own ratio, pinned as a regression fixture next to
+  slide 6's and the drag row's (the resonance row 2.5 MW/mm² at 200 km/h and 12.5
+  MW/mm² at 1000 km/h reproduces exactly at the paper's 45 GPa working stress). The
+  stack's switching follows the cavity rate: nearly free aloft, kHz on the pad, where
+  the mode honestly starves (the harness pins the brownout cycling, like the taper's
+  R = 4 teeth). While resonant the amplitude slider becomes the power budget: the skim
+  cannot exceed the anchor's injection σ_budget × drive speed × section (the table's
+  own P = σ·v law), pinned in the harness as extraction == supply at the cap. Verified
+  in the balance harness before shipping: the resonant climb from 2 km beats the plain
+  one on every band and cruises strictly higher yet strictly below its boosted film
+  peak (still no clamp), exactly one retune fires per climb, and the supply-capped run
+  rides its injection limit. Every instrument reads the cavity rate through
+  `activeFreqHz()`; the renderer keeps the carrier's travelling component, the standing
+  arch being tens of km wide and sub-visible at screen scale. The default trace is
+  untouched and the balance snapshot was NOT regenerated.
 
 - **Wave drag (paper p.7), the second M4 item.** The drag table's longitudinal row is
   now a real force on the film itself: per unit length the oscillating foil presents

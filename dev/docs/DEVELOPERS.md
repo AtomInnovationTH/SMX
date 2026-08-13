@@ -86,7 +86,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 53-helper count assertion in
+Keep the 57-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -257,6 +257,23 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   balance harness verifies the law end-to-end (a 10x narrower film damps honestly and
   the tax grows with the column), and the marked 2-12 km beat is now live at 2 km with
   the player's own bill in MW.
+- **Standing-wave resonance** (`resonanceModeAt` / `resonanceBoostFactor` /
+  `resonanceSupplyW` / `resonantFilmPeakMps`, M4, paper p.10): a Ground-station toggle,
+  off by default (the plain travelling wave, so the committed balance trace cannot
+  move). Engaged, the anchor becomes a node and the anchor-to-climber cavity rings at
+  `f = n·c/2h` with `n = ceil(2h/100 km)` keeping the wavelength under the paper's 100
+  km floor, so the frequency falls as the climber rises and resets once per climb at
+  50 km, paying one cavity round trip (2h/c) of buildup: the marked 40-70 km retune
+  beat. The standing wave's tension holds the full stress budget, so the film runs the
+  LOCAL stress ceiling (the boost is `v_cap/v_anchor`, the p.10 table's ratio), the
+  stack's switching follows the cavity rate (kHz on the pad: the mode starves there and
+  the harness pins it; nearly free aloft), and the skim is capped by the anchor's
+  resonant injection `σ_budget × drive speed × section` (the table's own P = σ·v law;
+  the amplitude slider becomes the power budget). The builder is `activeFreqHz()`:
+  every instrument reads the cavity rate while resonant, while the RENDERER keeps the
+  carrier's travelling component (the standing arch is tens of km wide, sub-visible at
+  screen scale, like the drag's sub-pixel damping). The boundary-value buildup is
+  summarised as the one-round-trip ramp and the hint says so.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -299,18 +316,24 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     longitudinal row and the player's own bill in MW), ~12 km
     (a transverse wave would be dead here: p.7's 45 km/h, 20 kW cap, against the player's
     live speed and live longitudinal drag bill), ~20 km (air thinning; the stress-budget lever, quoting the LOCAL v_max),
-    ~70 km (gigacycle fatigue,
+    ~45 km (resonance offered off-mode; p.10,
+    live since M4's resonance shipped) and the 50 km retune on-mode (the drift hits the
+    100 km wavelength floor; the anchor resets to the next harmonic and pays one cavity
+    round trip of weakened film), ~70 km (gigacycle fatigue,
     only when the carrier sits in the paper's top decade), ~85 km (a second climber
     requests power; the paper's own open question, p.14). Crossings reuse the pure
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
-    physics the sim does not have (standing-wave
-    resonance, p.10) are deliberately absent rather than faked.
+    physics the sim does not have (powering more than
+    one climber, p.14) are deliberately absent rather than faked.
 - **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
   `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
   all to 2 s.f., and they only reproduce at the paper's ρ = 2300); the **p.7 drag-table
   fixture** (the longitudinal row: 0.9 MW at 1000 km/h for the 9 mm² film, and the
-  first-order ½·Cd·2t·V³·Σ form agreeing with the exact loss); `k ≈ 0.043 N/(m/s)` per
+  first-order ½·Cd·2t·V³·Σ form agreeing with the exact loss); the **p.10 resonance
+  fixture** (`Long + resonance` 2.5 MW/mm² @ 200 km/h, 12.5 MW/mm² @ 1000 km/h —
+  `resonanceSupplyW` reproduces the row exactly at σ = 45 GPa, and
+  `resonanceBoostFactor` turns the plain rows into them to the table's own figures); `k ≈ 0.043 N/(m/s)` per
   pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; switching power
   **266 kW = 6.7 % of 4 MW at §2.5's reference config** (260 Hz × 64 pairs) and
   **12 kW at the shipped demo defaults** (92 Hz × 8 pairs); and the balance harness's
@@ -396,9 +419,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **126 unit tests**
-  (pure 109, sliders 10, balance 7), **53 pure helpers** in the delimited block,
-  **98 = 98** asset references, **27 browser smoke checks**, `index.html` **372 KB**.
+- **Current gate numbers** (keep these updated when they move): **132 unit tests**
+  (pure 113, sliders 11, balance 8), **57 pure helpers** in the delimited block,
+  **98 = 98** asset references, **28 browser smoke checks**, `index.html` **391 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

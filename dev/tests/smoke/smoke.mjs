@@ -548,6 +548,61 @@ try {
     desc.ripple === true && desc.drawn >= 1 && desc.hasDescCard && desc.hasTopCard,
     JSON.stringify(desc));
 
+  // 13b) M4 resonance (p.10): the marked 40-70 km retune beat, live. The availability
+  //     card already fired OFF during check 12's 45 km crossing; here the slider's own
+  //     event path engages the mode at 49.5 km (engage BEFORE the crossing, or the
+  //     teleport down would itself retune the cavity), and the 50 km crossing must
+  //     produce exactly one retune: n 1 -> 2, the transient counting down, the card
+  //     queued. The cavity owns the active frequency (switching collapses to watts)
+  //     while the renderer's carrier stays 92 Hz; disengage restores the label.
+  const res = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.velocityY = 0;
+    g.monkey.y = -495000; g.camera.y = g.monkey.y + 400;   // 49.5 km, at rest
+    await wait();
+    const slider = document.getElementById('resonance');
+    slider.value = '1';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    const engaged = { on: g.resonanceOn, label: document.getElementById('resonanceValue').textContent,
+                    freqLabel: document.getElementById('frequencyValue').textContent };
+    g.monkey.velocityY = -20000;                            // 2 km/s: fast, deterministic crossing
+    await new Promise((r) => setTimeout(r, 400));           // crosses 50 km
+    const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
+    const out = {
+      engaged,
+      n: g._resMode && g._resMode.n,
+      resets: g._resonanceResets,
+      transient: g._resTransientS,
+      retuneFired: g._beatsFired.has('resonance-retune'),
+      availFired: g._beatsFired.has('resonance'),
+      titles,
+      activeFreq: g.activeFreqHz(),
+      carrier: g.waveSystem.frequency,
+      switchW: g._switchingW,
+    };
+    // Restore: disengage through the same slider path (the handler reverts the
+    // carrier label), and settle the climber.
+    slider.value = '0';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    g.monkey.velocityY = 0;
+    await wait();
+    out.restoredOn = g.resonanceOn;
+    out.restoredLabel = document.getElementById('frequencyValue').textContent;
+    return out;
+  });
+  record('resonance: 50 km retune fires (n 1 -> 2, transient paid, card queued), the cavity owns the active frequency, disengage restores',
+    res.engaged.on === true && res.engaged.label.includes('node') &&
+    res.engaged.freqLabel.includes('cavity') &&
+    res.n === 2 && res.resets === 1 && res.transient > 0 &&
+    res.retuneFired === true && res.availFired === true &&
+    Math.abs(res.activeFreq - 0.417) < 0.01 && Math.abs(res.carrier - 92) < 1 &&
+    res.switchW < 100 &&
+    res.restoredOn === false && res.restoredLabel.includes('92.0'),
+    JSON.stringify(res));
+
   // 14) M3.7: presets apply a whole configuration through the SAME slider path (DOM
   //     events -> existing listeners -> eventBus), so labels, readouts and game state
   //     all track one click. Wessels pins his 60 cm stroke; Lofstrom's 1000 Hz lights the
