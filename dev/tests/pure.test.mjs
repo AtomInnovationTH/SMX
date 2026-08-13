@@ -43,6 +43,9 @@ const {
   bootstrapPct,
   densityRatio,
   atmosphereAct,
+  densityColumnKgM2,
+  waveDragSpeedFactorAt,
+  waveDragColumnPowerW,
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
@@ -96,6 +99,7 @@ test('extraction exposes the core pure symbols', () => {
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
     freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipGateFactor,
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
+    densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
@@ -123,11 +127,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 50 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 53 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 50);
+  assert.equal(declaredPureHelpers().length, 53);
 });
 
 // ---------------------------------------------------------------------------
@@ -426,8 +430,10 @@ test('frameDecay is an exact no-op at 60 Hz', () => {
 
 test('frame-rate independence: same wall-time, different dt → same residual velocity', () => {
   // Apply only the multiplicative drag decay (no gravity) over a fixed wall-clock
-  // window and confirm 60 Hz and 144 Hz integration converge.
-  const base = GameConfig.PHYSICS.AIR_DRAG; // 0.985
+  // window and confirm 60 Hz and 144 Hz integration converge. (The base used to be
+  // GameConfig.PHYSICS.AIR_DRAG; that constant is deleted in M4 — wave drag acts on
+  // the film, not the climber — so the decay law is exercised on a literal now.)
+  const base = 0.985;
   const wallTime = 1.0; // seconds
   const v0 = 1000;
 
@@ -873,33 +879,109 @@ test('atmosphereAct: the 40 km vacuum threshold, tied to the density table', () 
   assert.ok(densityRatio(30000) > 0.005, '30 km is still Act I and still has >0.5% air');
 });
 
-test('B.14 split is gone: aero drag alone is the full AIR_DRAG retention at sea level', () => {
+// M4 (paper p.7): the wave-drag helpers. The drag table's longitudinal row ships as a
+// regression fixture next to slide 6's: for the game's 45 × 0.2 mm film the column
+// bill at the paper's 1000 km/h is 0.87 MW — the 0.9 MW the plan quotes at 1 s.f.
+test('densityColumnKgM2: the air column below an altitude, exact on the shared table', () => {
+  approx(densityColumnKgM2(0), 0, 1e-12);                    // nothing below the anchor
+  approx(densityColumnKgM2(-500), 0, 1e-12);                 // below ground clamps to 0
+  // First segment (0-5 km, log-linear 1.225 -> 0.7364): ∫ρ dh = Δρ·Δh/ln(ρ1/ρ0).
+  approx(densityColumnKgM2(5000), (0.7364 - 1.225) * 5000 / Math.log(0.7364 / 1.225), 1e-6);
+  // The whole column to the table top, and flat above it (no more air to drag against).
+  const whole = densityColumnKgM2(100000);
+  assert.ok(whole > 10000 && whole < 10600, `whole column ${whole.toFixed(0)} kg/m² (effective scale height ~8.4 km)`);
+  approx(densityColumnKgM2(250000), whole, 1e-9, 'capped at the table top');
+  // Monotonic, and it IS the integral of densityRatio: trapezoid quadrature of the
+  // exported density function over the same range must agree to quadrature error.
+  let quad = 0;
+  const step = 10;
+  for (let h = 0; h < 100000; h += step) {
+    quad += (densityRatio(h) + densityRatio(h + step)) / 2 * step * 1.225;
+  }
+  assert.ok(Math.abs(quad - whole) / whole < 2e-3,
+    `quadrature ${quad.toFixed(0)} vs exact ${whole.toFixed(0)} kg/m² disagree`);
+});
+
+test('waveDragSpeedFactorAt: the film arrives damped by the column it climbed', () => {
+  // No column below the anchor, and a standing film drags nothing.
+  approx(waveDragSpeedFactorAt(0, 1000 / 3.6, 45, 0.2), 1, 1e-12);
+  approx(waveDragSpeedFactorAt(100000, 0, 45, 0.2), 1, 1e-12);
+  // The paper's operating point: at 1000 km/h the 9 mm² film keeps 98.7% of its speed
+  // at the top of the air — longitudinal waves barely feel the atmosphere (p.7's point:
+  // the longitudinal row is stress-limited, not drag-limited).
+  approx(waveDragSpeedFactorAt(100000, 1000 / 3.6, 45, 0.2), 0.98693, 1e-4);
+  // The damping grows with the column below: anchor < 2 km < 12 km < top, then flat.
+  const f2 = waveDragSpeedFactorAt(2000, 1000 / 3.6, 45, 0.2);
+  const f12 = waveDragSpeedFactorAt(12000, 1000 / 3.6, 45, 0.2);
+  const fTop = waveDragSpeedFactorAt(100000, 1000 / 3.6, 45, 0.2);
+  assert.ok(f2 > f12 && f12 > fTop, `damping must grow with altitude: ${f2} ${f12} ${fTop}`);
+  approx(waveDragSpeedFactorAt(250000, 1000 / 3.6, 45, 0.2), fTop, 1e-12);
+  // The law's width dependence: a narrower film carries less power per unit drag, so
+  // it damps more (10x narrower here) — and thickness cancels out of the DAMPING
+  // (drag ∝ t, carried power ∝ t), even though the drag POWER scales with t.
+  const fNarrow = waveDragSpeedFactorAt(100000, 1000 / 3.6, 4.5, 0.2);
+  assert.ok(fNarrow < fTop, 'a narrower film must damp more');
+  approx(fNarrow, 0.88301, 1e-4);
+  approx(waveDragSpeedFactorAt(100000, 1000 / 3.6, 45, 0.4), fTop, 1e-12, 'thickness cancels in the damping');
+  // Asymptotic 1/(1+x) form: never 0, never negative, no clamp anywhere — even at an
+  // absurd film speed (1e6 m/s) the factor just gets small (κVΣ ≈ 48 -> f ≈ 0.02).
+  const fAbsurd = waveDragSpeedFactorAt(100000, 1e6, 45, 0.2);
+  assert.ok(fAbsurd > 0 && fAbsurd < 0.05, `absurd speed: ${fAbsurd} should be tiny but positive`);
+});
+
+test('waveDragColumnPowerW: the drag table\'s longitudinal row is a regression fixture', () => {
+  // THE ROW: 45 × 0.2 mm film at the paper's 1000 km/h -> 0.87 MW = the plan's 0.9 MW
+  // at one significant figure. (The paper's own table assumes a 10 mm² circular tether;
+  // this is the same quadratic law on the game's ribbon, Cd = 0.02 on the two edges.)
+  const row = waveDragColumnPowerW(1000 / 3.6, 45, 0.2);
+  assert.ok(row > 0.8e6 && row < 0.95e6, `longitudinal row ${(row / 1e6).toFixed(2)} MW — expected ~0.9 MW at 1000 km/h`);
+  // Cubic in film speed (the exact Z·A·(V₀²−V²) form sits just under the cubic at high
+  // damping), linear in thickness, zero for a standing film.
+  const double = waveDragColumnPowerW(2000 / 3.6, 45, 0.2);
+  assert.ok(double / row > 7 && double / row < 8, `bill should scale ~V³: got ×${(double / row).toFixed(2)}`);
+  approx(waveDragColumnPowerW(1000 / 3.6, 45, 0.4) / row, 2, 1e-9, 'bill is linear in thickness');
+  approx(waveDragColumnPowerW(0, 45, 0.2), 0, 1e-12);
+  // The first-order form ½·Cd·2t·V³·Σ agrees with the exact loss at the paper's row
+  // (damping is 1.3% there): the two readings of the same law cannot drift apart.
+  const firstOrder = 0.5 * GameConfig.TETHER.DRAG_CD_LONGITUDINAL * (2 * 0.2 / 1000)
+    * (1000 / 3.6) ** 3 * densityColumnKgM2(100000);
+  assert.ok(Math.abs(firstOrder - row) / row < 0.02,
+    `first-order ${(firstOrder / 1e6).toFixed(3)} MW vs exact ${(row / 1e6).toFixed(3)} MW`);
+});
+
+test('B.14 split is gone, and M4 took the aero half too: gravity only, no drag on the climber', () => {
   // The eddy half of the split (applyEddyDrag, EDDY_FRACTION) was deleted in M2.5 — the
   // §2.3 slip integral IS the eddy interaction now, both traction and braking, so the
-  // two never coexist. Aero drag keeps the whole AIR_DRAG retention.
+  // two never coexist. The aero half (the linear AIR_DRAG retention) went in M4: drag
+  // is the paper's quadratic term on the WAVE now (waveDragSpeedFactorAt), so the
+  // climber's own integrator applies gravity and nothing else, at any altitude.
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   assert.equal(GameConfig.PHYSICS.EDDY_FRACTION, undefined, 'EDDY_FRACTION was deleted');
   assert.equal(p.applyEddyDrag, undefined, 'applyEddyDrag was deleted');
+  assert.equal(GameConfig.PHYSICS.AIR_DRAG, undefined, 'AIR_DRAG was deleted in M4 (wave drag replaced it)');
   const dt = 1 / 60;
-  const m = { velocityY: -1000, altitude: 0 };
-  p.applyGravityAndDrag(m, dt, 0);   // gravityMult 0: isolate drag
-  approx(m.velocityY, -1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, dt), 1e-9);
+  for (const altitude of [0, 2000, 12000, 100000]) {
+    const m = { velocityY: -1000, altitude };
+    p.applyGravityAndDrag(m, dt, 0);   // gravityMult 0: isolate any drag term
+    approx(m.velocityY, -1000, 1e-12, `no drag on the climber at ${altitude} m`);
+  }
 });
 
-test('B.15 / M3.5: the aero-kit dragMult channel is gone; drag vanishes with altitude', () => {
+test('B.15 / M3.5: the aero-kit dragMult channel is gone; M4: gravity is the only force here', () => {
   // The Aero/Streamline pickups were the ONLY writers of dragMult below 1.0, and M3.5
   // deleted the pickups — so the parameter died with them rather than living on as a
   // writer-less channel in the drag law. Pin the signature so it cannot creep back.
   const p = new PhysicsEngine(GameConfig, { emit() {} });
   assert.equal(p.applyGravityAndDrag.length, 3, 'applyGravityAndDrag(monkey, dt, gravityMult) — no dragMult channel');
-  const run = (altitude) => {
-    const m = { velocityY: -1000, altitude };
-    p.applyGravityAndDrag(m, 1 / 60, 0);   // gravityMult 0: isolate drag
-    return Math.abs(m.velocityY);
-  };
-  // sea-level retention is exactly AIR_DRAG, and aerodynamic drag is negligible at 100 km
-  approx(run(0), 1000 * frameDecay(GameConfig.PHYSICS.AIR_DRAG, 1 / 60), 1e-9);
-  approx(run(100000), 1000, 1e-3);
+  // M4: with AIR_DRAG deleted there is no retention left to vary with altitude — a
+  // coasting climber accelerates at exactly g everywhere (the wave pays the air).
+  const dt = 1 / 60;
+  for (const altitude of [0, 100000]) {
+    const m = { velocityY: 500, altitude };
+    p.applyGravityAndDrag(m, dt, 1);
+    approx(m.velocityY, 500 + GameConfig.PHYSICS.GRAVITY * dt, 1e-12,
+      `exactly one g of gain at ${altitude} m, no retention`);
+  }
 });
 
 test('updatePosition: integrates altitude only — x is untouched (no lateral axis)', () => {

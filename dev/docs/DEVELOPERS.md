@@ -86,7 +86,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 50-helper count assertion in
+Keep the 53-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -236,6 +236,27 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   band tracks the local width under the same clamp-jaw cap as before (it saturates for
   most of a tapered climb, so the taper reads through the section/stress/stroke-cap
   numbers, not the picture), and the drawn wave displacement follows the same 1/√A law.
+- **Wave drag** (`densityColumnKgM2` / `waveDragSpeedFactorAt` / `waveDragColumnPowerW`,
+  M4, paper p.7): quadratic drag on the WAVE, not the climber. Per unit length the
+  longitudinally oscillating foil presents its two edges (2t) and dissipates
+  ½·ρ_air·Cd·2t·V³ with the paper's longitudinal Cd = 0.02 (its table labels it a
+  guess; the panel's Unsolved section says so). With wave power P = ρ·c·A·V² the
+  damping integrates in closed form to V(y) = V₀/(1 + V₀·κ·Σ(y)), Σ the air column
+  below y off the same US Standard Atmosphere table `densityRatio` reads. Thickness
+  cancels out of κ, so the damping FRACTION is set by the film width while the drag
+  POWER scales with t.   The slip integral and `slipU()` read the damped local film, so
+  the climber feels the air only as a slower film, and the asymptote stays clamp-free.
+  The drawn wave is deliberately not drag-scaled (a 1-3% effect at altitude,
+  sub-pixel); the crest overlay reads the damped `u` through `slipU()` like every
+  other consumer.
+  The drag table's longitudinal row ships as a regression fixture next to slide 6's:
+  0.9 MW at 1000 km/h for the 9 mm² film. This REPLACED the linear `AIR_DRAG`
+  retention on the climber (its own comment marked the spot), so the default trace
+  legitimately moved: the low climb lost the arcade cap (993 km/h at the first minute,
+  was 590) and the damped cruise sits a few per cent lower (1085 vs 1132 km/h). The
+  balance harness verifies the law end-to-end (a 10x narrower film damps honestly and
+  the tax grows with the column), and the marked 2-12 km beat is now live at 2 km with
+  the player's own bill in MW.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -273,19 +294,23 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     act/air line shows the drag readout collapsing.
   - **The event schedule** (`_updateClimbBeats`): plated, queued teaching cards at ~1 km
     (the anchor is the brutal part; taper helps; p.9, live since M4's taper shipped,
-    quoting the player's own anchor speed and stroke cap), ~12 km
+    quoting the player's own anchor speed and stroke cap), ~2 km (the dense air taxes
+    the wave; p.7, live since M4's wave drag shipped, quoting the drag table's
+    longitudinal row and the player's own bill in MW), ~12 km
     (a transverse wave would be dead here: p.7's 45 km/h, 20 kW cap, against the player's
-    live speed), ~20 km (air thinning; the stress-budget lever, quoting the LOCAL v_max),
+    live speed and live longitudinal drag bill), ~20 km (air thinning; the stress-budget lever, quoting the LOCAL v_max),
     ~70 km (gigacycle fatigue,
     only when the carrier sits in the paper's top decade), ~85 km (a second climber
     requests power; the paper's own open question, p.14). Crossings reuse the pure
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
-    physics the sim does not have (drag on the wave, p.7; standing-wave
+    physics the sim does not have (standing-wave
     resonance, p.10) are deliberately absent rather than faked.
 - **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
   `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
-  all to 2 s.f., and they only reproduce at the paper's ρ = 2300); `k ≈ 0.043 N/(m/s)` per
+  all to 2 s.f., and they only reproduce at the paper's ρ = 2300); the **p.7 drag-table
+  fixture** (the longitudinal row: 0.9 MW at 1000 km/h for the 9 mm² film, and the
+  first-order ½·Cd·2t·V³·Σ form agreeing with the exact loss); `k ≈ 0.043 N/(m/s)` per
   pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; switching power
   **266 kW = 6.7 % of 4 MW at §2.5's reference config** (260 Hz × 64 pairs) and
   **12 kW at the shipped demo defaults** (92 Hz × 8 pairs); and the balance harness's
@@ -298,8 +323,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   (The old `√(T/μ)` coupling-momentum proxy and the cylinder cross-section are deleted.)
 - **Shipped defaults after the M2.11 rebalance and the shift 9 demo re-scale**: 100 GPa
   Polycrystalline Graphene (the strongest non-speculative rung), carrier **92 Hz**, air gap
-  0.15 mm, **8 pairs**, 30% stress budget, 1.00 m stroke, **3 kg cargo** → 100 km in ~380 s at
-  a ~947 km/h mean. Shift 9 cut the stack 128 → 8 and the payload 50 → 3 kg, which holds
+  0.15 mm, **8 pairs**, 30% stress budget, 1.00 m stroke, **3 kg cargo** → 100 km in ~351 s at
+  a ~1027 km/h mean (the M4 wave-drag shift: the arcade cap on the low climb is gone, the
+  damped cruise sits a few per cent lower). Shift 9 cut the stack 128 → 8 and the payload 50 → 3 kg, which holds
   thrust-to-weight (and therefore the pace) while making the stack a size the renderer can draw
   literally — `STACK_MAX_DRAWN_PAIRS` is 16, so at the defaults the units on screen ARE the
   units in the model. Two things had to move with it: `EPM.CAPACITY_J` 3 MJ → 0.19 MJ, because
@@ -312,7 +338,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   whole band so a player can find the wall.
 - **Scoring** (`throughputKgPerHour`, M3.6): the Weight slider is cargo, and the score is
   **throughput — kg delivered to the Kármán Line per hour of climb** (the reference climb is
-  3 kg in 380.4 s ≈ 28 kg/h; it was 50 kg in 387.6 s ≈ 464 kg/h before the shift 9 demo scale,
+  3 kg in 350.7 s ≈ 31 kg/h; it was 50 kg in 387.6 s ≈ 464 kg/h before the shift 9 demo scale,
   which is why `cargoBest`/`bootstrapKg` moved to `.v3`). The clock is sim time from first
   liftoff, locked at delivery.
   A persisted best and the cumulative "bootstrap %" meter survive. `missionScore` (kg·km) is
@@ -370,9 +396,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **122 unit tests**
-  (pure 106, sliders 10, balance 6), **50 pure helpers** in the delimited block,
-  **98 = 98** asset references, **27 browser smoke checks**, `index.html` **364 KB**.
+- **Current gate numbers** (keep these updated when they move): **126 unit tests**
+  (pure 109, sliders 10, balance 7), **53 pure helpers** in the delimited block,
+  **98 = 98** asset references, **27 browser smoke checks**, `index.html` **372 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

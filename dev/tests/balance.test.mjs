@@ -36,7 +36,7 @@ const {
   GameConfig, WaveSystem, PhysicsEngine,
   epmChargeStep, thermalStep, climbSpeedKmh,
   maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK, stackDryMassKg,
-  switchingPowerW, flutterAmplitudeMm,
+  switchingPowerW, flutterAmplitudeMm, waveDragSpeedFactorAt,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly (M2.11 tuning): film 100 GPa
@@ -47,7 +47,10 @@ const {
 // (2× §2.5's hold-50-kg anchor, to carry stack + 50 kg cargo), tension 100 kgf, width
 // 45 mm, thickness 0.2 mm, cargo 50 kg, gravity x1.00, sine carrier, amplitude clamped
 // to the stress cap at boot. M4 adds taperRatio 1.0 (uniform film — the taper helpers
-// return exactly 1, so the default trace cannot move).
+// return exactly 1, so the default trace cannot move) and the p.7 wave-drag geometry
+// (widthMm/thicknessMm, the section aloft — the drag law damps the film by the air
+// column below the climber, so the default trace DOES move with this one: AIR_DRAG's
+// linear low-altitude cap on the climber is gone, the film pays a few per cent aloft).
 const DEFAULTS = {
   gravityMultiplier: 1.0,
   vineWidth: 4.5,
@@ -85,6 +88,8 @@ const DEFAULT_CFG = {
   carrierHz: GameConfig.WAVE.DEFAULT_FREQUENCY,
   cargoKg: DEFAULTS.cargoKg,
   taperRatio: DEFAULTS.taperRatio,
+  widthMm: DEFAULTS.vineWidth * 10,
+  thicknessMm: DEFAULTS.filmThicknessMm,
 };
 
 // One climb at fixed dt. The step order below mirrors Game.update() ->
@@ -130,7 +135,7 @@ function runClimb(dt, wallS, over = {}) {
     let quality = 0, thrustFrameN = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
-        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio });
+        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio, widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
       thrustFrameN = c.thrustN;
@@ -273,6 +278,46 @@ test('M4 taper (p.9): R=2 flies with a slower start and the same aloft asymptote
   assert.ok(starved.brownoutEpisodes.length >= 10,
     `R=4 should cycle brownouts (got ${starved.brownoutEpisodes.length}) — the energy loop never closes low`);
   assert.ok(starved.finalAltM < 5000, `R=4 reached ${starved.finalAltM.toFixed(0)} m — expected to stay trapped low`);
+});
+
+test('M4 wave drag (p.7): the film pays the dense-air tax aloft, and the law\'s width dependence flies', () => {
+  // Wave drag damps the FILM by the air column below the climber, so its signature in
+  // the integrator is: nearly nothing near the anchor, a few per cent at the top for
+  // the default film, and strictly more for a narrower film (a narrower film carries
+  // less power per unit drag — the law's width dependence). Fly the default 45 mm
+  // film against a 10x narrower one, everything else equal, always engaged.
+  const uni = runClimb(1 / 60, WALL_S);
+  const narrow = runClimb(1 / 60, WALL_S, { widthMm: 4.5 });
+  assert.notEqual(uni.doneAt, null, 'default climb stalled');
+  assert.notEqual(narrow.doneAt, null, 'the 4.5 mm film climb stalled');
+  assert.equal(narrow.dips, 0, `altitude decreased on ${narrow.dips} narrow-film steps`);
+  assert.ok(narrow.chargeInRange, 'narrow-film charge left [0, CAPACITY]');
+  // The tax grows with the column: the 5 km crossing moves a little, the whole trip
+  // moves more. That ordering IS the physics — drag near the anchor is the rounding
+  // error, drag at the top is the whole column.
+  assert.ok(narrow.crossings.get(5000) > uni.crossings.get(5000),
+    'the narrower film is already (slightly) slower at 5 km');
+  const gapLow = narrow.crossings.get(5000) / uni.crossings.get(5000);
+  const gapTrip = narrow.doneAt / uni.doneAt;
+  assert.ok(gapTrip > gapLow,
+    `the tax must grow with the column: 5 km gap ${(100 * gapLow - 100).toFixed(2)}% vs trip gap ${(100 * gapTrip - 100).toFixed(2)}%`);
+  assert.ok(narrow.finalSpeedKmh < uni.finalSpeedKmh,
+    `narrower film cruises strictly slower aloft: ${narrow.finalSpeedKmh.toFixed(0)} vs ${uni.finalSpeedKmh.toFixed(0)} km/h`);
+  // The u → 1 asymptote now reads the DAMPED film: each terminal speed sits strictly
+  // below its own drag-damped peak at the top. Still no clamp anywhere.
+  const omega = GameConfig.WAVE.DEFAULT_FREQUENCY * 2 * Math.PI;
+  const topM = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+  const peakUni = uni.amplitudeM * omega * waveDragSpeedFactorAt(topM, uni.amplitudeM * omega, 45, 0.2) * 3.6;
+  const peakNar = narrow.amplitudeM * omega * waveDragSpeedFactorAt(topM, narrow.amplitudeM * omega, 4.5, 0.2) * 3.6;
+  assert.ok(uni.finalSpeedKmh < peakUni,
+    `default terminal ${uni.finalSpeedKmh.toFixed(0)} km/h must sit below the damped film peak ${peakUni.toFixed(0)} km/h`);
+  assert.ok(narrow.finalSpeedKmh < peakNar,
+    `narrow terminal ${narrow.finalSpeedKmh.toFixed(0)} km/h must sit below the damped film peak ${peakNar.toFixed(0)} km/h`);
+  // Sanity on the law's reach at the default operating point: the default film keeps
+  // ~97% of its speed at the top (the paper's point — longitudinal waves barely feel
+  // the air), the 10x narrower one keeps ~78%.
+  assert.ok(peakUni / (uni.amplitudeM * omega * 3.6) > 0.96, 'default film damping at the top should be a few per cent');
+  assert.ok(peakNar / (narrow.amplitudeM * omega * 3.6) < 0.85, 'the narrower film must feel the air honestly');
 });
 
 test('trace is frame-rate independent (dt = 1/60 vs 1/240)', () => {

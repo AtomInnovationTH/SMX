@@ -12,9 +12,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
-M4's deferred physics has started (taper).
+M4's deferred physics has started (taper, wave drag).
 
 #### Added (M4 physics, August 2026)
+
+- **Wave drag (paper p.7), the second M4 item.** The drag table's longitudinal row is
+  now a real force on the film itself: per unit length the oscillating foil presents
+  its two edges and dissipates ½·ρ·Cd·2t·V³ (the paper's longitudinal Cd = 0.02, its
+  own table's labelled guess), so the wave arrives at the climber's altitude damped by
+  the air column it climbed through, V(y) = V₀/(1 + V₀·κ·Σ(y)) in closed form off the
+  game's own atmosphere table. The slip integral and the slip readout ride the damped
+  film; the climber feels the air only as a slower film. The linear `AIR_DRAG`
+  retention on the climber is deleted (its comment always marked the spot), so the
+  default trace legitimately moved and the snapshot was regenerated deliberately:
+  100 km in 350.7 s (was 380.4), mean 1027 km/h (was 947), cruise 1085 km/h (was
+  1132) as the damped film aloft sits a few per cent under the anchor's wave. The
+  marked 2-12 km beat is now live at the 2 km crossing, quoting the drag table's
+  longitudinal row (0.9 MW at the paper's 1000 km/h for the 9 mm² film, pinned as a
+  regression fixture next to slide 6's) and the player's own live bill, and the 12 km
+  transverse reveal now quotes the live longitudinal figure against the 45 km/h
+  caption. Verified in the balance harness before shipping: a 10x narrower film damps
+  honestly more (the law's width dependence), the tax grows with the column below the
+  climber, and both terminal speeds sit strictly below their damped film peaks, still
+  with no clamp anywhere. The committed stills are untouched (the drag factor at the
+  capture altitudes is a sub-pixel render no-op; verified by capture).
 
 - **Taper (paper p.9), the first M4 item.** A new Film-group slider sets the film's
   anchor:top section ratio R (default 1.0, the uniform film and the pre-taper model

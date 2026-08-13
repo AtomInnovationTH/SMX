@@ -74,20 +74,23 @@ Exact, because you make decisions with them:
   buys you no speed
 * `A_max = v_max / ω`, `c = √(E/ρ)` ≈ 20.9 km/s, `λ = c/f`
 * mean thrust from the closed-form slip integral, with slip `u = v_climber / v_film`
+* quadratic drag on the wave itself (paper p.7): the film arrives at your altitude damped by the
+  air column it climbed through, and the ground station pays the difference
 * switching power `4·N·E_switch·f`, extraction `F̄ · v`, and US Standard Atmosphere density
 
 The impedance and power table on the paper's slide 6 reproduces to 2-3 significant figures, and
-only at his ρ = 2300 kg/m³. It ships as a regression test.
+only at his ρ = 2300 kg/m³. It ships as a regression test, and so does the p.7 drag table's
+longitudinal row (0.9 MW at 1000 km/h for the 9 mm² film).
 
 Simplified on purpose, and labelled on screen: the reflection band, the stack's firing animation
 (slowed down, and frozen if you prefer reduced motion), the monkey and the drawn magnet stack (not
 to scale), and the ripple a passing descender leaves in the film.
 
-Missing rather than faked: taper, drag on the wave itself, resonance tuning, powering more than one
+Missing rather than faked: resonance tuning, powering more than one
 climber, mode conversion, and heat.
 
 Estimated rather than published, and flagged in the code: per-pair traction, gap flux, structure
-mass, air drag, battery size.
+mass, battery size.
 
 ---
 
@@ -96,8 +99,11 @@ mass, air drag, battery size.
 100 GPa graphene, 92 Hz, 1 m stroke, 30% stress budget, 9 mm² film, 0.15 mm gap, 8 magnet pairs,
 3 kg cargo.
 
-That gets you 100 km in 6:20, averaging 947 km/h and cruising at 1132 km/h. Cruise is 50% of
-`v_max`, which is an asymptote here, not a speed limit. Switching costs 12 kW.
+That gets you 100 km in 5:51, averaging 1027 km/h and cruising at 1085 km/h. Cruise is 48% of
+`v_max`, which is an asymptote here, not a speed limit. Switching costs 12 kW, and the wave's
+drag bill through the whole air column is about 8 MW at this film speed, small against the
+hundreds of MW the wave carries: longitudinal waves barely feel the air, which is the paper's
+point. A transverse wave would cap at 45 km/h.
 
 The stack is small on purpose: 8 opposed pairs is 16 magnets, 33 cm and 1.4 kg, carrying 3 kg at
 about 3:1 thrust-to-weight, so the 16 units drawn beside the climber are the 16 units in the
@@ -149,6 +155,6 @@ the author's copy.
 
 [MIT](LICENSE), code and art alike.
 
-Still in progress, so the live build moves around. Taper, wave drag, resonance, multi-climber
-support and touch controls are next. Issues and pull requests welcome:
+Still in progress, so the live build moves around. Resonance tuning and multi-climber
+support are next. Issues and pull requests welcome:
 [CONTRIBUTING.md](.github/CONTRIBUTING.md).

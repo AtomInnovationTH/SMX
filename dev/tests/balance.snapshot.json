@@ -17,48 +17,44 @@
     "carrierHz": 92.00000000000001,
     "cargoKg": 3,
     "taperRatio": 1,
+    "widthMm": 45,
+    "thicknessMm": 0.2,
     "amplitudeM": 1,
     "materialGpa": 100,
     "stressBudget": 0.3,
     "capacityJ": 190000
   },
-  "doneAtS": 380.4,
-  "finalSpeedKmh": 1132.1,
+  "doneAtS": 350.7,
+  "finalSpeedKmh": 1085.1,
   "trace": [
     {
       "t": 60,
-      "altM": 7847.8,
-      "speedKmh": 589.9,
+      "altM": 13257.6,
+      "speedKmh": 993,
       "charge": 100
     },
     {
       "t": 120,
-      "altM": 19964.2,
-      "speedKmh": 889.5,
+      "altM": 30504.7,
+      "speedKmh": 1077.5,
       "charge": 100
     },
     {
       "t": 180,
-      "altM": 37160.9,
-      "speedKmh": 1104.6,
+      "altM": 48556.9,
+      "speedKmh": 1085,
       "charge": 100
     },
     {
       "t": 240,
-      "altM": 55855.3,
-      "speedKmh": 1129.6,
+      "altM": 66641.4,
+      "speedKmh": 1085.1,
       "charge": 100
     },
     {
       "t": 300,
-      "altM": 74707.7,
-      "speedKmh": 1131.9,
-      "charge": 100
-    },
-    {
-      "t": 360,
-      "altM": 93574.3,
-      "speedKmh": 1132.1,
+      "altM": 84726.4,
+      "speedKmh": 1085.1,
       "charge": 100
     }
   ]

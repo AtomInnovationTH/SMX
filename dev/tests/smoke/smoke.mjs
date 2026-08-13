@@ -504,8 +504,9 @@ try {
   //     (once per run, card queued), and the 70 km gigacycle-fatigue beat stays SILENT
   //     at the 92 Hz default: it is conditional on the carrier sitting in the paper's
   //     top decade (freqDecadeColumn >= 6), and 92 Hz is the 100 Hz column.
-  //     M4: the teleport from the ground also crosses 1 km, so the TAPER beat (p.9)
-  //     fires first and owns the active card; the transverse card queues behind it.
+  //     M4: the teleport from the ground also crosses 1 km (the TAPER beat, p.9) and
+  //     2 km (the WAVE-DRAG beat, p.7), so the taper beat owns the active card and the
+  //     wave-drag and transverse cards queue behind it.
   //     Assert on the active card PLUS the queue (the same pattern check 13 uses).
   const beats = await page.evaluate(async () => {
     const g = window.__smokeGame;
@@ -514,7 +515,8 @@ try {
     g.monkey.y = -115000; g.camera.y = g.monkey.y + 400;   // 11.5 km, climbing
     await new Promise((r) => setTimeout(r, 400));           // crosses 12 km
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
-    const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'), titles };
+    const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'),
+                  dragFired: g._beatsFired.has('wave-drag'), titles };
     g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20 km)
     await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
     const out = { t12, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
@@ -522,8 +524,8 @@ try {
     g.monkey.velocityY = 0;
     return out;
   });
-  record('event schedule: 1 km taper beat + 12 km reveal fire; 70 km fatigue beat silent at 92 Hz',
-    beats.t12.fired === true && beats.t12.taperFired === true &&
+  record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal fire; 70 km fatigue beat silent at 92 Hz',
+    beats.t12.fired === true && beats.t12.taperFired === true && beats.t12.dragFired === true &&
     beats.t12.titles.some((t) => t.includes('transverse')) &&
     beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
     JSON.stringify(beats));

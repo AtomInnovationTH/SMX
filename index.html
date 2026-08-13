@@ -490,7 +490,7 @@
         </div>
         <div class="slider-container">
             <label>Air density: <span id="airDensityValue">100%</span> of sea level</label>
-            <small class="setting-hint">How much air is left at your altitude (US Standard Atmosphere) — the factor that scales aerodynamic drag on the climber.</small>
+            <small class="setting-hint">How much air is left at your altitude (US Standard Atmosphere): the factor that scales the wave's aerodynamic drag (paper p.7). The climber feels the air only as a damped film, never directly.</small>
         </div>
 
         <h4>Accessibility</h4>
@@ -856,7 +856,7 @@
         // exercised directly by the test harness (see tests/extract.mjs).
 
         // Frame-rate-independent multiplicative decay. A per-frame decay tuned at 60 Hz
-        // (e.g. AIR_DRAG = 0.985 applied once per frame) is converted to a per-second
+        // (e.g. a 0.985 retention applied once per frame) is converted to a per-second
         // decay so behaviour is identical regardless of refresh rate. At dt = 1/60 this
         // is an exact no-op: frameDecay(base, 1/60) === base.
         function frameDecay(base, dt) {
@@ -1131,6 +1131,71 @@
         // milestone. No new physics: the drag model already reads densityRatio.
         function atmosphereAct(altitudeM) {
             return altitudeM >= 40000 ? 2 : 1;
+        }
+
+        // SIM (paper p.7 / M4): quadratic atmospheric drag ON THE WAVE — the term that
+        // replaced the old linear AIR_DRAG retention on the climber. The film, not the
+        // climber, pays the air: per unit length the longitudinally oscillating foil
+        // presents its two edges (2t) and dissipates ½·ρ_air·Cd·(2t)·V³, with the
+        // paper's longitudinal Cd = 0.02 (its own table labels it a guess — the
+        // settings panel's Unsolved section says so to the player). Wave power is
+        // P = ρ_t·c·A·V², so dP/dy = −½·ρ·Cd·2t·V³ integrates in closed form to
+        //     V(y) = V₀ / (1 + V₀·κ·Σ(y)),   κ = Cd·2t / (4·ρ_t·c·A),
+        // with Σ(y) the air column below y. Thickness cancels out of κ (drag ∝ t and
+        // carried power ∝ t), so the DAMPING is set by the film's width; the drag
+        // POWER scales with t. This is the exact 1/(1+x) law — asymptotic, never 0,
+        // no clamp anywhere.
+        //
+        // The column integral Σ below an altitude, over the SAME US Standard
+        // Atmosphere table densityRatio interpolates (log-linear per segment, so each
+        // segment integrates exactly: ∫ρ dh = (ρ1−ρ0)·Δh / ln(ρ1/ρ0)). Capped at the
+        // table top (100 km): above it there is no more air to drag against.
+        function densityColumnKgM2(altitudeM) {
+            const T = ATMO_DENSITY_KGM3;
+            const top = T[T.length - 1];
+            const h = Math.min(Math.max(0, altitudeM) / 1000, top[0]);  // km
+            let sum = 0;                                                // kg/m²
+            let i = 0;
+            while (i < T.length - 1 && h > T[i + 1][0]) {
+                sum += 1000 * (T[i + 1][1] - T[i][1]) * (T[i + 1][0] - T[i][0])
+                    / Math.log(T[i + 1][1] / T[i][1]);
+                i++;
+            }
+            const [h0, r0] = T[i];
+            const [h1, r1] = T[i + 1];
+            const rH = r0 * Math.exp(Math.log(r1 / r0) * (h - h0) / (h1 - h0));
+            return sum + 1000 * (rH - r0) * (h1 - h0) / Math.log(r1 / r0);
+        }
+
+        // The fraction of the anchor's wave speed surviving at altitude y: the film the
+        // climber actually rides. V₀ is the anchor's peak film speed (amplitude·ω,
+        // before the taper's 1/√A law — drag acts on the same local velocity the taper
+        // sets, and the two factors multiply). At the default film (45 × 0.2 mm) and
+        // the paper's 1000 km/h this is 0.987 at the top of the air: longitudinal waves
+        // barely feel the atmosphere, which is the paper's whole point (p.7: drag caps
+        // the TRANSVERSE wave at 45 km/h; the longitudinal row is limited by stress,
+        // not air). Drag slightly RELIEVES wave stress aloft; the §2.1 cap stays the
+        // undamped one (conservative), so nothing here loosens the stroke budget.
+        function waveDragSpeedFactorAt(altitudeM, anchorSpeedMps, widthMm, thicknessMm) {
+            const aM2 = filmCrossSectionM2(widthMm, thicknessMm);
+            const kappa = GameConfig.TETHER.DRAG_CD_LONGITUDINAL * (2 * thicknessMm / 1000)
+                / (4 * GameConfig.TETHER.CARBON_DENSITY * tetherWaveSpeed() * aM2);
+            return 1 / (1 + anchorSpeedMps * kappa * densityColumnKgM2(altitudeM));
+        }
+
+        // The ground station's drag bill over the whole air column: the exact wave-power
+        // loss anchor-to-space, Z·A·(V₀² − V(∞)²) (first-order it is ½·Cd·2t·V₀³·Σ).
+        // THE DRAG TABLE'S LONGITUDINAL ROW: for the 45 × 0.2 mm film at the paper's
+        // 1000 km/h this is 0.87 MW — the 0.9 MW the plan quotes at one significant
+        // figure, pinned as a regression fixture in tests/pure.test.mjs next to the
+        // slide-6 fixture. Cubic in film speed, linear in thickness, independent of
+        // width (the width sets the damping FRACTION, not the bill).
+        function waveDragColumnPowerW(anchorSpeedMps, widthMm, thicknessMm) {
+            const aM2 = filmCrossSectionM2(widthMm, thicknessMm);
+            const z = GameConfig.TETHER.CARBON_DENSITY * tetherWaveSpeed();
+            const f = waveDragSpeedFactorAt(GameConfig.MISSION.DELIVER_ALTITUDE_M,
+                anchorSpeedMps, widthMm, thicknessMm);
+            return z * aM2 * anchorSpeedMps * anchorSpeedMps * (1 - f * f);
         }
 
         // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
@@ -2348,21 +2413,15 @@
             
             static PHYSICS = {
                 GRAVITY: 98.1,   // px/s² = 1.00 G exactly at PX_PER_M (9.81 m/s² × 10)
-                // B.14: aerodynamic (aero) drag retention per 60 Hz frame at sea level.
-                // (The old EDDY_FRACTION split a share off for applyEddyDrag — that flat
-                // velocity decay was the game's ONLY speed ceiling, and it is DELETED in
-                // M2.5: the slip model's u → 1 asymptote is the ceiling now. Aero drag is
-                // the full AIR_DRAG retention again. The 3.6x MOMENTUM_MULTIPLIER fudge and
-                // the waveSpeedFactor tuning curve went with it: the slip thrust is a
-                // physical force and carries no gameplay multipliers — M2.11 tunes via the
-                // real knobs, not a constant.)
-                // Retuned 0.985 -> 0.9985 in M2.8/M2.9: the old arcade viscosity (60%/s at
-                // sea level) capped the climber near 15 m/s at 1 G — BELOW the energy
-                // loop's break-even speed (extraction F·v covers the 269 kW switching draw
-                // only past ~150 m/s), so the climb could never start. 0.9985 lifts the
-                // in-atmosphere cap to ~215 m/s. M4 replaces this linear form with the
-                // paper's wave drag.
-                AIR_DRAG: 0.9985,
+                // M4 (paper p.7): the linear AIR_DRAG retention on the climber is DELETED,
+                // replaced by quadratic drag on the WAVE itself (waveDragSpeedFactorAt,
+                // TETHER.DRAG_CD_LONGITUDINAL). The old constant's own comment marked the
+                // spot: "M4 replaces this linear form with the paper's wave drag." History:
+                // B.14 tuned 0.985 -> 0.9985 in M2.8/M2.9 because the arcade viscosity
+                // capped the climber below the energy loop's break-even speed; the eddy
+                // half of the split (applyEddyDrag) went in M2.5 when the §2.3 slip
+                // integral became both traction and braking. What remains is the paper's
+                // term, and it acts on the film, not the climber.
                 // PX_PER_M: the authoritative world scale, 10 pixels per metre.
                 // DERIVED, not chosen: one carrier wavelength must fit on screen
                 // (lambda = c/f ~ 91 m at 260 Hz -> ~910 px), and it is what the five
@@ -2434,6 +2493,14 @@
                 // The slide-6 regression fixture in tests/pure.test.mjs guards this.
                 CARBON_DENSITY: 2300,   // kg/m^3 (paper, slide 3)
                 YOUNGS_MODULUS: 1.0e12, // Pa (~1 TPa), representative for graphene / CNT
+                // Paper p.7, drag table's longitudinal row: quadratic drag coefficient
+                // of the wave on the film, referenced to the foil's two edges (the
+                // paper assumes a circular tether and references its diameter; a flat
+                // ribbon moving along its own plane presents its edges). The paper
+                // labels 0.02 a GUESS — the panel's Unsolved section quotes it as one,
+                // and the whole in-atmosphere power limit hangs off it (its transverse
+                // row, Cd 1.17 capping at 45 km/h, is the 12 km beat's caption).
+                DRAG_CD_LONGITUDINAL: 0.02,
                 KGF_TO_N: 9.81,         // the Tension slider is in kgf
                 // ESTIMATE (order-of-magnitude placeholder): film flutter amplitude at
                 // 100 kgf pretension, scaling as 1/sqrt(tension) for fixed buffeting energy.
@@ -2692,20 +2759,27 @@
             // velocity is the LOCAL one at the climber's altitude — amplitude adjusts as
             // 1/√A with height (taperVelocityFactorAt), so a tapered film speeds up as it
             // climbs. taperRatio = 1 is the uniform film and the pre-taper model exactly.
-            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1 }) {
+            // M4 (p.7): widthMm/thicknessMm are the film's section ALOFT, which the wave
+            // drag reads (quadratic drag on the film's two edges, waveDragSpeedFactorAt):
+            // the wave arrives at the climber's altitude damped by the air column it
+            // climbed through. The climber feels the air ONLY here, as a slower film.
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1, widthMm = 45, thicknessMm = 0.2 }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
                 // Film peak velocity in m/s at the CLIMBER's altitude (amplitude is the
                 // anchor's stroke in real metres, ≤ v_max/(ω·√R) via the §2.1+p.9 stress
-                // cap; the local wave runs √R faster at the taper top). Climber speed in
+                // cap; the local wave runs √R faster at the taper top, and sits under the
+                // p.7 drag factor wherever there is air below). Climber speed in
                 // m/s, up-positive.
                 const taper = taperVelocityFactorAt(monkey.altitude, taperRatio,
                     GameConfig.MISSION.DELIVER_ALTITUDE_M);
-                const vFilmPeakMps = waveSystem.amplitude * omega * taper;
+                const drag = waveDragSpeedFactorAt(monkey.altitude,
+                    waveSystem.amplitude * omega, widthMm, thicknessMm);
+                const vFilmPeakMps = waveSystem.amplitude * omega * taper * drag;
                 const vClimberMps = -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION;
                 const type = waveSystem.type;
                 // Harmonic carriers integrate the gate numerically (the closed form is sine-only).
                 const filmVelocityAt = type === 'sine' ? null
-                    : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude * taper, omega, phi);
+                    : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude * taper * drag, omega, phi);
                 const thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
                 const impulse = -(thrustN / Math.max(1e-9, massKg)) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
                 // M3.6: display quality is thrust against the load the player actually
@@ -2725,13 +2799,14 @@
             // the surviving caller already passed a literal `false`, so the branch was dead.)
             applyGravityAndDrag(monkey, dt, gravityMult) {
                 monkey.velocityY += GameConfig.PHYSICS.GRAVITY * gravityMult * dt;
-                // B.14: AERODYNAMIC drag only. Scales with air density, so it fades to nothing
-                // in the upper climb. (The magnetic braking term — the old applyEddyDrag —
-                // is gone: the §2.3 slip integral IS the eddy interaction, both traction and
-                // braking, so the two never coexist. The aero-kit dragMult channel died
-                // with the pickups in M3.5 — nothing else ever wrote it below 1.0.)
-                const aero = 1 - (1 - GameConfig.PHYSICS.AIR_DRAG) * densityRatio(monkey.altitude);
-                monkey.velocityY *= frameDecay(aero, dt);
+                // M4 (paper p.7): NO drag term on the climber anymore. The linear
+                // AIR_DRAG retention that used to live here is deleted; aerodynamic drag
+                // now acts on the WAVE (quadratic, waveDragSpeedFactorAt in
+                // calculateContinuousCoupling), which is where the paper puts it — the
+                // climber feels the air only as a slightly damped film, never directly.
+                // (The magnetic braking term — the old applyEddyDrag — went earlier, in
+                // M2.5: the §2.3 slip integral IS the eddy interaction, both traction and
+                // braking, so the two never coexist.)
             }
 
             // The climber has no lateral axis. Steering and centering in the FG40 gap are the
@@ -3808,10 +3883,15 @@
             // outrunning the crest and the gate is empty. Callers that need a fraction
             // (the slip halo) clamp at the use site. M4 (p.9): v_film is the LOCAL peak
             // at the climber's altitude, which the taper raises as 1/√A with height.
+            // M4 (p.7): the same peak also carries the wave-drag factor, so the readout
+            // and the thrust never disagree about the film the climber is riding.
             slipU() {
                 const taper = taperVelocityFactorAt(this.monkey.altitude, this.taperRatio,
                     GameConfig.MISSION.DELIVER_ALTITUDE_M);
-                const vFilmPeak = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI * taper;
+                const omega = this.waveSystem.frequency * 2 * Math.PI;
+                const drag = waveDragSpeedFactorAt(this.monkey.altitude,
+                    this.waveSystem.amplitude * omega, this.vineWidth * 10, this.filmThicknessMm);
+                const vFilmPeak = this.waveSystem.amplitude * omega * taper * drag;
                 const vClimb = Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
                 return vFilmPeak > 0 ? vClimb / vFilmPeak : 0;
             }
@@ -4134,7 +4214,7 @@
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio });
+                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio, widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     thrustFrameN = c.thrustN;
@@ -4278,12 +4358,11 @@
             // M3.4: the event schedule (§7) — one supervisory beat at a time, each
             // teaching one page of the paper, none invented. Crossings reuse
             // upgradeCrossed (frame-size independent, once per run via the fired set).
-            // The M3-class beats ship here, and M4's taper beat (p.9) is now live at
-            // 1 km; beats still needing physics the sim does not have — drag ON THE WAVE
-            // (p.7), standing-wave resonance (p.10) — stay deferred and deliberately not
-            // faked. The 40 km vacuum-threshold
-            // beat is M3.3's act break (already live); 100 km delivery + GEO context is
-            // the Kármán game-over panel (already live).
+            // The M3-class beats ship here, and M4's beats are landing one per shift:
+            // taper (p.9) at 1 km and wave drag (p.7) at 2 km are live; standing-wave
+            // resonance (p.10) stays deferred and deliberately not faked. The 40 km
+            // vacuum-threshold beat is M3.3's act break (already live); 100 km
+            // delivery + GEO context is the Kármán game-over panel (already live).
             _updateClimbBeats(dt) {
                 const prev = this._lastFrameAltitude, alt = this.monkey.altitude;
                 const fired = this._beatsFired;
@@ -4315,13 +4394,34 @@
                         ]);
                     }
                 }
+                // 2-12 km — the densest air, where the wave's drag bill peaks (p.7).
+                // M4: now live, on the real term (waveDragColumnPowerW). The decision
+                // the card carries is HOLD SPEED OR SPEND BUDGET: the tax is cubic in
+                // film speed and worst in this band, so holding speed through it is
+                // the ground station's bill; the alternative is the damped film.
+                if (upgradeCrossed(prev, alt, 2000, false)) {
+                    const anchorMps = this.waveSystem.amplitude * f * 2 * Math.PI;
+                    const anchorKmh = Math.round(anchorMps * 3.6);
+                    const widthMm = this.vineWidth * 10;
+                    const refMw = (waveDragColumnPowerW(1000 / 3.6, widthMm, this.filmThicknessMm) / 1e6).toFixed(1);
+                    const billMw = (waveDragColumnPowerW(anchorMps, widthMm, this.filmThicknessMm) / 1e6).toFixed(1);
+                    push('wave-drag', 'the dense air taxes the wave', [
+                        `the drag table's longitudinal row (paper p.7): ${refMw} MW at 1000 km/h for your film.`,
+                        `you drive ${anchorKmh} km/h, so your live bill is ${billMw} MW: quadratic drag on the wave itself,`,
+                        'cubic in film speed and worst in this band where the air is densest; by 40 km it is gone.',
+                        'hold speed and the ground station pays it (spend stress budget), or accept the damped film.',
+                    ]);
+                }
                 // ~12 km — the reveal (p.7 drag table: transverse caps at 45 km/h, 20 kW).
+                // M4: the longitudinal row is a live number now, not just a caption.
                 if (upgradeCrossed(prev, alt, 12000, false)) {
                     const kmh = Math.round(climbSpeedKmh(this.monkey.velocityY));
+                    const billMw = (waveDragColumnPowerW(this.waveSystem.amplitude * f * 2 * Math.PI,
+                        this.vineWidth * 10, this.filmThicknessMm) / 1e6).toFixed(1);
                     push('transverse', 'a transverse wave would be dead here', [
                         'quadratic drag caps a transverse wave at 45 km/h — 20 kW total (paper p.7).',
-                        `you are doing ${kmh} km/h on a LONGITUDINAL wave: same equation, different mode.`,
-                        'paper p.7 (drag table) · p.12 (longitudinal vs transverse)',
+                        `you are doing ${kmh} km/h on a LONGITUDINAL wave: its drag bill is ${billMw} MW.`,
+                        'same equation, different mode. paper p.7 (drag table) · p.12 (longitudinal vs transverse)',
                     ]);
                 }
                 // ~20 km — air thinning; the stress-budget lever is the ceiling now (p.7).
