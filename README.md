@@ -7,7 +7,7 @@ Ride a wave to the edge of space.
 ![The monkey climbing its ribbon past a hot air balloon in a blue sky, open clamps bracketing the film](screenshots/hero.png)
 
 <video src="https://raw.githubusercontent.com/AtomInnovationTH/SMX/main/screenshots/climb.mp4"
-       autoplay muted loop playsinline controls width="1280"></video>
+       autoplay muted loop playsinline controls width="640"></video>
 
 A real 7.5 s climb at the default settings: engaged off the grass, one coast (the arms-out
 pose), caught again, up to the cloud base. If the video does not play inline,

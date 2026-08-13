@@ -30,7 +30,7 @@ picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` i
   both clean HUD and both showing the film band and the open clamps, and
   `screenshots/climb.mp4`, 7.5 s of a real climb at the default settings (engage off the
   grass at 100 m, one coast with the arms-out pose, catch again, end at the cloud base
-  near 525 m), 640x400 h264, 219 KB. `hero.png` stays a still PNG because `deploy.yml`
+  near 525 m), 640x400 h264, about 220 KB. `hero.png` stays a still PNG because `deploy.yml`
   copies it to `_site/social.png`. The clip is not in the published payload: `_site` is
   only `index.html`, `assets/` and `social.png`.
 - **Clip HUD decision: minimal. The stills stay clean.** Reason, recorded as asked: the
@@ -44,7 +44,7 @@ picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` i
   stop.
 - **The clip is h264 mp4, not a GIF, and that was measured, not guessed.** A 640x400
   15 fps GIF of the real frames is 8.8 MB (the full-screen noise texture dithers
-  differently every frame); animated WebP lands at 0.5-1.3 MB; the mp4 is 219 KB at
+  differently every frame); animated WebP lands at 0.5-1.3 MB; the mp4 lands near 220 KB at
   30 fps and sharper than both. The README embeds it with `<video>` at an absolute
   `raw.githubusercontent.com/.../main/...` URL: GitHub rewrites relative `img` src but
   NOT relative `video` src, so a relative path 404s on the repo page. ffmpeg is the
@@ -63,6 +63,19 @@ picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` i
   FAIL line was cut by `tail` before it was read) right after the capture encodes had the
   machine busy. Two standalone re-runs passed 26/26. The advice below stands: tee the log
   when chasing a one-off.
+- **The post-push review pass caught three small things, all fixed in the same tree.**
+  The README `<video>` claimed `width="1280"` on a 640x400 clip (now 640: no upscale
+  blur); the docs now say "about 220 KB" because re-encodes wander 218-222 KB with the
+  carrier's phase at clip start (a real effect: 92 Hz is not a multiple of the 30 fps
+  step, so the slip impulse accumulates slightly differently per run and the clip ends
+  within about 525-530 m); and `dev/tests/smoke/README.md` still pointed at the pre-dev/
+  paths (`tests/smoke`) and the long-gone grip-slider check, both now corrected.
+  Verified after the fact: the raw.githubusercontent URL really does play the mp4
+  (octet-stream + nosniff is fine for media elements; tested in headless Chromium), the
+  push deploy succeeded, and the live `social.png` was the new hero (same 585257-byte
+  file over HTTP). Note the stills are not byte-stable across capture runs: the sky
+  shader and film highlight run off the sim clock, so re-running capture.mjs shifts a
+  few pixels while the composition (altitudes, targets) stays exact.
 
 - **The score is on the default screen now.** `minimalScoreLine` (pure helper, the
   four-edit ritual, count 47 -> 48) gives the minimal compact plate a THIRD line, gated
@@ -277,7 +290,7 @@ rediscover the traps:
   edge reaches the climber around 550-600 m.
 - **The clip format was measured.** A 640x400 15 fps GIF of the real frames is 8.8 MB
   (the full-screen noise texture dithers differently every frame), animated WebP is
-  0.5-1.3 MB, and h264 mp4 is 219 KB at 30 fps and sharper than both. ffmpeg encodes it;
+  0.5-1.3 MB, and h264 mp4 lands near 220 KB at 30 fps and sharper than both. ffmpeg encodes it;
   without ffmpeg the frames are kept and the exact command is printed.
 
 ## Rules that will bite you if you ignore them

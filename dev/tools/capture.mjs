@@ -176,6 +176,7 @@ const BASE = `http://127.0.0.1:${port}`;
 // --- browser ---------------------------------------------------------------------------
 let browser;
 const failures = [];
+const skips = [];
 try {
   browser = await chromium.launch({
     executablePath,
@@ -220,6 +221,9 @@ async function boot(query) {
     };
     window.__place = (altM) => {
       g.monkey.y = -altM * 10; g.monkey.velocityY = 0; g.monkey.altitude = altM;
+      // 0.7 is the game's own GameConfig.CAMERA.VERTICAL_OFFSET (not exported to the
+      // page): camera.y = monkey.y - H*0.7 puts the climber at its natural 0.7H framing.
+      // At dt 0 the follow is a no-op, so this exact value is what the stills keep.
       const target = g.monkey.y - g.canvas.height * 0.7;
       g.camera.y = target; g.camera.targetY = target; g.camera.shakeIntensity = 0;
     };
@@ -313,6 +317,7 @@ async function shootClip() {
     console.log(`        encode them with: ffmpeg -framerate ${CLIP.fps} -i '${framesDir}/f%04d.png' `
       + `-vf scale=${CLIP.width}:-2:flags=lanczos -c:v libx264 -pix_fmt yuv420p -crf ${CLIP.crf} `
       + `-movflags +faststart -an ${path.join(SHOTS, CLIP.out)}`);
+    skips.push('clip (no ffmpeg on PATH)');
     return;
   }
   const out = path.join(SHOTS, CLIP.out);
@@ -354,4 +359,4 @@ if (failures.length) {
   console.error('CAPTURE FAIL:\n  ' + failures.join('\n  '));
   process.exit(1);
 }
-console.log('CAPTURE PASS');
+console.log(skips.length ? `CAPTURE PASS (with skips: ${skips.join('; ')})` : 'CAPTURE PASS');
