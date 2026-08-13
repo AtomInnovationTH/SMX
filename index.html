@@ -397,7 +397,7 @@
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">1.00 m</span></label>
             <input type="range" id="amplitude" min="0.05" max="1.1" step="0.05" value="1">
-            <small class="setting-hint">Ground stroke per cycle, in real metres. The stress budget caps it (A·ω ≤ v_max, or the wave tears the film): raise the carrier and the cap drops — the label then reads "(capped)" and shows the stroke actually in use.</small>
+            <small class="setting-hint">Ground stroke per cycle, in real metres. The stress budget caps it (A·ω·√R ≤ v_max, where R is the taper below: wave stress peaks at the film's thinnest section, so that is where the cap binds). Raise the carrier and the cap drops; the label then reads "(capped)" and shows the stroke actually in use.</small>
         </div>
         <div class="slider-container">
             <label>Tether stress budget: <span id="stressBudgetValue">30% of stress (9.0% of power)</span></label>
@@ -442,7 +442,12 @@
         </div>
         <div class="slider-container">
             <label>Film section: <span id="filmSectionValue">9.0 mm²</span></label>
-            <small class="setting-hint">width × thickness, the conductor the eddy currents flow in.</small>
+            <small class="setting-hint">width × thickness, the conductor the eddy currents flow in. With taper this is the section ALOFT; the anchor's is R times wider.</small>
+        </div>
+        <div class="slider-container">
+            <label>Film taper (anchor : top): <span id="taperValue">1.0 : 1</span></label>
+            <input type="range" id="taper" min="1" max="10" step="0.5" value="1">
+            <small class="setting-hint">The paper's p.9 lever: a wider ribbon at the anchor, thinning with altitude. Transported power is constant, so the wave's speed and amplitude adjust as 1/√A with height: the anchor runs √R slower for the same speed at the top (R = 4 is the paper's own example, a 500 km/h anchor for 1000 km/h aloft). The cost is the start: the low ceiling drops by the same factor, and past about R = 3 the low-climb skim can no longer cover the flat switching draw (the demo stack browns out before break-even at R = 4; a bigger stack does not help, the break-even is per pair), so taper is a trade, not a free lunch. The stress cap binds at the thin top, tightening the stroke cap by 1/√R. Taper is in the ribbon width; the thickness the coupling reads stays uniform, and the drawn band tracks the local width up to the same clamp-jaw cap as before. The paper's cost is tether MASS (2.3 t for its 5.4 MW example), which is the ground station's problem and is not modelled. The taper is slow against the wavelength (100 km against 227 m), so the paper promises no reflections; its λ/4 anti-reflection layer is the other route and is not modelled.</small>
         </div>
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
@@ -624,12 +629,15 @@
         // wavelength implies c = 3.7 km/s, not this film's 20.9 km/s, so his λ cannot
         // reproduce here — the panel footnote says that rather than fake it (§0).
         // Amplitude goes last at apply time so it clamps against the final stress cap.
+        // Taper (M4) sits with the cap-affecting group (it tightens the cap by 1/√R) and
+        // every preset pins it to 1 (uniform film), so a tapered setting can never leak
+        // through a preset click.
         const PRESETS = [
-            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
-            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
+            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
+            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, taper: 1, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
         ];
 
         // UX: game-over gate (2e)
@@ -906,6 +914,33 @@
         // constraint: at 1 Hz the ground station needs a ~100 m stroke, at 260 Hz ~1 m.
         function maxAmplitudeM(vMaxMps, omegaRadS) {
             return vMaxMps / omegaRadS;
+        }
+
+        // SIM (paper p.9 / M4): TAPER — the film's cross-section varies with altitude,
+        // widest at the anchor and thinnest aloft, so the anchor machinery can run slower
+        // for the same transported power. One ratio R = A_anchor / A_top (the taper
+        // slider); the section profile is a LINEAR ramp from R at the ground to 1 at
+        // spanM (the delivery altitude), clamped outside. The paper gives no profile; it
+        // only requires the taper be slow compared with the wavelength, which a 100 km
+        // ramp against a 227 m carrier satisfies by construction. Returns A(alt)/A_top
+        // in [1, R]. R = 1 is the uniform film — the pre-taper model exactly.
+        function taperSectionRatioAt(altitudeM, taperRatio, spanM) {
+            const r = Math.max(1, taperRatio);
+            const f = spanM > 0 ? Math.max(0, Math.min(1, altitudeM / spanM)) : 0;
+            return r - (r - 1) * f;
+        }
+
+        // SIM (paper p.9 / M4): the taper's velocity law. Transported power is constant
+        // along the film (no reflections while the taper is slow against the wavelength),
+        // so the wave's peak particle velocity — and its displacement amplitude at a
+        // fixed carrier — adjusts as 1/√A with height: v(alt) = v_anchor · √(A_anchor/A(alt)).
+        // Returns the multiplier on the anchor drive: 1 at the ground, √R at the top,
+        // exactly 1 everywhere on a uniform film. The wave's stress rides the same law
+        // (σ = v·√(Eρ)), so it peaks at the THINNEST section (the top), which is where
+        // the §2.1 cap now binds: the anchor's stroke budget tightens by 1/√R.
+        function taperVelocityFactorAt(altitudeM, taperRatio, spanM) {
+            const r = Math.max(1, taperRatio);
+            return Math.sqrt(r / taperSectionRatioAt(altitudeM, r, spanM));
         }
 
         // SIM (§2.5 / M2.4): FG40's PUBLISHED normalised-holding-force-vs-airgap curve
@@ -1196,8 +1231,9 @@
         }
 
         // UX (settings): slider raw-value -> simulation-value mapping for the divided
-        // scales (width/grip/stressBudget). Amplitude, frequency, tension, gravity, weight
-        // and material pass through unscaled, so they are handled inline by their handlers.
+        // scales (width/grip/stressBudget). Amplitude, frequency, tension, gravity, weight,
+        // taper and material pass through unscaled, so they are handled inline by their
+        // handlers (taper's raw value IS the anchor:top section ratio, p.9).
         // Returns the scaled value, or the raw value unchanged for an unscaled/unknown key.
         function scaleSettingValue(name, raw) {
             switch (name) {
@@ -2652,16 +2688,24 @@
             // closes and v_max is approached asymptotically. massKg is the climber's TOTAL
             // mass (dry stack + cargo, M2.7) — a = F/m is the real inertia law now.
             // gravityMult only feeds the display-quality reference (M3.6), never thrust.
-            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1 }) {
+            // M4 (p.9): taperRatio is the film's anchor:top section ratio. The film's peak
+            // velocity is the LOCAL one at the climber's altitude — amplitude adjusts as
+            // 1/√A with height (taperVelocityFactorAt), so a tapered film speeds up as it
+            // climbs. taperRatio = 1 is the uniform film and the pre-taper model exactly.
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1 }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
-                // Film peak velocity in m/s (amplitude is real metres, already ≤ v_max/ω
-                // via the §2.1 stress cap). Climber speed in m/s, up-positive.
-                const vFilmPeakMps = waveSystem.amplitude * omega;
+                // Film peak velocity in m/s at the CLIMBER's altitude (amplitude is the
+                // anchor's stroke in real metres, ≤ v_max/(ω·√R) via the §2.1+p.9 stress
+                // cap; the local wave runs √R faster at the taper top). Climber speed in
+                // m/s, up-positive.
+                const taper = taperVelocityFactorAt(monkey.altitude, taperRatio,
+                    GameConfig.MISSION.DELIVER_ALTITUDE_M);
+                const vFilmPeakMps = waveSystem.amplitude * omega * taper;
                 const vClimberMps = -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION;
                 const type = waveSystem.type;
                 // Harmonic carriers integrate the gate numerically (the closed form is sine-only).
                 const filmVelocityAt = type === 'sine' ? null
-                    : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude, omega, phi);
+                    : (phi) => WAVE_CALCULATORS[type].velocity(waveSystem.amplitude * taper, omega, phi);
                 const thrustN = slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps, filmVelocityAt });
                 const impulse = -(thrustN / Math.max(1e-9, massKg)) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
                 // M3.6: display quality is thrust against the load the player actually
@@ -2877,6 +2921,9 @@
                     // Air gap is real millimetres (M2.4) — the working clearance of the
                     // FG40 sandwich. Coupling follows FG40's published force-vs-airgap curve.
                     airGap: { unit: ' mm', formatter: (v) => parseFloat(v).toFixed(2) },
+                    // Film taper (M4, p.9): the anchor:top section ratio. 1.0 is the
+                    // uniform film; 4.0 is the paper's own worked example.
+                    taper: { unit: ' : 1', formatter: (v) => parseFloat(v).toFixed(1) },
                     nPairs: { unit: ' pairs', formatter: null },
                     gravity: { unit: ' G', formatter: (v) => parseFloat(v).toFixed(2) },
                     weight: { unit: ' kg', formatter: null }
@@ -2898,6 +2945,7 @@
                         };
                         fire('material', p.material, 'change');
                         fire('stressBudget', p.stressBudget);
+                        fire('taper', p.taper);
                         fire('frequency', freqToLogSlider(p.hz));
                         fire('amplitude', p.amplitude);
                         fire('width', p.width);
@@ -3099,6 +3147,8 @@
                 this.structureMassFraction = GameConfig.FG40.STRUCTURE_MASS_FRACTION;
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget slider default (M2.2)
+                this.taperRatio = 1.0;        // p.9 taper slider default (M4): 1 = uniform
+                                              // film (the pre-taper model exactly)
                 
                 // Pause state
                 this.paused = false;
@@ -3460,6 +3510,7 @@
                 this.structureMassFraction = GameConfig.FG40.STRUCTURE_MASS_FRACTION;
                 this.materialIndex = GameConfig.MATERIAL_DEFAULT_INDEX;
                 this.safetyFraction = 0.30;   // §2.1 stress budget (stress-budget slider)
+                this.taperRatio = 1.0;        // p.9 taper (M4): uniform film at default
                 this.gravityMultiplier = 1.0;
 
                 // SIM (Stage 2 / B.5): EPM energy loop state (used in continuous-coupling mode)
@@ -3558,6 +3609,7 @@
                     thickness:  { value: 0.2,    label: '0.20 mm' },
                     tension:    { value: 100,    label: '100 kg' },
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
+                    taper:      { value: 1,      label: '1.0 : 1' },
                     airGap:     { value: 0.15,   label: '0.15 mm' },
                     nPairs:     { value: 8,      label: '8 pairs' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
@@ -3657,6 +3709,9 @@
                 this.eventBus.on('settings:width', (data) => { this.vineWidth = scaleSettingValue('width', data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:tension', (data) => { this.vineTension = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:stressBudget', (data) => { this.safetyFraction = scaleSettingValue('stressBudget', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
+                // M4 (p.9): taper moves the stress cap (it binds at the thinnest section,
+                // the top), so it clamps the stroke exactly like a budget change.
+                this.eventBus.on('settings:taper', (data) => { this.taperRatio = scaleSettingValue('taper', data.value); this.clampAmplitudeToStressCap(); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:gravity', (data) => { this.gravityMultiplier = data.value; });
@@ -3751,18 +3806,25 @@
             // class readout of why thrust fades (mean thrust → 0 as u → 1, asymptotically,
             // no clamp anywhere). UNCLAMPED on purpose: u > 1 means the climber is
             // outrunning the crest and the gate is empty. Callers that need a fraction
-            // (the slip halo) clamp at the use site.
+            // (the slip halo) clamp at the use site. M4 (p.9): v_film is the LOCAL peak
+            // at the climber's altitude, which the taper raises as 1/√A with height.
             slipU() {
-                const vFilmPeak = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI;
+                const taper = taperVelocityFactorAt(this.monkey.altitude, this.taperRatio,
+                    GameConfig.MISSION.DELIVER_ALTITUDE_M);
+                const vFilmPeak = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI * taper;
                 const vClimb = Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
                 return vFilmPeak > 0 ? vClimb / vFilmPeak : 0;
             }
 
             // SIM (§2.2 / M2.2): the stroke budget at the current carrier — the largest
-            // amplitude the stress budget permits (A·ω ≤ v_max).
+            // amplitude the stress budget permits (A·ω ≤ v_max). M4 (p.9): with a taper
+            // the wave's stress peaks at the THINNEST section (the top, factor √R), so
+            // the anchor's stroke cap tightens to A·ω ≤ v_max/√R — that tightening IS
+            // the taper's benefit: the ground station runs √R easier for the same v_max
+            // aloft.
             strokeCapM() {
                 const omega = this.waveSystem.frequency * 2 * Math.PI;
-                return maxAmplitudeM(this.vMaxMps(), omega);
+                return maxAmplitudeM(this.vMaxMps() / Math.sqrt(this.taperRatio), omega);
             }
 
             // §2.1 enforcement: A·ω > v_max would tear the film, so amplitude is clamped
@@ -3800,7 +3862,14 @@
                 const el = document.getElementById('waveSpeedValue');
                 if (el) el.textContent = (this.tetherWaveSpeed() / 1000).toFixed(1) + ' km/s';
                 const fsEl = document.getElementById('filmSectionValue');
-                if (fsEl) fsEl.textContent = (filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm) * 1e6).toFixed(1) + ' mm²';
+                if (fsEl) {
+                    const sectionMm2 = filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm) * 1e6;
+                    // M4 (p.9): the slider's width × thickness is the section ALOFT (the
+                    // thin top); the anchor's section is R times wider.
+                    fsEl.textContent = this.taperRatio > 1
+                        ? `${sectionMm2.toFixed(1)} mm² aloft · ${(sectionMm2 * this.taperRatio).toFixed(1)} mm² at the anchor`
+                        : sectionMm2.toFixed(1) + ' mm²';
+                }
                 const stEl = document.getElementById('stackValue');
                 if (stEl) stEl.textContent = `${this.nPairs * 2} units · ${stackLengthM(this.nPairs, GameConfig.FG40.PITCH_M).toFixed(1)} m · dry ${this.dryMassKg().toFixed(1)} kg`;
                 const vMax = this.vMaxMps();
@@ -3829,15 +3898,20 @@
                 }
                 // Live wave stress: what the CURRENT (clamped) A·ω actually uses of the
                 // film — as % of working stress AND % of stress-limited power (P ∝ σ²),
-                // so the paper's "10% at 1000 km/h" reads natively.
+                // so the paper's "10% at 1000 km/h" reads natively. M4 (p.9): σ rides the
+                // same 1/√A law as the velocity, so it PEAKS at the taper's thin top
+                // (factor √R) — that is the stress the budget actually caps; the anchor
+                // runs √R easier. At R = 1 the two are one value, as before.
                 const wsEl = document.getElementById('waveStressValue');
                 if (wsEl && this.waveSystem) {
                     const m = GameConfig.MATERIALS[this.materialIndex];
-                    const vPeak = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI;
-                    const sigmaGpa = vPeak * Math.sqrt(m.youngsPa * m.densityKgM3) / 1e9;
+                    const vPeakTop = this.waveSystem.amplitude * this.waveSystem.frequency * 2 * Math.PI
+                        * Math.sqrt(this.taperRatio);
+                    const sigmaGpa = vPeakTop * Math.sqrt(m.youngsPa * m.densityKgM3) / 1e9;
                     const stressPct = (sigmaGpa / m.strengthGpa) * 100;
                     const powerPct = stressPct * stressPct / 100;
-                    wsEl.textContent = `Wave now: σ = ${sigmaGpa.toFixed(1)} GPa = ${stressPct.toFixed(1)}% of stress (${powerPct.toFixed(1)}% of power)`;
+                    wsEl.textContent = `Wave now: σ = ${sigmaGpa.toFixed(1)} GPa = ${stressPct.toFixed(1)}% of stress (${powerPct.toFixed(1)}% of power)`
+                        + (this.taperRatio > 1 ? ` at the taper's thin top · ${(sigmaGpa / Math.sqrt(this.taperRatio)).toFixed(1)} GPa at the anchor` : '');
                 }
             }
 
@@ -4060,7 +4134,7 @@
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier });
+                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     thrustFrameN = c.thrustN;
@@ -4204,9 +4278,10 @@
             // M3.4: the event schedule (§7) — one supervisory beat at a time, each
             // teaching one page of the paper, none invented. Crossings reuse
             // upgradeCrossed (frame-size independent, once per run via the fired set).
-            // The M3-class beats ship here; beats needing physics the sim does not have
-            // — taper (p.9), drag ON THE WAVE (p.7), standing-wave resonance (p.10) —
-            // are deferred to M4 and deliberately not faked. The 40 km vacuum-threshold
+            // The M3-class beats ship here, and M4's taper beat (p.9) is now live at
+            // 1 km; beats still needing physics the sim does not have — drag ON THE WAVE
+            // (p.7), standing-wave resonance (p.10) — stay deferred and deliberately not
+            // faked. The 40 km vacuum-threshold
             // beat is M3.3's act break (already live); 100 km delivery + GEO context is
             // the Kármán game-over panel (already live).
             _updateClimbBeats(dt) {
@@ -4216,6 +4291,30 @@
                     if (!fired.has(id)) { fired.add(id); this._beatQueue.push({ title, lines }); }
                 };
                 const f = this.waveSystem.frequency;
+                // 0-2 km — the anchor is the brutal part; taper helps (p.9). M4: now live.
+                // The decision the card carries is TAPER vs SLOW START: a uniform film
+                // needs the full v_max stroke at the anchor (1000 km/h machinery), while
+                // a tapered film runs the anchor √R easier and pays with a slower low
+                // climb. Live numbers, the player's own configuration.
+                if (upgradeCrossed(prev, alt, 1000, false)) {
+                    const anchorKmh = Math.round(this.waveSystem.amplitude * f * 2 * Math.PI * 3.6);
+                    const capCm = Math.round(this.strokeCapM() * 100);
+                    if (this.taperRatio > 1) {
+                        const topKmh = Math.round(anchorKmh * Math.sqrt(this.taperRatio));
+                        push('taper', 'your taper is trading start for anchor', [
+                            `taper ×${this.taperRatio.toFixed(1)}: the anchor drives ${anchorKmh} km/h and the wave reaches ${topKmh} km/h at the top.`,
+                            'amplitude adjusted as 1/√A with height (transported power is constant); the slow',
+                            `start you just flew is the cost; the easy anchor is the gain. stroke cap now ${capCm} cm. (paper p.9)`,
+                        ]);
+                    } else {
+                        push('taper', 'the anchor is the brutal part', [
+                            `your ground station is driving the film at ${anchorKmh} km/h: 1000 km/h class machinery (paper p.9).`,
+                            'taper (Film group) widens the ribbon at the anchor, so the wave speeds up as it climbs:',
+                            'the anchor runs √R easier for the same speed at the top. the cost: a slower start.',
+                            'R = 4 is the paper\'s own example (500 km/h anchor, 1000 km/h aloft). taper vs slow start: your call.',
+                        ]);
+                    }
+                }
                 // ~12 km — the reveal (p.7 drag table: transverse caps at 45 km/h, 20 kW).
                 if (upgradeCrossed(prev, alt, 12000, false)) {
                     const kmh = Math.round(climbSpeedKmh(this.monkey.velocityY));
@@ -4226,10 +4325,13 @@
                     ]);
                 }
                 // ~20 km — air thinning; the stress-budget lever is the ceiling now (p.7).
+                // M4: the v_max quoted is the LOCAL one — with a taper the ceiling is
+                // altitude-dependent (v_max/√(section ratio here)), not the top's value.
                 if (upgradeCrossed(prev, alt, 20000, false)) {
+                    const localVMax = this.vMaxMps() / Math.sqrt(taperSectionRatioAt(alt, this.taperRatio, GameConfig.MISSION.DELIVER_ALTITUDE_M));
                     push('thinning', 'the air is thinning', [
                         `air ${airDensityReadout(alt)} of sea level and falling — drag is letting go.`,
-                        `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(this.vMaxMps() * 3.6)} km/h.`,
+                        `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(localVMax * 3.6)} km/h here.`,
                         'if you left margin in the stress budget, this is where it pays. (paper p.7)',
                     ]);
                 }
@@ -4501,9 +4603,20 @@
                 // a band touching the clamps is the exact wrong physics this shift removed.
                 // Above the saturation point the true width is carried by the cross-section
                 // readout in Settings, not by the drawing.
-                const bandHalf = filmBandHalfPx(this.vineWidth, GameConfig.WAVE.SEGMENT_WIDTH);
+                //
+                // M4 (p.9): the taper is in the ribbon WIDTH, so the band follows the LOCAL
+                // section (taperSectionRatioAt): R times wider at the anchor than aloft,
+                // under the same jaw-clearance cap at every altitude (the cap now also
+                // keeps a tapered band honest). The drawn wave displacement follows the
+                // same 1/√A law the physics uses (taperVelocityFactorAt), so the drawn
+                // amplitude grows with height exactly as the coupling's film velocity does.
+                const taperSpanM = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+                const bandHalfAt = (altM) => filmBandHalfPx(
+                    this.vineWidth * taperSectionRatioAt(altM, this.taperRatio, taperSpanM),
+                    GameConfig.WAVE.SEGMENT_WIDTH);
+                const bandHalf = bandHalfAt(this.monkey.altitude);   // the band AT the climber
                 // Live render handles for the smoke test: the band the renderer actually
-                // drew, and the fixed jaw half-width it must never reach.
+                // drew at the climber, and the fixed jaw half-width it must never reach.
                 this._filmBandHalfPx = bandHalf;
                 this._clampJawHalfPx = CLAMP_JAW_HALF_PX;
                 const foil = ctx.createLinearGradient(this.wave.x - bandHalf, 0, this.wave.x + bandHalf, 0);
@@ -4512,15 +4625,29 @@
                 foil.addColorStop(0.55, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`);
                 foil.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.34)`);
                 ctx.fillStyle = foil;
-                ctx.fillRect(this.wave.x - bandHalf, 0, bandHalf * 2, height);
+                // The fill is a path, not a rect: the band's half-width varies with
+                // altitude along the taper (uniform film collapses this to the old rect).
+                ctx.beginPath();
+                for (let i = 0; i <= this.wave.segments; i++) {
+                    const y = i * baseSpacing;
+                    ctx.lineTo(this.wave.x - bandHalfAt(altAt(y)), y);
+                }
+                for (let i = this.wave.segments; i >= 0; i--) {
+                    const y = i * baseSpacing;
+                    ctx.lineTo(this.wave.x + bandHalfAt(altAt(y)), y);
+                }
+                ctx.closePath();
+                ctx.fill();
 
                 for (let i = 0; i < this.wave.segments; i++) {
                     const yBase = i * baseSpacing;
                     const altHere = altAt(yBase);
                     const phi = tetherPhaseAt(altHere, t, freq, cMps);
-                    // Real longitudinal displacement, real amplitude (A ≤ ~1.08 m = ≤11 px
-                    // at the stress-capped 92 Hz carrier — small and honest, not exaggerated).
-                    let y = yBase - shape.position(ampPx, phi);
+                    // Real longitudinal displacement, real LOCAL amplitude: the anchor's
+                    // stroke times the taper's 1/√A factor at this row's altitude (A ≤
+                    // ~1.08 m at the stress-capped 92 Hz carrier — small and honest, not
+                    // exaggerated). R = 1 collapses this to the uniform amplitude.
+                    let y = yBase - shape.position(ampPx * taperVelocityFactorAt(altHere, this.taperRatio, taperSpanM), phi);
                     // M3.5: the descender's dumped energy (Lofstrom) — a LABELLED, schematic
                     // ripple on the film around the pass altitude, decaying in sim time.
                     // Presentation only: it never enters tetherPhaseAt or the slip integral,
@@ -4544,13 +4671,14 @@
                     // flat stripe and swallowed the foil shading the air gap depends on.
                     const strain = shape.velocity(1, 1, phi);
                     const opacity = 0.5 + (strain + 1) * 0.25;
-                    const segBase = Math.max(2, bandHalf * 0.4);
+                    const bandHere = bandHalfAt(altHere);
+                    const segBase = Math.max(2, bandHere * 0.4);
                     const segWidth = segBase + Math.max(0, strain) * segBase * 0.67;
                     ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
-                    ctx.lineWidth = Math.min(segWidth, bandHalf * 1.2);
+                    ctx.lineWidth = Math.min(segWidth, bandHere * 1.2);
                     ctx.beginPath();
-                    ctx.moveTo(this.wave.x - bandHalf, y);
-                    ctx.lineTo(this.wave.x + bandHalf, y);
+                    ctx.moveTo(this.wave.x - bandHere, y);
+                    ctx.lineTo(this.wave.x + bandHere, y);
                     ctx.stroke();
                 }
 
@@ -4561,8 +4689,10 @@
                 ctx.lineWidth = 2;
                 for (const side of [-1, 1]) {
                     ctx.beginPath();
-                    ctx.moveTo(this.wave.x + side * bandHalf, 0);
-                    ctx.lineTo(this.wave.x + side * bandHalf, height);
+                    for (let i = 0; i <= this.wave.segments; i++) {
+                        const y = i * baseSpacing;
+                        ctx.lineTo(this.wave.x + side * bandHalfAt(altAt(y)), y);
+                    }
                     ctx.stroke();
                 }
                 ctx.shadowBlur = 0;

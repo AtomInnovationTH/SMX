@@ -7,7 +7,8 @@
     "vineTension": 100,
     "airGapMm": 0.15,
     "filmThicknessMm": 0.2,
-    "cargoKg": 3
+    "cargoKg": 3,
+    "taperRatio": 1
   },
   "config": {
     "materialIndex": 1,
@@ -15,6 +16,7 @@
     "nPairs": 8,
     "carrierHz": 92.00000000000001,
     "cargoKg": 3,
+    "taperRatio": 1,
     "amplitudeM": 1,
     "materialGpa": 100,
     "stressBudget": 0.3,

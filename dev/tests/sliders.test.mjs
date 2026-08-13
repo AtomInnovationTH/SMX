@@ -124,3 +124,16 @@ test('stress-budget slider default maps to the DECIDED §2.1 safety fraction (30
   assert.equal(scaleSettingValue('amplitude', parseFloat(a.inputValue)), GameConfig.WAVE.DEFAULT_AMPLITUDE);
   assert.ok(a.staticLabel.endsWith(' m'), 'amplitude label is in metres');
 });
+
+test('taper slider is the anchor:top section ratio (M4, p.9), default 1.0 = uniform film', () => {
+  // The raw value IS the ratio R (documented pass-through in scaleSettingValue). The
+  // default is the uniform film — the pre-taper model exactly, which is what keeps the
+  // committed balance trace valid — and the paper's own worked example (R = 4, a
+  // 500 km/h anchor for 1000 km/h aloft) sits on the step grid.
+  const d = sliderDefaults().taper;
+  assert.equal(scaleSettingValue('taper', parseFloat(d.inputValue)), 1.0);
+  assert.equal(d.staticLabel, '1.0 : 1');
+  assert.equal(d.min, '1', 'no inverted taper (R < 1 would fatten the film aloft)');
+  assert.equal(parseFloat(d.max), 10);
+  assert.ok((4 - parseFloat(d.min)) % parseFloat(d.step) === 0, 'the paper\'s R = 4 example is selectable');
+});

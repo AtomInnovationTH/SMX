@@ -46,7 +46,8 @@ const {
 // 0.15 mm (as tight as the flutter margin allows at 100 kgf pretension), 128 pairs
 // (2× §2.5's hold-50-kg anchor, to carry stack + 50 kg cargo), tension 100 kgf, width
 // 45 mm, thickness 0.2 mm, cargo 50 kg, gravity x1.00, sine carrier, amplitude clamped
-// to the stress cap at boot.
+// to the stress cap at boot. M4 adds taperRatio 1.0 (uniform film — the taper helpers
+// return exactly 1, so the default trace cannot move).
 const DEFAULTS = {
   gravityMultiplier: 1.0,
   vineWidth: 4.5,
@@ -54,6 +55,7 @@ const DEFAULTS = {
   airGapMm: 0.15,
   filmThicknessMm: 0.2,
   cargoKg: GameConfig.MONKEY.WEIGHT,
+  taperRatio: 1.0,
 };
 
 // M2.4/M2.5: the hardware chain — air gap -> pole flux (FG40's published curve), flux ->
@@ -82,6 +84,7 @@ const DEFAULT_CFG = {
   nPairs: GameConfig.FG40.DEFAULT_N_PAIRS,
   carrierHz: GameConfig.WAVE.DEFAULT_FREQUENCY,
   cargoKg: DEFAULTS.cargoKg,
+  taperRatio: DEFAULTS.taperRatio,
 };
 
 // One climb at fixed dt. The step order below mirrors Game.update() ->
@@ -94,10 +97,12 @@ function runClimb(dt, wallS, over = {}) {
   // §2.1: initGame clamps amplitude to the stress cap at boot, so the harness does the
   // same. At the shipped 92 Hz carrier the 1.00 m default stroke sits just under the
   // 1.08 m cap (no-op); on a hotter carrier the cap binds and this is what enforces it.
+  // M4 (p.9): the cap binds at the taper's thin TOP, so the anchor's budget tightens by
+  // 1/√R — the same clamp strokeCapM() applies in game.
   {
     const m = GameConfig.MATERIALS[cfg.materialIndex];
     const vMax = maxMaterialVelocityMps(m.strengthGpa, m.youngsPa, m.densityKgM3, 0.30);
-    ws.amplitude = Math.min(ws.amplitude, maxAmplitudeM(vMax, ws.frequency * 2 * Math.PI));
+    ws.amplitude = Math.min(ws.amplitude, maxAmplitudeM(vMax / Math.sqrt(cfg.taperRatio), ws.frequency * 2 * Math.PI));
   }
   const phys = new PhysicsEngine(GameConfig, { emit() {} });
   const monkey = { x: 600, y: 0, width: 80, height: 80, velocityY: 0,
@@ -125,7 +130,7 @@ function runClimb(dt, wallS, over = {}) {
     let quality = 0, thrustFrameN = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
-        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier });
+        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
       thrustFrameN = c.thrustN;
@@ -160,7 +165,8 @@ function runClimb(dt, wallS, over = {}) {
     if (monkey.altitude >= targetM) { doneAt = t; break; }
   }
   return { doneAt, dips, chargeInRange, trace, crossings, brownoutEpisodes,
-           finalSpeedKmh: climbSpeedKmh(monkey.velocityY), finalAltM: monkey.altitude };
+           finalSpeedKmh: climbSpeedKmh(monkey.velocityY), finalAltM: monkey.altitude,
+           amplitudeM: ws.amplitude, taperRatio: cfg.taperRatio };
 }
 
 const WALL_S = 2000; // ~5.8x the observed default climb (~345 s); a miss means the climb stalled
@@ -213,6 +219,60 @@ test('M2.11: a hotter carrier forces the emergent engage/release rhythm into the
     assert.ok(len >= 2 && len <= 8,
       `brownout episode at ${start.toFixed(0)}s lasted ${len.toFixed(1)}s — outside the 2-8 s rhythm band`);
   }
+});
+
+test('M4 taper (p.9): R=2 flies with a slower start and the same aloft asymptote; R=4 starves the low climb', () => {
+  // The taper's verification, in the integrator itself (one config per run, always
+  // engaged, mirroring updateContinuous):
+  //
+  // R = 2 — a FLYING taper. The anchor's stroke cap tightens by 1/√R (the stress cap
+  // binds at the thin top), so the low climb runs a slower film and pays for it: the
+  // 5 km crossing lands later than the uniform film's. Aloft the story flips: the wave
+  // reaches the FULL v_max at the top, where the untapered default stroke (1.00 m) sits
+  // under its own cap (1.08 m) — the taper makes fuller use of the stress budget, the
+  // paper's "more efficient use of tether". Both cruises lock to the SAME slip ratio at
+  // the top (u ≈ 0.54): the asymptote is the same law, only the film speed changed.
+  const uni = runClimb(1 / 60, WALL_S);
+  const tap = runClimb(1 / 60, WALL_S, { taperRatio: 2 });
+  assert.notEqual(tap.doneAt, null, 'the R=2 tapered climb stalled');
+  assert.equal(tap.dips, 0, `altitude decreased on ${tap.dips} tapered steps`);
+  assert.ok(tap.chargeInRange, 'tapered charge left [0, CAPACITY]');
+  // The tightened anchor cap: 1.08 m / √2 = 0.765 m, and it is the clamp that binds
+  // (the 1.00 m default request exceeds it), proving the cap moved with the taper.
+  const mDef = GameConfig.MATERIALS[GameConfig.MATERIAL_DEFAULT_INDEX];
+  const vMax = maxMaterialVelocityMps(mDef.strengthGpa, mDef.youngsPa, mDef.densityKgM3, 0.30);
+  const capUniform = maxAmplitudeM(vMax, GameConfig.WAVE.DEFAULT_FREQUENCY * 2 * Math.PI);
+  assert.ok(Math.abs(tap.amplitudeM - capUniform / Math.SQRT2) < 1e-9,
+    `tapered anchor stroke ${tap.amplitudeM} != uniform cap ${capUniform} / √2`);
+  // The taper tax: the low climb is slower (constant transported power), so the 5 km
+  // crossing lands later and the whole trip takes longer.
+  assert.ok(tap.crossings.get(5000) > uni.crossings.get(5000),
+    `tapered 5 km crossing ${tap.crossings.get(5000)}s not later than uniform ${uni.crossings.get(5000)}s`);
+  assert.ok(tap.doneAt > uni.doneAt, `tapered climb ${tap.doneAt}s not slower than uniform ${uni.doneAt}s`);
+  assert.ok(tap.doneAt <= 900, `tapered climb ${tap.doneAt}s beyond a generous wall`);
+  // The gain: aloft, the tapered wave reaches v_max while the untapered stroke sits
+  // under its cap — and BOTH lock to the same cruise slip at the top (u ≈ 0.54),
+  // terminal speeds strictly below their film peaks (the asymptote, still no clamp).
+  const vFilmTopUni = uni.amplitudeM * GameConfig.WAVE.DEFAULT_FREQUENCY * 2 * Math.PI * 3.6;
+  const vFilmTopTap = tap.amplitudeM * GameConfig.WAVE.DEFAULT_FREQUENCY * 2 * Math.PI * Math.SQRT2 * 3.6;
+  assert.ok(Math.abs(vFilmTopTap - vMax * 3.6) < 1e-6, 'the tapered top film does not run at exactly v_max');
+  assert.ok(tap.finalSpeedKmh > uni.finalSpeedKmh,
+    `tapered final ${tap.finalSpeedKmh} not above uniform ${uni.finalSpeedKmh} (budget better used aloft)`);
+  const uUni = uni.finalSpeedKmh / vFilmTopUni, uTap = tap.finalSpeedKmh / vFilmTopTap;
+  assert.ok(Math.abs(uUni - uTap) < 0.02, `cruise slip moved: uniform u=${uUni.toFixed(3)} vs tapered u=${uTap.toFixed(3)}`);
+  assert.ok(tap.finalSpeedKmh < vFilmTopTap, 'tapered terminal speed must sit strictly below the local film peak');
+
+  // R = 4 — the paper's own example ratio — STARVES the demo stack, and that is the
+  // honest edge of the trade, not a bug: at the anchor the film runs at v_max/2, and
+  // the skim F·v there can never cover the flat switching draw (the break-even is per
+  // pair, so a bigger stack does not help; a lower carrier or a bigger buffer would).
+  // The climber browns out, coasts, re-engages and never leaves the low atmosphere.
+  // Pin the mechanism (many episodes, low ceiling), not just the non-completion.
+  const starved = runClimb(1 / 60, WALL_S, { taperRatio: 4 });
+  assert.equal(starved.doneAt, null, 'R=4 should NOT complete on the demo stack — the taper tax is real');
+  assert.ok(starved.brownoutEpisodes.length >= 10,
+    `R=4 should cycle brownouts (got ${starved.brownoutEpisodes.length}) — the energy loop never closes low`);
+  assert.ok(starved.finalAltM < 5000, `R=4 reached ${starved.finalAltM.toFixed(0)} m — expected to stay trapped low`);
 });
 
 test('trace is frame-rate independent (dt = 1/60 vs 1/240)', () => {

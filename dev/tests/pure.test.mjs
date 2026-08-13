@@ -26,6 +26,8 @@ const {
   filmCrossSectionM2,
   maxMaterialVelocityMps,
   maxAmplitudeM,
+  taperSectionRatioAt,
+  taperVelocityFactorAt,
   gapFluxT,
   pairCouplingK,
   stackDryMassKg,
@@ -90,6 +92,7 @@ test('extraction exposes the core pure symbols', () => {
     ALTIMETER_LANDMARKS, logSliderToFreq, freqToLogSlider, frameDecay,
     climbSpeedKmh,
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
+    taperSectionRatioAt, taperVelocityFactorAt,
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
     freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipGateFactor,
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
@@ -120,11 +123,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 48 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 50 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 48);
+  assert.equal(declaredPureHelpers().length, 50);
 });
 
 // ---------------------------------------------------------------------------
@@ -217,7 +220,7 @@ test('WaveSystem.setType only accepts known types', () => {
 // ---------------------------------------------------------------------------
 test('calculateContinuousCoupling: slip thrust fades with speed, impulse always upward', () => {
   const p = new PhysicsEngine(GameConfig, { emit() {} });
-  const monkey = { velocityY: 0 };
+  const monkey = { velocityY: 0, altitude: 0 };
   const args = { kPerPair: 0.043, nPairs: 64, massKg: 61.5, dt: 1 / 60 };
   for (const type of ['sine', 'square', 'sawtooth']) {
     const ws = new WaveSystem(type);
@@ -242,14 +245,14 @@ test('calculateContinuousCoupling: thrust -> 0 as the climber approaches film pe
   const vFilmPeak = ws.amplitude * ws.frequency * 2 * Math.PI;   // m/s
   let prev = Infinity;
   for (const u of [0, 0.2, 0.4, 0.6, 0.8, 0.95]) {
-    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION, altitude: 0 };
     const c = p.calculateContinuousCoupling(ws, monkey, args);
     assert.ok(c.thrustN < prev, `thrust must fade as slip closes (u=${u})`);
     prev = c.thrustN;
   }
   // Outrunning the crest: the gate is empty and thrust is exactly 0 (not clamped mid-fade).
   for (const u of [1.0, 1.2]) {
-    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION, altitude: 0 };
     const c = p.calculateContinuousCoupling(ws, monkey, args);
     assert.equal(c.thrustN, 0, `u=${u}: gate empty, thrust exactly 0`);
   }
@@ -270,7 +273,7 @@ test('M3.6: quality = thrust / (2 × weight) — cruise reads good, stall reads 
   const nPairs = 128;
   const kPerPair = 4 * weight * Math.PI / (nPairs * vFilmPeak);
   const qAt = (u, gravityMult = 1) => {
-    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION };
+    const monkey = { velocityY: -u * vFilmPeak * GameConfig.PHYSICS.ALTITUDE_CONVERSION, altitude: 0 };
     return p.calculateContinuousCoupling(ws, monkey, { kPerPair, nPairs, massKg, dt: 1 / 60, gravityMult }).quality;
   };
   approx(qAt(0), 1, 1e-9);                        // launch: thrust 4× weight = pegged perfect
@@ -560,6 +563,52 @@ test('§2.2 maxAmplitudeM = v_max / omega — the stroke budget', () => {
   const a1 = maxAmplitudeM(280, 2 * Math.PI * 260);
   const a2 = maxAmplitudeM(280, 2 * Math.PI * 130);
   approx(a2, 2 * a1, 1e-9);
+});
+
+// M4 (paper p.9) — TAPER: the film's section varies with altitude and the wave's
+// amplitude/velocity adjusts as 1/√A so transported power stays constant. The two
+// helpers are the whole model; the game reads them for the slip integral, the stroke
+// cap, the slip-u readout and the film's drawn width and amplitude.
+test('p.9 taper: section ramps anchor→top, velocity follows 1/√A, power is constant', () => {
+  const SPAN = GameConfig.MISSION.DELIVER_ALTITUDE_M;   // the taper runs ground → Kármán
+  // R = 1 is the uniform film: both helpers are exactly 1 at every altitude, which is
+  // why the default climb's balance trace cannot move (the factor is a multiply by 1).
+  for (const alt of [0, 1000, 25000, 50000, 99999, SPAN, 2 * SPAN]) {
+    approx(taperSectionRatioAt(alt, 1, SPAN), 1, 1e-12);
+    approx(taperVelocityFactorAt(alt, 1, SPAN), 1, 1e-12);
+  }
+  // The paper's own worked example: R = 4 trades a 500 km/h anchor for 1000 km/h aloft.
+  // At the anchor the velocity factor is 1 (the film runs AT the anchor's drive); at the
+  // thin top it is √R = 2, so the same drive delivers twice the particle velocity aloft.
+  approx(taperSectionRatioAt(0, 4, SPAN), 4, 1e-12);
+  approx(taperSectionRatioAt(SPAN, 4, SPAN), 1, 1e-12);
+  approx(taperVelocityFactorAt(0, 4, SPAN), 1, 1e-12);
+  approx(taperVelocityFactorAt(SPAN, 4, SPAN), 2, 1e-12);
+  // Constant transported power, the paper's design law, pinned directly: P = Z·v² with
+  // Z ∝ A, so factor² × section ≡ R along the whole taper.
+  for (const alt of [0, 100, 2000, 12000, 40000, 70000, 99999, SPAN]) {
+    const section = taperSectionRatioAt(alt, 4, SPAN);
+    const factor = taperVelocityFactorAt(alt, 4, SPAN);
+    approx(factor * factor * section, 4, 1e-9, `constant-power law broke at ${alt} m`);
+  }
+  // Monotonic: the section thins and the wave quickens with altitude, never otherwise.
+  let prevSection = Infinity, prevFactor = 0;
+  for (let alt = 0; alt <= SPAN; alt += 4000) {
+    const s = taperSectionRatioAt(alt, 4, SPAN), vf = taperVelocityFactorAt(alt, 4, SPAN);
+    assert.ok(s <= prevSection && vf >= prevFactor, `non-monotonic taper at ${alt} m`);
+    prevSection = s; prevFactor = vf;
+  }
+  // Clamps and junk: below ground reads as the anchor, above the span holds the top's
+  // values, R < 1 (no inverted taper) and a non-positive span degrade to the uniform film.
+  approx(taperVelocityFactorAt(-500, 4, SPAN), 1, 1e-12);
+  approx(taperVelocityFactorAt(2 * SPAN, 4, SPAN), 2, 1e-12);
+  approx(taperVelocityFactorAt(50000, 0.5, SPAN), 1, 1e-12);
+  approx(taperVelocityFactorAt(50000, 4, 0), 1, 1e-12);
+  // The stress-cap relationship: the cap binds at the thin top, so the anchor's stroke
+  // budget tightens by exactly 1/√R — at R = 4, half the stroke buys the same v_max aloft.
+  const vMax = maxMaterialVelocityMps(45, GameConfig.TETHER.YOUNGS_MODULUS, GameConfig.TETHER.CARBON_DENSITY, 0.30);
+  const omega = 2 * Math.PI * 92;
+  approx(maxAmplitudeM(vMax / Math.sqrt(4), omega), maxAmplitudeM(vMax, omega) / 2, 1e-12);
 });
 
 // M2.4 — FG40's published normalised-force-vs-airgap curve (extracted point-by-point

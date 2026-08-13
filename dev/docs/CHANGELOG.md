@@ -11,7 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
-hardware. Physics landed first (M1–M2); the illustration layer is landing now (M3).
+hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
+M4's deferred physics has started (taper).
+
+#### Added (M4 physics, August 2026)
+
+- **Taper (paper p.9), the first M4 item.** A new Film-group slider sets the film's
+  anchor:top section ratio R (default 1.0, the uniform film and the pre-taper model
+  exactly). Transported power is held constant, so the wave's velocity and displacement
+  adjust as 1/√A with height: the anchor machinery runs √R easier for the same speed at
+  the top, the low climb's ceiling drops by the same factor, and the stress cap binds at
+  the thin top, tightening the anchor's stroke budget by 1/√R. The slip integral, the
+  `slip u` readout, the wave-stress and film-section readouts, the drawn band width and
+  the drawn wave amplitude all follow the local law. The marked 0-2 km beat is now live
+  ("the anchor is the brutal part") with the player's own numbers, and the 20 km beat
+  quotes the local v_max. Verified in the balance harness before shipping: R = 2 flies
+  the trade (slower start, tighter anchor stroke, the same cruise slip at the top with
+  the stress budget better used aloft), and R = 4, the paper's own example ratio,
+  starves the demo stack below its energy break-even, pinned as the taper's real teeth
+  (the break-even is per pair, so a bigger stack is not the way out). The default climb
+  and the committed stills are unchanged (R = 1 is a render and trace no-op; the balance
+  snapshot diff is exactly the two new `taperRatio: 1` record lines). Tether mass, the
+  paper's stated cost, and the λ/4 anti-reflection layer are marked not-modelled in the
+  slider hint rather than invented.
 
 #### Added (presentation shifts, August 2026)
 

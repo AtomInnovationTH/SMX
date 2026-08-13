@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-305 KB and must be served alongside the
+373 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -86,7 +86,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 48-helper count assertion in
+Keep the 50-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -218,6 +218,23 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   slider label shows the **actual** post-clamp stroke, with `(capped)` when it binds. The
   material ladder is a **strength** ladder (E and ρ are constant across carbon
   allotropes); entries above ~130 GPa are labelled speculative.
+- **Taper** (`taperSectionRatioAt` / `taperVelocityFactorAt`, M4, paper p.9): the film's
+  section can vary with altitude: one slider ratio R = A_anchor / A_top, a linear
+  section ramp from the ground to the delivery altitude. Transported power is constant
+  (the taper is slow against the wavelength, so no reflections), so the wave's velocity
+  and displacement amplitude adjust as **1/√A** with height: the slip integral and
+  `slipU()` read the LOCAL film speed at the climber's altitude, and the stress cap
+  binds at the thin top, tightening the anchor's stroke budget to `v_max/(ω·√R)`. The
+  trade is real: the anchor runs √R easier for the same `v_max` aloft, but the low
+  climb's ceiling drops by the same factor. Past about R = 3 the low-altitude skim
+  can no longer cover the flat switching draw (the break-even is per pair, so a bigger
+  stack does not help; the harness pins R = 4 starving the demo stack). Taper is in the
+  ribbon width; thickness (what `pairCouplingK` reads) is uniform, and tether mass is
+  marked not-modelled in the slider hint. R = 1 is the uniform film and the pre-taper
+  model exactly, which is why the committed balance trace is untouched. The drawn film
+  band tracks the local width under the same clamp-jaw cap as before (it saturates for
+  most of a tapered climb, so the taper reads through the section/stress/stroke-cap
+  numbers, not the picture), and the drawn wave displacement follows the same 1/√A law.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -253,14 +270,17 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     the boundary is read off the same `densityRatio` the drag model uses. The crossing
     fires a plated banner, a chime, and a milestone burst once per run, and the persistent
     act/air line shows the drag readout collapsing.
-  - **The event schedule** (`_updateClimbBeats`): plated, queued teaching cards at ~12 km
-    (a transverse wave would be dead here — p.7's 45 km/h, 20 kW cap, against the player's
-    live speed), ~20 km (air thinning; the stress-budget lever), ~70 km (gigacycle fatigue,
+  - **The event schedule** (`_updateClimbBeats`): plated, queued teaching cards at ~1 km
+    (the anchor is the brutal part; taper helps; p.9, live since M4's taper shipped,
+    quoting the player's own anchor speed and stroke cap), ~12 km
+    (a transverse wave would be dead here: p.7's 45 km/h, 20 kW cap, against the player's
+    live speed), ~20 km (air thinning; the stress-budget lever, quoting the LOCAL v_max),
+    ~70 km (gigacycle fatigue,
     only when the carrier sits in the paper's top decade), ~85 km (a second climber
-    requests power — the paper's own open question, p.14). Crossings reuse the pure
+    requests power; the paper's own open question, p.14). Crossings reuse the pure
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
-    physics the sim does not have — taper (p.9), drag on the wave (p.7), standing-wave
-    resonance (p.10) — are deliberately absent rather than faked.
+    physics the sim does not have (drag on the wave, p.7; standing-wave
+    resonance, p.10) are deliberately absent rather than faked.
 - **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
   `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
@@ -349,9 +369,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **119 unit tests**
-  (pure 105, sliders 9, balance 5), **48 pure helpers** in the delimited block,
-  **98 = 98** asset references, **26 browser smoke checks**, `index.html` **353 KB**.
+- **Current gate numbers** (keep these updated when they move): **122 unit tests**
+  (pure 106, sliders 10, balance 6), **50 pure helpers** in the delimited block,
+  **98 = 98** asset references, **27 browser smoke checks**, `index.html` **373 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

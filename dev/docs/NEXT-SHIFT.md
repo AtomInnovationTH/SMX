@@ -1,8 +1,8 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that shipped the moving
-picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` in the README).
+that have already cost time. Updated at the end of the shift that shipped M4 taper
+(paper p.9: the film's section varies with altitude, amplitude adjusting as 1/√A).
 
 ## Where things stand
 
@@ -10,18 +10,69 @@ picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` i
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 119 unit tests, 26 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 353 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 122 unit tests, 27 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 373 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
-- **Physics**: M1, M2 and M3.1-M3.8 are complete. The deferred list is taper (p.9), drag on
-  the wave itself (p.7), standing-wave resonance (p.10), powering more than one climber
-  (p.14), mode conversion (p.12) and the hot side of thermal. All are marked absent in-game
-  rather than approximated. Do not fake them.
-- **Default climb**: 100 km in 380.4 s, mean 947 km/h, cruise 1132 km/h = 0.50 v_max, no
-  brownouts, 28 kg/h of throughput with 3 kg of cargo.
+- **Physics**: M1, M2, M3.1-M3.8 and M4's first item (taper, p.9) are complete. The
+  deferred list is drag on the wave itself (p.7), standing-wave resonance (p.10),
+  powering more than one climber (p.14), mode conversion (p.12) and the hot side of
+  thermal. All are marked absent in-game rather than approximated. Do not fake them.
+- **Default climb**: unchanged by taper (the default ratio 1.0 is the uniform film and
+  the taper helpers return exactly 1): 100 km in 380.4 s, mean 947 km/h, cruise
+  1132 km/h = 0.50 v_max, no brownouts, 28 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
 
+- **M4 taper (paper p.9) is live, and it unlocks the 0-2 km beat.** One new slider
+  (`taper`, Film group, anchor:top section ratio R = 1-10, step 0.5, default 1.0 = the
+  uniform film), two new pure helpers (`taperSectionRatioAt`,
+  `taperVelocityFactorAt`, count 48 -> 50), and the physics reads them: the film's peak
+  velocity is the LOCAL one at the climber's altitude (amplitude adjusts as 1/√A with
+  height, constant transported power), the slip integral and `slipU()` ride the local
+  film, and the stress cap binds at the thin top, so the anchor's stroke cap tightens by
+  1/√R (`strokeCapM` divides v_max by √R). The 0-2 km beat ("the anchor is the brutal
+  part", or "your taper is trading start for anchor" when tapered) fires at the 1 km
+  crossing with live numbers. The taper is in the ribbon WIDTH: thickness (what the
+  coupling k reads) stays uniform; tether MASS is the paper's stated cost and is marked
+  not-modelled in the slider hint, not invented.
+- **The balance harness verified taper before it shipped, and the default trace did not
+  move.** `calculateContinuousCoupling` takes `taperRatio` (the harness mirrors it
+  call-for-call, including the boot clamp `v_max/(ω·√R)`). The new harness test flies
+  R = 2: slower 5 km crossing than uniform, longer trip, tighter anchor cap (0.765 m =
+  1.082/√2), and the SAME cruise slip at the top (u ≈ 0.54) with a higher terminal speed
+  (the tapered wave reaches v_max aloft where the 1.00 m default stroke sits under its
+  1.08 m cap; the paper's "more efficient use of tether"). The snapshot was regenerated
+  deliberately: the diff is EXACTLY two added `taperRatio: 1` record lines; every trace
+  row is byte-identical, because the helpers return exactly 1 at R = 1.
+- **R = 4 (the paper's own example ratio) starves the demo stack, and the harness pins
+  it as physics, not a bug.** At the anchor the film runs at v_max/2, and the skim F·v
+  there can never cover the flat switching draw: the break-even is per pair, so MORE
+  PAIRS DO NOT HELP (302 brownout cycles at 16 pairs too); a lower carrier or a bigger
+  buffer would. The R=4 run never leaves the low atmosphere. The slider hint says so.
+  Do not "fix" this by inventing a low-altitude boost; it is the taper's real teeth.
+- **The drawing follows the taper, inside the same non-contact cap.** The band's
+  half-width now tracks the LOCAL section (`filmBandHalfPx(vineWidth x sectionRatio)`),
+  the fill and edge lines are paths, and the drawn wave displacement follows
+  `taperVelocityFactorAt`. The jaw cap (FILM_BAND_MAX_HALF_PX = 13) applies at every
+  altitude, so at R = 4 the band sits at 13 px for nearly the whole climb and only
+  narrows to 12 in the last ~3 km: the taper is mostly a NUMBERS story (section readout
+  "36.0 mm² at the anchor", stress readout "at the taper's thin top · ... at the
+  anchor", stroke cap), which is the §0 summarised-and-labelled treatment. Verified by
+  captures: the default stills are compositionally unchanged (taper 1 is a render
+  no-op, so the committed PNGs were NOT re-shot), and a taper-4 frame at 300 m shows
+  the 13 px band keeping daylight to the 16 px jaws. capture.mjs seeds the new beat id.
+- **Smoke check 12's assertion moved to card+queue titles.** The 0 → 11.5 km teleport
+  now crosses 1 km first, so the taper beat owns the active card and the transverse
+  card queues; the check asserts on `[card, ...queue]` (the pattern check 13 already
+  used) and also pins that the taper beat fired. New check 10c drives the taper slider
+  live: cap 0.54 m, amplitude label "(capped)", band 13 px at the ground, and restores
+  taper AND amplitude through their own slider events (the clamp never auto-raises, so
+  only the slider path puts 1.00 m back; restore amplitude explicitly or every later
+  check runs on a clamped stroke).
+- **Presets pin taper to 1** (fired in the cap-affecting group, before amplitude), so a
+  tapered setting can never leak through a preset click. The 20 km thinning beat now
+  quotes the LOCAL v_max (`v_max/√(section ratio at 20 km)`), which at taper 1 is the
+  same number as before.
 - **The committed pictures are current again, and there is a moving picture.**
   `dev/tools/capture.mjs` (new; zero committed dependencies, resolves playwright-core and
   Chromium at runtime and skips cleanly exactly like the smoke test; NOT part of the
@@ -217,19 +268,23 @@ picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` i
 
 ## Priorities for this shift
 
-Last shift's priority 1, the moving picture, is **done**: `dev/tools/capture.mjs` re-runs
-all three captures, the stills show the current renderer, and `screenshots/climb.mp4` is
-in the README. The shift before settled the score: it survives, it is throughput, it is
-on the minimal HUD, and the `.v3` keys were not re-based. Do not reopen either, and do
-not fold the score back behind `H`.
+Last shift's priority 1, the M4 opener, is **done**: taper (p.9) shipped with its own
+balance-harness verification (R = 2 flies the trade; R = 4 starves the demo stack, pinned
+as physics), the 0-2 km anchor-speed beat is live, the default trace did not move, and
+the stills did not move (taper 1 is a render no-op). The shift before shipped the moving
+picture, and the score work before that survives as is. Do not reopen any of them.
 
-### 1. M4 physics, now that the presentation work is done
+### 1. M4 physics, next item only
 
-Taper, wave drag, resonance and multi-climber, in the order the deck presents them. Each
-needs its own balance-harness verification before it ships. The specs live in section 8 of
+Wave drag (p.7), then resonance (p.10), then multi-climber (p.14), in the order the deck
+presents them. Each needs its own balance-harness verification before it ships. The specs
+live in section 8 of
 `.kilo/plans/1785893790322-fg40-film-coupling-fidelity-plan.md` (gitignored, local only;
-sections 4-9 are the milestone authority). That file's STATUS block was refreshed this
-shift, but **this file is the committed handoff and wins wherever they disagree**.
+sections 4-9 are the milestone authority). That file's STATUS block lags this file, but
+**this file is the committed handoff and wins wherever they disagree**. Wave drag unlocks
+the 2-12 km beat and makes the transverse-vs-longitudinal contrast quantitative rather
+than a caption; note AIR_DRAG's comment already marks the spot ("M4 replaces this linear
+form with the paper's wave drag").
 
 ### 2. Two contained hygiene tasks nobody has claimed
 
@@ -311,7 +366,7 @@ rediscover the traps:
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 48). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 50). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.

@@ -430,6 +430,48 @@ try {
     bandInfo.atMax > bandInfo.atMin && bandInfo.jaws === 16,
     JSON.stringify(bandInfo));
 
+  // 10c) M4 taper (p.9): the taper slider drives the REAL chain live — the stroke cap
+  //      tightens by 1/√R (stress binds at the thin top), the amplitude label shows the
+  //      post-clamp stroke, and the drawn band widens toward the anchor's wider section
+  //      (still capped clear of the clamp jaws). The monkey is placed back on the ground
+  //      first: the taper's band effect lives at low altitude (check 5 left it at 100 km,
+  //      where the section ratio is 1 and the band is the untapered one).
+  const taperInfo = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    g.camera.y = g.monkey.y + g.canvas.height * 0.5;
+    const slider = document.getElementById('taper');
+    const before = slider.value;
+    slider.value = '4';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    const out = {
+      ratio: g.taperRatio,
+      band: g._filmBandHalfPx, jaws: g._clampJawHalfPx,
+      cap: document.getElementById('strokeCapValue').textContent,
+      amp: document.getElementById('amplitudeValue').textContent,
+      stress: document.getElementById('waveStressValue').textContent,
+    };
+    // Restore the default chain: taper 1 AND the amplitude slider's own event (the
+    // clamp never auto-raises, so only the slider path puts 1.00 m back).
+    slider.value = before;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    const ampSlider = document.getElementById('amplitude');
+    ampSlider.value = '1';
+    ampSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.restoredBand = g._filmBandHalfPx;
+    out.restoredAmp = g.waveSystem.amplitude;
+    return out;
+  });
+  record('taper: stroke cap tightens by 1/√R, amplitude label shows the clamp, band widens at the anchor under the jaw cap',
+    taperInfo.ratio === 4 && taperInfo.band === 13 && taperInfo.band < taperInfo.jaws &&
+    taperInfo.cap.startsWith('0.54 m') && taperInfo.amp.includes('(capped)') &&
+    taperInfo.stress.includes('anchor') &&
+    taperInfo.restoredBand === 12 && Math.abs(taperInfo.restoredAmp - 1) < 1e-9,
+    JSON.stringify(taperInfo));
+
   // 11) M3.1 photosafety: the firing gradient is a SLOWED schematic. Each unit modulates
   //     at 1/period, which must stay under the 3 flashes/s photosensitive-seizure ceiling
   //     (a literal 92-1000 Hz firing animation would be a strobe), and the sweep FREEZES
@@ -462,13 +504,17 @@ try {
   //     (once per run, card queued), and the 70 km gigacycle-fatigue beat stays SILENT
   //     at the 92 Hz default: it is conditional on the carrier sitting in the paper's
   //     top decade (freqDecadeColumn >= 6), and 92 Hz is the 100 Hz column.
+  //     M4: the teleport from the ground also crosses 1 km, so the TAPER beat (p.9)
+  //     fires first and owns the active card; the transverse card queues behind it.
+  //     Assert on the active card PLUS the queue (the same pattern check 13 uses).
   const beats = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
     g.monkey.velocityY = -20000;                       // 2 km/s: fast, deterministic crossings
     g.monkey.y = -115000; g.camera.y = g.monkey.y + 400;   // 11.5 km, climbing
     await new Promise((r) => setTimeout(r, 400));           // crosses 12 km
-    const t12 = { fired: g._beatsFired.has('transverse'), card: g._beatCard && g._beatCard.title };
+    const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
+    const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'), titles };
     g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20 km)
     await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
     const out = { t12, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
@@ -476,8 +522,9 @@ try {
     g.monkey.velocityY = 0;
     return out;
   });
-  record('event schedule: 12 km reveal fires; 70 km fatigue beat silent at 92 Hz',
-    beats.t12.fired === true && typeof beats.t12.card === 'string' && beats.t12.card.includes('transverse') &&
+  record('event schedule: 1 km taper beat + 12 km reveal fire; 70 km fatigue beat silent at 92 Hz',
+    beats.t12.fired === true && beats.t12.taperFired === true &&
+    beats.t12.titles.some((t) => t.includes('transverse')) &&
     beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
     JSON.stringify(beats));
 
