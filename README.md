@@ -76,18 +76,23 @@ Exact, because you make decisions with them:
 * mean thrust from the closed-form slip integral, with slip `u = v_climber / v_film`
 * quadratic drag on the wave itself (paper p.7): the film arrives at your altitude damped by the
   air column it climbed through, and the ground station pays the difference
+* standing-wave resonance (paper p.10), off by default: engage it and the anchor becomes a node,
+  the film runs its local stress ceiling, the carrier locks to the cavity (falling as you climb,
+  retuning at 50 km and paying a transient), and the stack's switching follows the cavity rate
 * switching power `4·N·E_switch·f`, extraction `F̄ · v`, and US Standard Atmosphere density
 
 The impedance and power table on the paper's slide 6 reproduces to 2-3 significant figures, and
-only at his ρ = 2300 kg/m³. It ships as a regression test, and so does the p.7 drag table's
-longitudinal row (0.9 MW at 1000 km/h for the 9 mm² film).
+only at his ρ = 2300 kg/m³. It ships as a regression test, and so do the p.7 drag table's
+longitudinal row (0.9 MW at 1000 km/h for the 9 mm² film) and the p.10 resonance row (2.5 MW/mm²
+at 200 km/h, 12.5 MW/mm² at 1000 km/h).
 
 Simplified on purpose, and labelled on screen: the reflection band, the stack's firing animation
 (slowed down, and frozen if you prefer reduced motion), the monkey and the drawn magnet stack (not
-to scale), and the ripple a passing descender leaves in the film.
+to scale), the ripple a passing descender leaves in the film, and the resonant buildup after a
+retune (one cavity round trip, not a boundary-value solve).
 
-Missing rather than faked: resonance tuning, powering more than one
-climber, mode conversion, and heat.
+Missing rather than faked: powering more than one climber (the paper's own open question, p.14),
+mode conversion, and heat.
 
 Estimated rather than published, and flagged in the code: per-pair traction, gap flux, structure
 mass, battery size.
@@ -155,6 +160,5 @@ the author's copy.
 
 [MIT](LICENSE), code and art alike.
 
-Still in progress, so the live build moves around. Resonance tuning and multi-climber
-support are next. Issues and pull requests welcome:
-[CONTRIBUTING.md](.github/CONTRIBUTING.md).
+Still in progress, so the live build moves around. Multi-climber support (p.14) is next.
+Issues and pull requests welcome: [CONTRIBUTING.md](.github/CONTRIBUTING.md).

@@ -34,7 +34,7 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
   resets to the next harmonic once per climb at 50 km, paying one cavity round trip
   (2h/c = 4.8 s there) of buildup: the transient. The standing wave's tension holds the
   full stress budget, so the film runs the LOCAL stress ceiling (the boost is
-  v_cap/v_anchor, altitude-independent — exactly the p.10 table's ratio), drag-damped by
+  v_cap/v_anchor, altitude-independent, and exactly the p.10 table's ratio), drag-damped by
   the same p.7 law reading the envelope. The stack's switching follows the cavity rate
   (`activeFreqHz()` is the single source every instrument reads; the renderer keeps the
   carrier's travelling component, the standing arch being tens of km wide and
@@ -57,7 +57,7 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
   pattern). The harness grew three knobs for it (`resonanceOn`, `startAltM`,
   `amplitudeM`) and mirrors the updateContinuous resonance block call for call; the
   mirror tracks the drift EVERY frame (an early draft froze f at the reset value and a
-  supply-cap readout 2x off exposed it — if the frequency does not fall as the climber
+  supply-cap readout 2x off exposed it: if the frequency does not fall as the climber
   rises, the block is wrong).
 - **Retunes happen on descent too.** The cavity state tracks altitude both ways:
   crossing the 50 km floor downward re-locks n = 1 and pays the transient again. The
@@ -79,12 +79,22 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
   the card). `capture.mjs` seeds the two new beat ids (`resonance`,
   `resonance-retune`).
 - **The presets pin resonance to 0** (fired in the cap-affecting group, before
-  amplitude), so a resonant setting can never leak through a preset click — the same
+  amplitude), so a resonant setting can never leak through a preset click, the same
   pattern as taper's pin to 1. Every preset object carries `resonance: 0`; a preset
   that omits it would leave the toggle where the player left it.
 - **Em dashes in new prose: none.** The six new player-facing strings (slider hint,
   two beat cards, labels) were written clean; the backlog sweep stays its own task
   (priority 2 below).
+- **The post-push review pass caught two doc-layer slips, both fixed in the same
+  tree.** My own doc additions had introduced four new em dashes (the rule binds
+  repo-facing prose too; the pre-existing backlog stays the priority-2 sweep), and the
+  README still listed resonance under "missing rather than faked" and as next-up work:
+  it now carries the feature, the p.10 fixture row, and multi-climber as the next item.
+  Code review found nothing to move: the p.11 dashboard's carrier marker already clamps
+  to the table's [0.01, 1000] Hz span (the kHz cavity on the pad cannot overrun the
+  plate), the harmonic-carrier path correctly collapses to sine while resonant (the
+  cavity rings one mode), and the Unsolved panel's "retuning makes sharing tricky"
+  line now references a mechanic the player has actually felt.
 
 ## What the shift before changed, so you do not undo it
 

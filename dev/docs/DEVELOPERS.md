@@ -331,7 +331,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   all to 2 s.f., and they only reproduce at the paper's ρ = 2300); the **p.7 drag-table
   fixture** (the longitudinal row: 0.9 MW at 1000 km/h for the 9 mm² film, and the
   first-order ½·Cd·2t·V³·Σ form agreeing with the exact loss); the **p.10 resonance
-  fixture** (`Long + resonance` 2.5 MW/mm² @ 200 km/h, 12.5 MW/mm² @ 1000 km/h —
+  fixture** (`Long + resonance` 2.5 MW/mm² @ 200 km/h, 12.5 MW/mm² @ 1000 km/h:
   `resonanceSupplyW` reproduces the row exactly at σ = 45 GPa, and
   `resonanceBoostFactor` turns the plain rows into them to the table's own figures); `k ≈ 0.043 N/(m/s)` per
   pair ⇒ ~15 N at 350 m/s slip and ~10:1 magnet thrust-to-weight; switching power
