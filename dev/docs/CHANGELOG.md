@@ -15,6 +15,18 @@ hardware. Physics landed first (M1–M2); the illustration layer is landing now 
 
 #### Added (presentation shifts, August 2026)
 
+- **The committed pictures show the current renderer, and the README has a clip.**
+  `screenshots/hero.png` and `screenshots/climb.png` were two renderers behind (thin-line
+  film, closed fists) and are re-shot with the film band and the open clamps; the hero
+  stays a still PNG because it is also the social card. `screenshots/climb.mp4` is a
+  7.5 s clip of a real climb at the default settings (engage off the grass, one coast,
+  catch again, up to the cloud base), 640x400 h264 at about 220 KB, embedded in the
+  README with a stoppable `<video>`. All three come from `dev/tools/capture.mjs`, a
+  zero-dependency capture harness that resolves `playwright-core` and Chromium at runtime
+  and skips cleanly when they are absent, hand-steps the RAF loop off a synthetic clock
+  (never paused, never wall-clock), and lands outside the gate. h264 over GIF/WebP was
+  measured: the same frames are 8.8 MB as a GIF because the noise texture dithers per
+  frame.
 - **The throughput score is on the default screen.** One line in the bottom compact plate
   at the minimal instrument level (`minimalScoreLine`): the goal and cargo before liftoff,
   the live pace projection while climbing, and the locked figure plus the persisted best

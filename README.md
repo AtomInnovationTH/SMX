@@ -4,7 +4,14 @@ Ride a wave to the edge of space.
 
 **[▶ Play now](https://atominnovationth.github.io/SMX/)**
 
-![The monkey climbing its ribbon past a hot air balloon in a blue sky, both hands on the film](screenshots/hero.png)
+![The monkey climbing its ribbon past a hot air balloon in a blue sky, open clamps bracketing the film](screenshots/hero.png)
+
+<video src="https://raw.githubusercontent.com/AtomInnovationTH/SMX/main/screenshots/climb.mp4"
+       autoplay muted loop playsinline controls width="1280"></video>
+
+A real 7.5 s climb at the default settings: engaged off the grass, one coast (the arms-out
+pose), caught again, up to the cloud base. If the video does not play inline,
+[open the clip directly](screenshots/climb.mp4).
 
 ## How to play
 
@@ -20,7 +27,7 @@ magnets run flat, then catch it again. Get 3 kg to the Kármán line as fast as 
 | `H` | Instruments: minimal, all readouts, none |
 | `C` `M` | Colourblind palette, sound |
 
-![Climbing past a bald eagle at 340 m with the magnets engaged](screenshots/climb.png)
+![Climbing past a bald eagle at 355 m with the magnets engaged](screenshots/climb.png)
 
 Stalling costs time and tells you why. It never ends the run. The run ends on a report card that
 puts your speed, switching loss, stroke and carrier next to the paper's own figures. Score is
@@ -115,7 +122,7 @@ unsolved.
 ## Run and build
 
 ```bash
-node --test dev/tests/*.test.mjs   # 105 tests, no dependencies
+node --test dev/tests/*.test.mjs   # 119 tests, no dependencies
 bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```

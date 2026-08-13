@@ -1,9 +1,8 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that surfaced the score at
-the minimal HUD (minimalScoreLine, the compact plate's third line, smoke check 20
-extension).
+that have already cost time. Updated at the end of the shift that shipped the moving
+picture (`dev/tools/capture.mjs`, both stills re-shot, `screenshots/climb.mp4` in the README).
 
 ## Where things stand
 
@@ -22,6 +21,48 @@ extension).
   brownouts, 28 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The committed pictures are current again, and there is a moving picture.**
+  `dev/tools/capture.mjs` (new; zero committed dependencies, resolves playwright-core and
+  Chromium at runtime and skips cleanly exactly like the smoke test; NOT part of the
+  gate) produced all three captures now in the repo: `screenshots/hero.png` (hot air
+  balloon, climber at 256 m), `screenshots/climb.png` (bald eagle, climber at 360 m),
+  both clean HUD and both showing the film band and the open clamps, and
+  `screenshots/climb.mp4`, 7.5 s of a real climb at the default settings (engage off the
+  grass at 100 m, one coast with the arms-out pose, catch again, end at the cloud base
+  near 525 m), 640x400 h264, 219 KB. `hero.png` stays a still PNG because `deploy.yml`
+  copies it to `_site/social.png`. The clip is not in the published payload: `_site` is
+  only `index.html`, `assets/` and `social.png`.
+- **Clip HUD decision: minimal. The stills stay clean.** Reason, recorded as asked: the
+  stills and the social card must read at thumbnail size with no text at all, so they
+  boot `?clean`. The clip's job is different: it shows what playing IS, and the minimal
+  level is the default screen a player lands on, badge, EPM bar, compact plate and the
+  shift-12 pace line included. A clean clip would hide the very loop the README is
+  pitching (hold, watch the bar, watch the pace). Everything on the minimal plate is
+  static text or a bar, so no flash budget is spent and reduced motion is honoured by
+  construction; the `<video>` tag carries `controls`, so the loop is one a viewer CAN
+  stop.
+- **The clip is h264 mp4, not a GIF, and that was measured, not guessed.** A 640x400
+  15 fps GIF of the real frames is 8.8 MB (the full-screen noise texture dithers
+  differently every frame); animated WebP lands at 0.5-1.3 MB; the mp4 is 219 KB at
+  30 fps and sharper than both. The README embeds it with `<video>` at an absolute
+  `raw.githubusercontent.com/.../main/...` URL: GitHub rewrites relative `img` src but
+  NOT relative `video` src, so a relative path 404s on the repo page. ffmpeg is the
+  encoder; capture.mjs keeps the PNG frames and prints the exact command when ffmpeg is
+  absent.
+- **New capture traps, all folded into capture.mjs and the recipe section below.** Drive
+  the loop by hand off a synthetic clock (never trust wall time between screenshots);
+  a dt of 0 re-renders without moving anything; the mid-screen hero label and the
+  altimeter pill draw even at HUD off, so seed `currentLandmarkName`/`currentLandmarkAlt`
+  and hide the pill; seed `landmarksPassed`/`milestonesPassed` or the first stepped frame
+  fires a shake plus a 16-particle burst into the shot; keep `_couplingParticleTimer`
+  high or a dt-0 frame spawns one coupling burst; the cloud deck's lower edge reaches the
+  climber around 550-600 m, so a low clip must end before it.
+- **The smoke flake showed once more.** One gate run out of three this shift failed one
+  of the FIRST THREE checks (boot overlay, air gap default, or air gap slider max; the
+  FAIL line was cut by `tail` before it was read) right after the capture encodes had the
+  machine busy. Two standalone re-runs passed 26/26. The advice below stands: tee the log
+  when chasing a one-off.
 
 - **The score is on the default screen now.** `minimalScoreLine` (pure helper, the
   four-edit ritual, count 47 -> 48) gives the minimal compact plate a THIRD line, gated
@@ -45,11 +86,6 @@ extension).
   and by a real 390 px boot shot. The pace branch also needs a POSITIVE elapsed, not
   just a started clock: on the liftoff frame the climb clock is 0 s old and a projection
   over zero time is 0 kg/h, which would print a score of zero as though it were one.
-- **The committed screenshots predate the film band.** `screenshots/hero.png` and
-  `screenshots/climb.png` still show the film as a thin line and the climber's hands as
-  closed fists, which is the pre-shift-10 renderer. `hero.png` is also the social card
-  (`deploy.yml` copies it to `_site/social.png`), so the picture the world sees is two
-  shifts behind the drawing. Re-shoot both as part of the moving-picture task below.
 - **`dev/docs/DEVELOPERS.md` and `dev/docs/CHANGELOG.md` were several shifts stale** and
   were refreshed this shift: the gate numbers (119 unit tests, 48 pure helpers, 26 smoke
   checks, 353 KB), the pure-helper ritual (four edits, and the arrow-inside-a-helper
@@ -168,20 +204,13 @@ extension).
 
 ## Priorities for this shift
 
-Last shift's priority 1, "does the score survive", is **settled**: it survives, it is
-throughput, it is on the minimal HUD, and the `.v3` keys were not re-based. The record is
-in "What last shift changed" above and in DEVELOPERS.md's scoring section. Do not reopen
-it, and do not fold the score back behind `H`.
+Last shift's priority 1, the moving picture, is **done**: `dev/tools/capture.mjs` re-runs
+all three captures, the stills show the current renderer, and `screenshots/climb.mp4` is
+in the README. The shift before settled the score: it survives, it is throughput, it is
+on the minimal HUD, and the `.v3` keys were not re-based. Do not reopen either, and do
+not fold the score back behind `H`.
 
-### 1. A moving picture
-
-An animated GIF or a short clip of a real climb would beat any still. Nothing in the repo
-does video capture yet. `screenshots/hero.png` is also the social card (`deploy.yml` copies
-it to `_site/social.png`), so whatever becomes the hero must read at thumbnail size. Both
-committed stills are also two shifts out of date (thin-line film, closed fists), so
-re-shooting them is the floor even if the clip does not happen.
-
-### 2. M4 physics, when the presentation work is done
+### 1. M4 physics, now that the presentation work is done
 
 Taper, wave drag, resonance and multi-climber, in the order the deck presents them. Each
 needs its own balance-harness verification before it ships. The specs live in section 8 of
@@ -189,7 +218,7 @@ needs its own balance-harness verification before it ships. The specs live in se
 sections 4-9 are the milestone authority). That file's STATUS block was refreshed this
 shift, but **this file is the committed handoff and wins wherever they disagree**.
 
-### 3. Two contained hygiene tasks nobody has claimed
+### 2. Two contained hygiene tasks nobody has claimed
 
 - **The em-dash ban is not enforced in the shipped copy.** Counted this shift: 41 quoted
   strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
@@ -205,16 +234,26 @@ shift, but **this file is the committed handoff and wins wherever they disagree*
 
 ## Screenshot recipe, already paid for
 
-`?clean` plus these, and do not rediscover the traps:
+The tool is `dev/tools/capture.mjs` (stills, clip, or both; skips cleanly when
+playwright-core, a Chromium binary or ffmpeg is absent). Its header comment carries the
+whole recipe; this section is the short version. `?clean` plus these, and do not
+rediscover the traps:
 
 - Headless Chromium renders **no WebGL sky** unless you launch with
   `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`.
 - `playwright-core` in `dev/tests/smoke/node_modules` expects a browser build it does not
   have, so `chromium.launch()` fails with "Executable doesn't exist". Pass `executablePath`
   from `~/Library/Caches/ms-playwright/chromium_headless_shell-*/…/chrome-headless-shell`,
-  exactly as `smoke.mjs`'s own `discoverChromium()` does. Do not run `npx playwright install`
+  exactly as `smoke.mjs`'s own `discoverChromium()` does (capture.mjs's copy also matches
+  `chrome-headless-shell` by name and prefers it). Do not run `npx playwright install`
   to fix it.
 - `paused = true` draws a **wash-out veil**. Never pause for a shot.
+- **Drive the loop by hand.** Cancel the RAF chain once, then call `update(t)` off a
+  synthetic clock and cancel the chain it re-arms after every call. Frames then sit
+  exactly 1/30 s of SIM time apart no matter how slow each screenshot round-trip is, and
+  a dt of 0 re-renders without moving anything (the camera follow is a no-op at dt 0).
+  Never read wall-clock time between screenshots: the spacing jitters and the clip
+  stutters.
 - Landmark sprites have **parallax**, so aligning the climber to a sprite altitude by
   arithmetic does not work. Read the sprite's `getBoundingClientRect` and walk the altitude
   until it sits where you want, with a window scaled to the landmark's own altitude.
@@ -222,11 +261,24 @@ shift, but **this file is the committed handoff and wins wherever they disagree*
   shot**. A 700 ms settle carries the sprite back off the frame.
 - Teleporting fires beat cards, the act banner and suit toasts, and leaves the run clock at a
   couple of seconds, which makes the HUD print absurd numbers. Seed `_beatsFired`,
-  `_descendersFired`, `_actBreakFired`, `_runTimeS` and `_climbStartS` first.
+  `_descendersFired`, `_actBreakFired`, `_runTimeS` and `_climbStartS` first. Seed
+  `landmarksPassed` and `milestonesPassed` too, or the first stepped frame fires a camera
+  shake plus a 16-particle burst into the shot, and keep `_couplingParticleTimer` high or
+  a dt-0 frame spawns one coupling burst.
+- **The altimeter pill and the mid-screen hero label draw even at HUD off** (renderEffects
+  is world, not instrument). Seed `currentLandmarkName` with the altimeter name at the
+  shot altitude plus `currentLandmarkAlt = 0`, and remove the pill's `visible` class, or a
+  stale "Sea Level - 0 m" pill and a half-faded "Treetops" ride the capture.
 - **Low altitude is the friendly picture.** Below 8 km the climber wears no suit, so it is
-  the plain monkey against blue sky. The current hero is the hot air balloon at 230 m and the
-  second shot is the bald eagle at 340 m. Everest is white on white; the instrument-heavy
-  frames at 20 km are what made the old captures look like homework.
+  the plain monkey against blue sky. The hero is the hot air balloon (sprite at 220 m,
+  climber placed at 256 m) and the second shot is the bald eagle (355 m, climber at
+  360 m). Everest is white on white; the instrument-heavy frames at 20 km are what made
+  the old captures look like homework. For a clip, stay under the cloud deck: its lower
+  edge reaches the climber around 550-600 m.
+- **The clip format was measured.** A 640x400 15 fps GIF of the real frames is 8.8 MB
+  (the full-screen noise texture dithers differently every frame), animated WebP is
+  0.5-1.3 MB, and h264 mp4 is 219 KB at 30 fps and sharper than both. ffmpeg encodes it;
+  without ffmpeg the frames are kept and the exact command is printed.
 
 ## Rules that will bite you if you ignore them
 

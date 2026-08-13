@@ -109,6 +109,23 @@ node dev/tests/smoke/smoke.mjs
 It reads live state via `window.__smokeGame`, a handle the game exposes **only** under
 `?debug`/`#debug` (inert in normal play). See [`dev/tests/smoke/README.md`](../tests/smoke/README.md).
 
+### Capture tool (README stills + clip)
+
+[`dev/tools/capture.mjs`](../tools/capture.mjs) re-shoots the committed captures:
+`screenshots/hero.png` and `screenshots/climb.png` (clean HUD) plus
+`screenshots/climb.mp4` (a 7.5 s real climb at the minimal HUD). Same zero-dependency
+contract as the smoke test: `playwright-core` and the Chromium binary are resolved at
+runtime (it also finds the smoke suite's local `node_modules`), missing pieces skip
+cleanly, and the gate never runs it. ffmpeg encodes the clip; without it the PNG frames
+are kept and the exact encode command is printed.
+
+```sh
+node dev/tools/capture.mjs          # stills + clip; or: stills | clip
+```
+
+The capture recipe (synthetic-clock stepping, the seeds, the landmark-rect walker) lives
+in the tool's header comment and in [`NEXT-SHIFT.md`](NEXT-SHIFT.md).
+
 ### Local gate
 
 For a single command that reproduces the full CI gate, use `dev/tools/check.sh`:
@@ -342,8 +359,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   entry, and `initGame`'s `sliderDefaults` literal.
 - **A render change is not verified until you have shot the frame.** `check.sh` cannot see
   "invisible": it has caught a correct overlay that no player could make out, twice. The
-  capture recipe, including the headless WebGL flags and the parallax and teleport traps,
-  is in [`NEXT-SHIFT.md`](NEXT-SHIFT.md).
+  capture tool is [`dev/tools/capture.mjs`](../tools/capture.mjs); the recipe behind it,
+  including the headless WebGL flags and the parallax and teleport traps, is in
+  [`NEXT-SHIFT.md`](NEXT-SHIFT.md).
 
 See [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) for PR process and
 [`CHANGELOG.md`](CHANGELOG.md) for release history.
