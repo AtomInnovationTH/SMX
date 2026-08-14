@@ -17,7 +17,8 @@ the README caught up to the last three shifts, and the v1.0 roadmap marked histo
 - **Physics**: M1, M2, M3.1-M3.8 and all five M4 items (taper p.9, wave drag p.7,
   standing-wave resonance p.10, multi-climber power sharing p.14, mode conversion
   p.12/13) are complete. The only deferred simulation item left is the hot side of
-  thermal (p.5), marked absent in-game rather than approximated. Do not fake it. The
+  thermal (the deck's only hook is p.7's "possibly by drag heating"; see priority 1),
+  absent and not yet marked in-game. Do not fake it. The
   p.14 wave-boundary solve (partial reflections, the retune interplay between riders)
   stays marked absent even though the budget-level sharing shipped: it is not on the
   deferred list, it is the paper's own unsolved problem. Mode conversion shipped the
@@ -44,8 +45,8 @@ the README caught up to the last three shifts, and the v1.0 roadmap marked histo
     "missing rather than faked" (the table and the verbatim question ship; only the
     mechanism is absent, and the README now says so), omitted the 42 km beat from the
     callouts line, still said "Multi-climber support (p.14) is next" (it shipped two
-    shifts earlier; next is the hot side of thermal, p.5), and claimed 119 tests
-    (138 now). The "What's real" list gained the p.12/13 mode-table
+    shifts earlier; next is the hot side of thermal, the p.7 drag-heating note), and
+    claimed 119 tests (138 now). The "What's real" list gained the p.12/13 mode-table
     readout line, matching how the taper/drag/resonance/sharing shifts each added
     theirs.
   - **`dev/docs/v1.0-roadmap.md` is marked historical at the top** (old priority 2,
@@ -53,6 +54,16 @@ the README caught up to the last three shifts, and the v1.0 roadmap marked histo
     as the current plan; the banner points readers at this file, DEVELOPERS.md and
     the CHANGELOG. The em-dash backlog sweep (old priority 2, first bullet) is NOT
     done and stays queued below.
+  - **Priority 1's spec quoted a paper passage that does not exist.** The thermal
+    entry cited an IR-budget account of "temperature cycle is more difficult (p.5)";
+    the deck has no such passage (p.5 is the concept figures) and the only thermal
+    hook is p.7's "possibly by drag heating". Verified against the local PDF text.
+    The priority-1 entry now carries the verified section-0 material (the p.7 hook,
+    the FG40 operating-temp ceiling from the plan's backlog, the convection loss
+    with altitude, and what is already in, cold-only), and the "Where things stand"
+    bullet no longer claims thermal is marked absent in-game (it is not: the
+    Unsolved panel has no thermal bullet). The README's next-up line was re-pointed
+    at p.7 to match.
 - **The review found no code defect to fix.** The mode-conversion shift's own claims
   were re-verified against the source: `waveModeCell` is the single source the
   readout, the 42 km card and the Unsolved bullet all quote; the card fires at
@@ -534,11 +545,27 @@ paint). The taper, wave-drag, resonance and power-sharing shifts before it shipp
 same way, and the review-and-docs pass after it changed no behaviour either.
 Do not reopen any of them.
 
-### 1. The hot side of thermal (paper p.5)
+### 1. The hot side of thermal (paper p.7 hook, FG40 hardware ceiling)
 
-The ISA temperature readout and the suit are in; the paper's IR-budget account of
-"temperature cycle is more difficult" is untouched and is a shift's work on its own.
-It is the last deferred simulation item.
+Section 0 was done in the review-and-docs pass so nobody hunts for a passage that is
+not there: the deck's ONLY thermal hook is p.7's "longitudinal will be limited by
+stress limit, wave generator strength-to-weight ratio and possibly by drag heating".
+There is no IR-budget account and no "temperature cycle" passage anywhere in the deck
+(p.5 is the concept figures only: Ratchet Climber, the two launchers, the Descender);
+an earlier version of this entry quoted one, and that was a paraphrase, not a citation.
+The honest material to build from: (a) p.7's drag-heating maybe, tied to the shipped
+p.7 wave-drag law (`waveDragColumnPowerW` already computes the dissipated watts it
+would come from); (b) the real hardware ceiling, the FG40's published operating-temp
+limit (the plan's backlog line gives 73 °C: datasheet, not paper, verify against the
+Zubax sheet before pinning it); (c) the loss of convection with altitude, off the same
+ISA table `densityRatio` reads (cold convects away low down, nothing convects aloft).
+What is already in, and cold-only: `temperatureAtAltitude` (ISA), `thermalSuitIndex`
+plus the suit overlays, `coldGripFactor` (the under-dressed shiver penalty), the
+thermometer readout. The shift's work: decide the honest hot-side model (stack
+self-heating from the shipped `4·N·E_switch·f` switching watts and the extraction
+losses, against radiative-only cooling aloft, with the drag-heating maybe on the film),
+or mark it absent with the same discipline as mode conversion if the numbers cannot be
+pinned. It is the last deferred simulation item.
 
 ### 2. One contained hygiene task nobody has claimed
 

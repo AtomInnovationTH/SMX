@@ -171,6 +171,6 @@ the author's copy.
 
 [MIT](LICENSE), code and art alike.
 
-Still in progress, so the live build moves around. The hot side of thermal (paper p.5), the last
-deferred simulation item, is next.
+Still in progress, so the live build moves around. The hot side of thermal (paper p.7's
+drag-heating note), the last deferred simulation item, is next.
 Issues and pull requests welcome: [CONTRIBUTING.md](.github/CONTRIBUTING.md).
