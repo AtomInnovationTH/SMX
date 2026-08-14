@@ -4746,14 +4746,17 @@
                 }
             }
 
-            // M3.4: the event schedule (§7) — one supervisory beat at a time, each
+            // M3.4: the event schedule (§7): one supervisory beat at a time, each
             // teaching one page of the paper, none invented. Crossings reuse
             // upgradeCrossed (frame-size independent, once per run via the fired set).
-            // The M3-class beats ship here, and M4's beats are landing one per shift:
-            // taper (p.9) at 1 km and wave drag (p.7) at 2 km are live; standing-wave
-            // resonance (p.10) stays deferred and deliberately not faked. The 40 km
-            // vacuum-threshold beat is M3.3's act break (already live); 100 km
-            // delivery + GEO context is the Kármán game-over panel (already live).
+            // Every scheduled beat is now live: taper (p.9) at 1 km, wave drag (p.7)
+            // at 2 km, the transverse reveal (p.7) at 12 km, the stress-budget lever
+            // at 20 km, the mode-conversion question (p.12/13, verbatim, unanswered)
+            // at 42 km, resonance (p.10) offered at 45 km off-mode and retuning at
+            // 50 km on-mode, gigacycle fatigue (p.11) at 70 km on a hot carrier, and
+            // the share-or-refuse decision (p.14) at 85 km. The 40 km
+            // vacuum-threshold beat is M3.3's act break; 100 km delivery + GEO
+            // context is the Kármán game-over panel.
             _updateClimbBeats(dt) {
                 const prev = this._lastFrameAltitude, alt = this.monkey.altitude;
                 const fired = this._beatsFired;

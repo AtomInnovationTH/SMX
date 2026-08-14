@@ -1,9 +1,9 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that shipped M4 mode
-conversion (paper p.12/13: the paper's mode table made legible in game, the conversion
-mechanism itself marked absent rather than invented).
+that have already cost time. Updated at the end of the review-and-docs pass that followed
+the M4 mode-conversion shift: no physics, no mechanics, one stale code comment corrected,
+the README caught up to the last three shifts, and the v1.0 roadmap marked historical.
 
 ## Where things stand
 
@@ -30,6 +30,36 @@ mechanism itself marked absent rather than invented).
   cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **A review-and-docs pass only; no physics, no mechanics, no new strings.** The gate
+  went in green and came out green (138 unit, 29 smoke, 98 = 98, 413 KB), the balance
+  snapshot was NOT regenerated, and the stills did not move. What it caught and fixed:
+  - **One stale code comment.** `_updateClimbBeats`'s header still said resonance
+    (p.10) "stays deferred and deliberately not faked" and that M4's beats were
+    "landing one per shift". Every scheduled beat is live now, so the comment now
+    lists the full live schedule (1, 2, 12, 20, 42, 45/50, 70, 85 km) instead.
+    Nothing else in the source was stale: the Unsolved panel, both mode/share slider
+    hints and the beat-card bodies already describe the shipped state correctly.
+  - **The README was three shifts stale.** It listed mode conversion as plain
+    "missing rather than faked" (the table and the verbatim question ship; only the
+    mechanism is absent, and the README now says so), omitted the 42 km beat from the
+    callouts line, still said "Multi-climber support (p.14) is next" (it shipped two
+    shifts earlier; next is the hot side of thermal, p.5), and claimed 119 tests
+    (138 now). The "What's real" list gained the p.12/13 mode-table
+    readout line, matching how the taper/drag/resonance/sharing shifts each added
+    theirs.
+  - **`dev/docs/v1.0-roadmap.md` is marked historical at the top** (old priority 2,
+    second bullet, done). It predates the slip-coupling rework and presented itself
+    as the current plan; the banner points readers at this file, DEVELOPERS.md and
+    the CHANGELOG. The em-dash backlog sweep (old priority 2, first bullet) is NOT
+    done and stays queued below.
+- **The review found no code defect to fix.** The mode-conversion shift's own claims
+  were re-verified against the source: `waveModeCell` is the single source the
+  readout, the 42 km card and the Unsolved bullet all quote; the card fires at
+  42000 via `upgradeCrossed`, 2 km past the act break; no transverse cell is
+  reachable from any input.
+
+## What the shift before changed (M4 mode conversion, paper p.12/13)
 
 - **M4 mode conversion (paper p.12/13) is live as a LABELLED LAYOUT, and the 42 km beat
   asks the paper's question verbatim.** The section-0 verdict, decided before any code:
@@ -76,7 +106,7 @@ mechanism itself marked absent rather than invented).
   readout hint, the Unsolved bullet) and the new repo-facing comments and docs were
   written clean; the backlog sweep stays its own task (priority 2 below).
 
-## What the shift before changed (M4 multi-climber power sharing, paper p.14)
+### From earlier shifts (M4 multi-climber power sharing, paper p.14)
 
 - **M4 multi-climber power sharing (paper p.14) is live, and the 85 km beat is now a
   share-or-refuse decision.** Three new pure helpers (`waveTransportedPowerW`,
@@ -492,16 +522,17 @@ mechanism itself marked absent rather than invented).
 
 ## Priorities for this shift
 
-Last shift's priority 1 is **done**: mode conversion (p.12/13) shipped as the labelled
-layout the paper supports and nothing more (the section-0 verdict: the paper offers a
-table and a question, no mechanism, so never invent one). `waveModeCell` is the single
-source for the live cell (longitudinal travelling; longitudinal standing under the
+The mode-conversion shift's priority 1 is **done**: mode conversion (p.12/13) shipped as
+the labelled layout the paper supports and nothing more (the section-0 verdict: the paper
+offers a table and a question, no mechanism, so never invent one). `waveModeCell` is the
+single source for the live cell (longitudinal travelling; longitudinal standing under the
 resonance lever), a Ground-station readout names it, the 42 km beat asks the paper's
 question verbatim, and the transverse cells stay marked absent (45 km/h, 20 kW, p.7).
 No physics, so the balance harness and the default trace are untouched (snapshot not
 regenerated) and the stills did not move (staged 42 km frames verified the card's
 paint). The taper, wave-drag, resonance and power-sharing shifts before it shipped the
-same way. Do not reopen any of them.
+same way, and the review-and-docs pass after it changed no behaviour either.
+Do not reopen any of them.
 
 ### 1. The hot side of thermal (paper p.5)
 
@@ -509,17 +540,15 @@ The ISA temperature readout and the suit are in; the paper's IR-budget account o
 "temperature cycle is more difficult" is untouched and is a shift's work on its own.
 It is the last deferred simulation item.
 
-### 2. Two contained hygiene tasks nobody has claimed
+### 2. One contained hygiene task nobody has claimed
 
 - **The em-dash ban is not enforced in the shipped copy.** Counted earlier: 41 quoted
   strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
   plus 6 `&mdash;` entities in the settings markup. New prose has been clean for several
   shifts, but the backlog still ships to players. The sweep is mechanical and needs a
   capture pass after it, because several of those strings are width-tuned to a plate.
-- **`dev/docs/v1.0-roadmap.md` still presents itself as the current plan.** It is pre-M1
-  history with superseded physics (it predates slip coupling entirely), and it even
-  contains an item asking for exactly this treatment of other files. Mark it historical at
-  the top or retire it; a reader who finds it before this file gets the wrong model.
+  (The second old hygiene task, marking `dev/docs/v1.0-roadmap.md` historical, was done
+  in the review-and-docs pass.)
 
 ### Backlog, any order
 

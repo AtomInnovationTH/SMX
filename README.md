@@ -82,6 +82,9 @@ Exact, because you make decisions with them:
 * multi-climber power sharing (the paper's p.14 open question, playable at the budget level),
   off by default: past the 85 km request a second rider boards your wave, the wave's transported
   power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw
+* the paper's p.12/13 mode table as a live readout: you fly the longitudinal travelling cell,
+  the resonance lever moves you to longitudinal standing and back, and at 42 km a beat card asks
+  the paper's own question ("Consider mode conversion above the atmosphere?") verbatim
 * switching power `4·N·E_switch·f`, extraction `F̄ · v`, and US Standard Atmosphere density
 
 The impedance and power table on the paper's slide 6 reproduces to 2-3 significant figures, and
@@ -96,8 +99,10 @@ retune (one cavity round trip, not a boundary-value solve), and the second rider
 in formation cruise (drawing weight x climb speed), not a solved body.
 
 Missing rather than faked: the wave physics between riders (partial reflections, paper p.3, and
-the standing-pattern perturbation that makes retuning with two aboard tricky, p.10), mode
-conversion, and heat.
+the standing-pattern perturbation that makes retuning with two aboard tricky, p.10), the
+mode-conversion mechanism (the paper offers a table and a question but no converter, so the game
+ships the labelled table and the verbatim question, never a converter), and heat (the hot side of
+p.5's thermal budget, the last deferred simulation item).
 
 Estimated rather than published, and flagged in the code: per-pair traction, gap flux, structure
 mass, battery size.
@@ -129,16 +134,17 @@ Presets, each checked against the simulation before shipping: paper baseline (6:
 speed (4:53 at 1447 km/h), max payload (200 kg in 8:15).
 
 Short callouts along the way each explain one page of the paper: down low a transverse wave would
-cap out at 45 km/h, by 20 km the stress budget is your ceiling, at 40 km the air quits, descending
-climbers pass at 30 and 60 km, and at 85 km a second climber asks for power, which the paper leaves
-unsolved.
+cap out at 45 km/h, by 20 km the stress budget is your ceiling, at 40 km the air quits, at 42 km
+the paper's mode-conversion question gets asked verbatim, descending climbers pass at 30 and
+60 km, and at 85 km a second climber asks to share your wave, a share-or-refuse decision the
+paper leaves unsolved at the wave level.
 
 ---
 
 ## Run and build
 
 ```bash
-node --test dev/tests/*.test.mjs   # 119 tests, no dependencies
+node --test dev/tests/*.test.mjs   # 138 tests, no dependencies
 bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```
@@ -165,5 +171,6 @@ the author's copy.
 
 [MIT](LICENSE), code and art alike.
 
-Still in progress, so the live build moves around. Multi-climber support (p.14) is next.
+Still in progress, so the live build moves around. The hot side of thermal (paper p.5), the last
+deferred simulation item, is next.
 Issues and pull requests welcome: [CONTRIBUTING.md](.github/CONTRIBUTING.md).
