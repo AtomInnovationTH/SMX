@@ -12,9 +12,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
-M4's deferred physics has started (taper, wave drag, resonance, multi-climber sharing).
+M4's deferred physics has started (taper, wave drag, resonance, multi-climber sharing,
+mode conversion).
 
 #### Added (M4 physics, August 2026)
+
+- **Mode conversion (paper p.12/13), the fifth M4 item: the mode table made
+  legible, the conversion mechanism marked absent.** The paper sorts ribbon
+  waves into longitudinal vs transverse, each travelling or standing, compares
+  the two columns on p.12 and closes on a question: "Consider mode conversion
+  above the atmosphere?" (p.14 repeats the maybe). It offers no converter, no
+  coupling length and no efficiency, so the section-0 verdict is that there is
+  nothing to be exact about and nothing honest to build: what ships is the
+  labelled layout, never an invented mechanic. A new pure helper,
+  `waveModeCell` (count 60 -> 61), is the single source for the cell the run
+  is in: longitudinal travelling by default, longitudinal standing under the
+  resonance toggle (the one mode change the paper supports, p.10). A new
+  Ground-station readout (Wave mode) names the live cell, and its hint marks
+  the transverse cells absent (dead at 45 km/h in air, p.7's drag row; a
+  question only above the atmosphere, p.12). A new beat card at 42 km asks the
+  paper's question verbatim, quotes the live cell, and points at the resonance
+  lever as the mode change that exists; it fires just past the act break so it
+  never shares the screen with the mid-screen banner. The Unsolved panel gains
+  the mode-conversion bullet. No slider, no mechanic: the balance harness is
+  untouched (updateContinuous is unchanged, so there is nothing new to
+  mirror), the snapshot was NOT regenerated, and the slide-6, p.7 drag-row,
+  p.10 resonance and p.14 power-sharing fixtures all keep passing. Smoke check
+  12 now pins the 42 km card's firing and body, and check 13b pins the mode
+  readout flipping travelling/standing with the resonance toggle. The card's
+  paint was verified on staged 42 km frames (title at minimal, full body at
+  full HUD); the committed stills did not move (the card fires at 42 km, the
+  stills sit under 400 m).
 
 - **Multi-climber power sharing (paper p.14), the fourth M4 item.** p.14's own open
   question, "How to get power to more than one climber?", is now playable at the budget

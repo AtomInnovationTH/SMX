@@ -1,10 +1,9 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that shipped M4 multi-climber
-power sharing (paper p.14: the wave's transported power as a shared budget, each rider's
-skim capped at the budget minus the other's draw, the 85 km beat made the share-or-refuse
-decision).
+that have already cost time. Updated at the end of the shift that shipped M4 mode
+conversion (paper p.12/13: the paper's mode table made legible in game, the conversion
+mechanism itself marked absent rather than invented).
 
 ## Where things stand
 
@@ -12,21 +11,72 @@ decision).
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 137 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 407 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 138 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 413 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
-- **Physics**: M1, M2, M3.1-M3.8 and M4's first four items (taper p.9, wave drag p.7,
-  standing-wave resonance p.10, multi-climber power sharing p.14) are complete. The
-  deferred list is mode conversion (p.12) and the hot side of thermal. Both are marked
-  absent in-game rather than approximated. Do not fake them. The p.14 wave-boundary solve
-  (partial reflections, the retune interplay between riders) stays marked absent even
-  though the budget-level sharing shipped: it is not on the deferred list, it is the
-  paper's own unsolved problem.
-- **Default climb**: unchanged by the sharing shift (the toggle defaults to refuse) and
-  by the resonance shift before it (off by default): 100 km in 350.7 s, mean 1027 km/h,
-  cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
+- **Physics**: M1, M2, M3.1-M3.8 and all five M4 items (taper p.9, wave drag p.7,
+  standing-wave resonance p.10, multi-climber power sharing p.14, mode conversion
+  p.12/13) are complete. The only deferred simulation item left is the hot side of
+  thermal (p.5), marked absent in-game rather than approximated. Do not fake it. The
+  p.14 wave-boundary solve (partial reflections, the retune interplay between riders)
+  stays marked absent even though the budget-level sharing shipped: it is not on the
+  deferred list, it is the paper's own unsolved problem. Mode conversion shipped the
+  same discipline: the paper offers a table and a question, so the game ships the
+  labelled cell and the verbatim question, never a converter.
+- **Default climb**: unchanged by the mode-conversion shift (no physics at all: one
+  helper, one readout, one card), by the sharing shift (the toggle defaults to refuse)
+  and by the resonance shift before it (off by default): 100 km in 350.7 s, mean 1027
+  km/h, cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of
+  cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **M4 mode conversion (paper p.12/13) is live as a LABELLED LAYOUT, and the 42 km beat
+  asks the paper's question verbatim.** The section-0 verdict, decided before any code:
+  the paper's mode table (longitudinal vs transverse, each travelling or standing,
+  p.12) closes on "Consider mode conversion above the atmosphere?" and p.14 repeats the
+  maybe, but no converter, coupling length or efficiency exists anywhere, so there is
+  nothing for the player to reason with and nothing to be exact about: the honest shape
+  is summarised-and-labelled, with the mechanism marked absent. What shipped: ONE new
+  pure helper (`waveModeCell`, count 60 -> 61) as the single source for the cell the
+  run is in (longitudinal travelling by default; longitudinal standing while resonant:
+  the resonance toggle is the one mode change the paper supports); ONE new readout row
+  in the Ground-station group (Wave mode; NO slider, because there is no lever to add:
+  the resonance toggle IS it) whose hint marks the transverse cells absent with p.7's
+  own numbers; ONE new beat card at 42 km quoting the question, the live cell and the
+  lever; and the Unsolved panel's new mode-conversion bullet. The bordering pieces
+  already said the rest: the 12 km reveal has the transverse cap (45 km/h, 20 kW)
+  against the live longitudinal bill, and the resonance shift put the standing cell on
+  a toggle.
+- **No physics changed, so the balance harness is untouched and the default trace did
+  NOT move (snapshot not regenerated).** `updateContinuous` is byte-identical: there is
+  no new mechanic to mirror, so the mirror rule has nothing to attach to, and the
+  new-mechanic verification rule is vacuous BECAUSE there is no mechanic; the commit
+  message says so. The slide-6, p.7 drag-row, p.10 resonance and p.14 power-sharing
+  fixtures all keep passing. The pure test for `waveModeCell` pins the two live cells
+  and that no input can produce a transverse one.
+- **The card fires at 42 km, not 40, on purpose.** The 40 km crossing already owns the
+  mid-screen act-break banner (4.5 s), and the card plate (y = 130, 107 px tall with
+  five body lines) would overlap the banner plate below an ~800 px viewport. 2 km
+  later the banner is always gone in real play (even at 400 m/s it ends by 41.8 km),
+  and the sequencing reads better: the vacuum banner lands, then the card asks the
+  question the vacuum raises. The paper's phrase is "above the atmosphere"; 42 km is
+  exactly that.
+- **Smoke: check 12 pins the new beat (fired flag, title, a `no converter` body
+  fragment) inside its existing 69.5 km teleport; check 13b pins the mode readout
+  flipping travelling/standing as the resonance slider drives both ways.** No new
+  checks (29 total): the beat rides the schedule check, the readout rides the
+  resonance check.
+- **The card's paint was verified on staged 42 km frames** (title only at minimal;
+  title plus five body lines at full; the plate fits at 1280 and stays clear of the
+  badge, the milestone burst and the stack plate). The committed stills did not move:
+  the card fires at 42 km and the stills sit under 400 m; `capture.mjs` seeds the new
+  beat id (`mode-conversion`) like every other.
+- **Em dashes in new prose: none.** The new player-facing strings (the beat card, the
+  readout hint, the Unsolved bullet) and the new repo-facing comments and docs were
+  written clean; the backlog sweep stays its own task (priority 2 below).
+
+## What the shift before changed (M4 multi-climber power sharing, paper p.14)
 
 - **M4 multi-climber power sharing (paper p.14) is live, and the 85 km beat is now a
   share-or-refuse decision.** Three new pure helpers (`waveTransportedPowerW`,
@@ -94,7 +144,7 @@ decision).
   is scarce" line. The live card was verified rendered (staged 85.3 km frame, title at
   minimal, rider aboard below).
 
-## What the shift before changed, so you do not undo it
+### From earlier shifts (M4 standing-wave resonance, paper p.10)
 
 - **M4 standing-wave resonance (paper p.10) is live, and it unlocks the marked 40-70 km
   retune beat.** Four new pure helpers (`resonanceModeAt`, `resonanceBoostFactor`,
@@ -168,7 +218,7 @@ decision).
   cavity rings one mode), and the Unsolved panel's "retuning makes sharing tricky"
   line now references a mechanic the player has actually felt.
 
-### From the shift before (M4 wave drag p.7, plus captures and the clip)
+### From earlier shifts (M4 wave drag p.7, plus captures and the clip)
 
 - **M4 wave drag (paper p.7) is live, and it unlocks the 2-12 km beat.** Three new pure
   helpers (`densityColumnKgM2`, `waveDragSpeedFactorAt`, `waveDragColumnPowerW`; count
@@ -442,32 +492,24 @@ decision).
 
 ## Priorities for this shift
 
-Last shift's priority 1 is **done**: multi-climber power sharing (p.14) shipped with its
-own balance-harness verification (the plain shared run is the unshared run frame for
-frame, the resonant shared cruise halves the solo supply-capped one with the skim pinned
-at supply/2, the 85 km crossing frame-identical between solo and shared), the 85 km
-beat is the share-or-refuse decision with live numbers either way, the default trace did
-NOT move (the toggle defaults to refuse, the snapshot deliberately not regenerated), and
-the stills did not move (re-shot, confirmed, restored). The resonance, taper and
-wave-drag shifts before it shipped the same way. Do not reopen any of them.
+Last shift's priority 1 is **done**: mode conversion (p.12/13) shipped as the labelled
+layout the paper supports and nothing more (the section-0 verdict: the paper offers a
+table and a question, no mechanism, so never invent one). `waveModeCell` is the single
+source for the live cell (longitudinal travelling; longitudinal standing under the
+resonance lever), a Ground-station readout names it, the 42 km beat asks the paper's
+question verbatim, and the transverse cells stay marked absent (45 km/h, 20 kW, p.7).
+No physics, so the balance harness and the default trace are untouched (snapshot not
+regenerated) and the stills did not move (staged 42 km frames verified the card's
+paint). The taper, wave-drag, resonance and power-sharing shifts before it shipped the
+same way. Do not reopen any of them.
 
-### 1. M4 physics, next item only
-
-**Mode conversion (paper p.12/13).** The only deferred simulation item left. The
-paper's table has a mode column: longitudinal vs transverse, and inside each, travelling
-vs standing. The game runs the longitudinal travelling cell now; the resonance shift
-landed standing. Mode conversion between them (the p.12/13 story) is unsolved by the
-paper except as a layout, and its honest shape is not yet decided: section 8 of
-`.kilo/plans/1785893790322-fg40-film-coupling-fidelity-plan.md` (gitignored, local only;
-sections 4-9 are the milestone authority, and this file wins wherever they disagree)
-closes on it. Decide section 0's verdict on that page before choosing a playable shape.
-
-### 2. Then the hot side of thermal (paper p.5)
+### 1. The hot side of thermal (paper p.5)
 
 The ISA temperature readout and the suit are in; the paper's IR-budget account of
 "temperature cycle is more difficult" is untouched and is a shift's work on its own.
+It is the last deferred simulation item.
 
-### 3. Two contained hygiene tasks nobody has claimed
+### 2. Two contained hygiene tasks nobody has claimed
 
 - **The em-dash ban is not enforced in the shipped copy.** Counted earlier: 41 quoted
   strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
@@ -527,6 +569,18 @@ rediscover the traps:
   is world, not instrument). Seed `currentLandmarkName` with the altimeter name at the
   shot altitude plus `currentLandmarkAlt = 0`, and remove the pill's `visible` class, or a
   stale "Sea Level - 0 m" pill and a half-faded "Treetops" ride the capture.
+- **A staged page may never have run a real boot frame.** The wait handle
+  (`__smokeGame`) is exposed in the constructor, before the first update. Freeze the RAF
+  there and the cloud imgs keep their DEFAULT visibility (the cloud update writes
+  `display` only on a visibility CHANGE, and `_wasVisible` starts falsy), so a
+  high-altitude staged frame shows every cloud at once, stacked over the canvas (the
+  clouds container is z-index 11; the game canvas is 10). Where the 15 km fade window
+  would hide them all, hide them by hand to match the live frame
+  (`g.cloudSystem.clouds.forEach((c) => c.element.style.display = 'none')`).
+- **The shared toast resets its text mid-fade.** When its hide-timer fires, the element
+  hides AND its text resets to "Press R again to restart", so a shot taken a second
+  after any toast catches the restart message fading out. Hide `#restart-toast` for
+  staged shots.
 - **Low altitude is the friendly picture.** Below 8 km the climber wears no suit, so it is
   the plain monkey against blue sky. The hero is the hot air balloon (sprite at 220 m,
   climber placed at 256 m) and the second shot is the bald eagle (355 m, climber at

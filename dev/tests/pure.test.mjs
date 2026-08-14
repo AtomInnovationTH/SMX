@@ -53,6 +53,7 @@ const {
   waveTransportedPowerW,
   waveSharedBudgetW,
   powerShareCapW,
+  waveModeCell,
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
@@ -108,7 +109,7 @@ test('extraction exposes the core pure symbols', () => {
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW,
     resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
-    waveTransportedPowerW, waveSharedBudgetW, powerShareCapW,
+    waveTransportedPowerW, waveSharedBudgetW, powerShareCapW, waveModeCell,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
@@ -136,11 +137,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 60 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 61 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 60);
+  assert.equal(declaredPureHelpers().length, 61);
 });
 
 // ---------------------------------------------------------------------------
@@ -1112,6 +1113,34 @@ test('powerShareCapW: skim caps at the budget minus the other rider\'s draw, flo
   // minus the other's draw, settle at exactly half the budget each. This is the
   // halved resonant cruise the balance harness pins end-to-end.
   approx(powerShareCapW(416e3, 208e3), 208e3, 1e-9, 'E = budget − E lands on budget/2');
+});
+
+// ---------------------------------------------------------------------------
+// M4 (paper p.12/13): mode conversion. The paper ships a mode TABLE
+// (longitudinal vs transverse, each travelling or standing) with a question
+// attached ("Consider mode conversion above the atmosphere?"), not a
+// mechanism, so the game ships the live cell as a labelled readout and marks
+// the conversion itself absent (section 0: never invented).
+// ---------------------------------------------------------------------------
+test('waveModeCell: the run lives in the paper\'s longitudinal column; resonance is the one mode change', () => {
+  // The default climb is the longitudinal TRAVELLING cell (p.12's left column).
+  const plain = waveModeCell(false);
+  assert.equal(plain.column, 'longitudinal');
+  assert.equal(plain.pattern, 'travelling');
+  assert.ok(plain.label.includes('travelling'), 'the label names the pattern in words');
+  // The resonance toggle (p.10) is the one mode change the paper supports:
+  // same column, travelling to standing.
+  const res = waveModeCell(true);
+  assert.equal(res.column, 'longitudinal');
+  assert.equal(res.pattern, 'standing');
+  assert.ok(res.label.includes('standing'), 'the label names the pattern in words');
+  assert.notEqual(res.label, plain.label);
+  // The transverse cells stay ABSENT: no input produces one, because the paper
+  // offers no converter to model (p.7 kills transverse in air; p.12 only asks
+  // the question above it).
+  for (const v of [0, 1, true, false, null, undefined]) {
+    assert.equal(waveModeCell(v).column, 'longitudinal', 'no transverse cell can ever be produced');
+  }
 });
 
 test('B.14 split is gone, and M4 took the aero half too: gravity only, no drag on the climber', () => {

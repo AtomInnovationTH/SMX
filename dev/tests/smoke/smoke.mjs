@@ -507,6 +507,10 @@ try {
   //     M4: the teleport from the ground also crosses 1 km (the TAPER beat, p.9) and
   //     2 km (the WAVE-DRAG beat, p.7), so the taper beat owns the active card and the
   //     wave-drag and transverse cards queue behind it.
+  //     M4 (p.12/13): the second teleport also crosses 42 km, where the
+  //     mode-conversion beat asks the paper's question verbatim and marks the
+  //     mechanism absent (no converter in the paper, so none modelled; the card
+  //     fires past the act break so it never shares the screen with its banner).
   //     Assert on the active card PLUS the queue (the same pattern check 13 uses).
   const beats = await page.evaluate(async () => {
     const g = window.__smokeGame;
@@ -517,16 +521,23 @@ try {
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'),
                   dragFired: g._beatsFired.has('wave-drag'), titles };
-    g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20 km)
+    g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20/42/45 km)
     await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
+    const titles2 = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
+    const modeCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
+      .find((c) => c.title === 'above the atmosphere: convert modes? the paper asks');
     const out = { t12, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
-                  queueLen: g._beatQueue.length };
+                  queueLen: g._beatQueue.length,
+                  modeFired: g._beatsFired.has('mode-conversion'),
+                  modeTitle: titles2.some((t) => t.includes('convert modes')),
+                  modeBody: (modeCard || { lines: [] }).lines.join(' ') };
     g.monkey.velocityY = 0;
     return out;
   });
-  record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal fire; 70 km fatigue beat silent at 92 Hz',
+  record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal + 42 km mode question fire; 70 km fatigue beat silent at 92 Hz',
     beats.t12.fired === true && beats.t12.taperFired === true && beats.t12.dragFired === true &&
     beats.t12.titles.some((t) => t.includes('transverse')) &&
+    beats.modeFired === true && beats.modeTitle === true && /no converter/.test(beats.modeBody) &&
     beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
     JSON.stringify(beats));
 
@@ -567,7 +578,8 @@ try {
     slider.dispatchEvent(new Event('input', { bubbles: true }));
     await wait();
     const engaged = { on: g.resonanceOn, label: document.getElementById('resonanceValue').textContent,
-                    freqLabel: document.getElementById('frequencyValue').textContent };
+                    freqLabel: document.getElementById('frequencyValue').textContent,
+                    modeLabel: document.getElementById('modeCellValue').textContent };
     g.monkey.velocityY = -20000;                            // 2 km/s: fast, deterministic crossing
     await new Promise((r) => setTimeout(r, 400));           // crosses 50 km
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
@@ -591,16 +603,19 @@ try {
     await wait();
     out.restoredOn = g.resonanceOn;
     out.restoredLabel = document.getElementById('frequencyValue').textContent;
+    out.restoredModeLabel = document.getElementById('modeCellValue').textContent;
     return out;
   });
   record('resonance: 50 km retune fires (n 1 -> 2, transient paid, card queued), the cavity owns the active frequency, disengage restores',
     res.engaged.on === true && res.engaged.label.includes('node') &&
     res.engaged.freqLabel.includes('cavity') &&
+    res.engaged.modeLabel.includes('standing') &&   // M4 (p.12/13): the one mode change, named
     res.n === 2 && res.resets === 1 && res.transient > 0 &&
     res.retuneFired === true && res.availFired === true &&
     Math.abs(res.activeFreq - 0.417) < 0.01 && Math.abs(res.carrier - 92) < 1 &&
     res.switchW < 100 &&
-    res.restoredOn === false && res.restoredLabel.includes('92.0'),
+    res.restoredOn === false && res.restoredLabel.includes('92.0') &&
+    res.restoredModeLabel.includes('travelling'),
     JSON.stringify(res));
 
   // 13c) M4 multi-climber (p.14): the 85 km share-or-refuse beat, live. Refuse

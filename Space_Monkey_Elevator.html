@@ -414,6 +414,10 @@
             <input type="range" id="powerShare" min="0" max="1" step="1" value="0">
             <small class="setting-hint">The paper's p.14 open question (how to power more than one climber), playable at the budget level only. Refuse (the default) and you climb alone. Share, and when a second climber requests power at 85 km it boards your wave: the wave's transported power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw. Plain mode carries P = ρ·c·A·V² (slide 6): ~140 MW here against your ~13 kW skim, so sharing a plain wave costs nothing you can feel. Under resonance the budget is the anchor's injection (the P = σ·v the amplitude slider budgets while resonant), so sharing THERE halves your cruise: the paper's "retuning makes sharing tricky" (p.10), felt. The other rider is summarised as a twin in formation cruise (drawing weight × climb speed); what stays absent is the wave physics between riders: partial reflections (p.3) and the standing-pattern perturbation (p.10) are not modelled.</small>
         </div>
+        <div class="slider-container">
+            <label>Wave mode: <span id="modeCellValue">longitudinal · travelling</span></label>
+            <small class="setting-hint">The paper's p.12 table sorts ribbon waves into longitudinal vs transverse, each travelling or standing. You fly the longitudinal travelling cell; the resonance lever above moves you into longitudinal standing and back, the one mode change the paper supports. The transverse cells stay absent: a transverse wave is dead at 45 km/h in air (p.7's drag row), and above the atmosphere the paper only asks "consider mode conversion?" (p.12) and warns that every method on its p.13 ladder has substantial unsolved challenges. No converter exists in the paper, so none is modelled.</small>
+        </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
             An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
@@ -520,7 +524,13 @@
             playable now: share the wave above 85 km (Settings, Ground station) and each
             rider's skim caps at the budget minus the other's draw. Still unsolved and
             NOT modelled: the wave physics between riders (partial reflections, p.3; the
-            retune interplay that makes sharing tricky, p.10).
+            retune interplay that makes sharing tricky, p.10).<br>
+            &bull; Can a wave <b>change mode</b>, longitudinal through the atmosphere and
+            transverse above it? The paper's p.12 table ends on exactly that question and
+            p.14 repeats the maybe, but no converter, coupling length or efficiency is
+            offered anywhere, so none is modelled. The transverse cells stay captions
+            (dead at 45 km/h in air, p.7); the one mode change that ships is travelling
+            to standing, the resonance lever (p.10).
         </div>
         <small class="setting-hint">If you have an answer to any of these, the author is
         actively asking for one. See ATTRIBUTIONS.md for the paper and where to find it.</small>
@@ -1335,6 +1345,25 @@
         // anywhere.
         function powerShareCapW(budgetW, otherDrawW) {
             return Math.max(0, budgetW - otherDrawW);
+        }
+
+        // SIM (paper p.12/13 / M4): the MODE TABLE. The paper sorts ribbon waves into
+        // longitudinal vs transverse, each travelling or standing, compares the two
+        // columns on p.12, and closes on a question: "Consider mode conversion above
+        // the atmosphere?" (p.14 repeats it: transverse may be useable in space with
+        // mode conversion). It offers no converter, no coupling length and no
+        // efficiency, so there is NO conversion mechanic to ship (section 0: never
+        // invented). What exists is the cell the run is in: the game flies the
+        // longitudinal travelling cell, and the resonance toggle (p.10) is the one
+        // mode change the paper supports, into longitudinal standing. This helper is
+        // the single source for that cell, quoted by the settings readout and the
+        // 42 km beat card so the two cannot drift. The transverse cells stay absent
+        // (dead at 45 km/h in air, p.7's drag row), marked in the hint, the card and
+        // the Unsolved panel rather than faked.
+        function waveModeCell(resonanceOn) {
+            return resonanceOn
+                ? { column: 'longitudinal', pattern: 'standing', label: 'longitudinal · standing' }
+                : { column: 'longitudinal', pattern: 'travelling', label: 'longitudinal · travelling' };
         }
 
         // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
@@ -4256,6 +4285,13 @@
                     wsEl.textContent = `Wave now: σ = ${sigmaGpa.toFixed(1)} GPa = ${stressPct.toFixed(1)}% of stress (${powerPct.toFixed(1)}% of power)`
                         + (this.taperRatio > 1 ? ` at the taper's thin top · ${(sigmaGpa / Math.sqrt(this.taperRatio)).toFixed(1)} GPa at the anchor` : '');
                 }
+                // M4 (p.12/13): which cell of the paper's mode table the run is in.
+                // The resonance toggle is the one mode change the paper supports
+                // (travelling to standing); the transverse cells stay absent (no
+                // converter in the paper, so none modelled). waveModeCell is the
+                // single source: the 42 km beat card quotes the same descriptor.
+                const modeEl = document.getElementById('modeCellValue');
+                if (modeEl) modeEl.textContent = waveModeCell(this.resonanceOn).label;
             }
 
             // B.14: live air-density readout (% of sea level) — the number the player watches
@@ -4782,6 +4818,29 @@
                         `air ${airDensityReadout(alt)} of sea level and falling — drag is letting go.`,
                         `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(localVMax * 3.6)} km/h here.`,
                         'if you left margin in the stress budget, this is where it pays. (paper p.7)',
+                    ]);
+                }
+                // 42 km: above the atmosphere, the paper's mode-conversion question
+                // (p.12). M4: surfaced VERBATIM and marked unanswered. The paper's
+                // mode table (longitudinal vs transverse, each travelling or
+                // standing) ends on the question "Consider mode conversion above the
+                // atmosphere?" and offers no converter, no coupling length, no
+                // efficiency, so there is no mechanic to ship (section 0: never
+                // invented). The card names the cell the run is in (waveModeCell)
+                // and the one mode change that DOES exist (the resonance lever,
+                // p.10); the transverse cells stay absent. Fires 2 km past M3.3's
+                // act break on purpose: the banner's 4.5 s are always over by here
+                // in real play (even at 400 m/s it is gone by 41.8 km), so the card
+                // never shares the screen with the mid-screen banner (they would
+                // overlap below an 800 px viewport).
+                if (upgradeCrossed(prev, alt, 42000, false)) {
+                    const cell = waveModeCell(this.resonanceOn);
+                    push('mode-conversion', 'above the atmosphere: convert modes? the paper asks', [
+                        'p.12\'s mode table ends on a question, not a mechanism: "Consider mode conversion above the',
+                        'atmosphere?" a transverse wave up here would carry constant power, decoupled from load',
+                        'bearing, but no converter, no coupling length, no efficiency exists to play, so none is',
+                        `modelled. you ride the ${cell.label} cell. the one mode change that exists is travelling to`,
+                        'standing and back: the resonance lever (Ground station, p.10). (paper p.12/13)',
                     ]);
                 }
                 // 40-70 km — standing-wave resonance (p.10). M4: now live. With

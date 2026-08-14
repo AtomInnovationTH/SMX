@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-364 KB and must be served alongside the
+413 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -86,7 +86,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 60-helper count assertion in
+Keep the 61-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -290,6 +290,16 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   MW against two ~13 kW skims, so the shared run is the unshared run frame for frame),
   while a resonant shared cruise halves the solo supply-capped one with the skim at
   supply/2.
+- **Mode conversion, labelled and absent (paper p.12/13)** (`waveModeCell`, M4): the
+  paper's mode table (longitudinal vs transverse, each travelling or standing) is a
+  layout with a question attached ("Consider mode conversion above the atmosphere?"),
+  not a mechanism, so no converter is modelled. What ships is the live cell as a
+  labelled readout (settings, Ground station: longitudinal travelling, moving to
+  longitudinal standing under the resonance lever, the one mode change the paper
+  supports), the 42 km beat card asking the paper's question verbatim, and the
+  Unsolved bullet, all quoting the one helper so they cannot drift. The transverse
+  cells stay captions (the 12 km beat's 45 km/h, 20 kW drag row). No slider, no
+  physics: `updateContinuous` is untouched and the balance trace cannot move.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -332,6 +342,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     longitudinal row and the player's own bill in MW), ~12 km
     (a transverse wave would be dead here: p.7's 45 km/h, 20 kW cap, against the player's
     live speed and live longitudinal drag bill), ~20 km (air thinning; the stress-budget lever, quoting the LOCAL v_max),
+    ~42 km (the mode-conversion question, asked verbatim and marked unanswered; p.12/13,
+    live since M4's mode-conversion item shipped, fired just past the 40 km act break so
+    the card never shares the screen with its banner),
     ~45 km (resonance offered off-mode; p.10,
     live since M4's resonance shipped) and the 50 km retune on-mode (the drift hits the
     100 km wavelength floor; the anchor resets to the next harmonic and pays one cavity
@@ -341,7 +354,8 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     quoting the live shared budget either way; p.14). Crossings reuse the pure
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
     physics the sim does not have stay deliberately absent rather than faked; the
-    rider-to-rider wave-boundary solve (p.14's unsolved half) is the standing example.
+    rider-to-rider wave-boundary solve (p.14's unsolved half) is the standing example,
+    with the mode-conversion mechanism (p.12) alongside it as a card that says so.
 - **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
   `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
@@ -437,9 +451,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **137 unit tests**
-  (pure 116, sliders 12, balance 9), **60 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **407 KB**.
+- **Current gate numbers** (keep these updated when they move): **138 unit tests**
+  (pure 117, sliders 12, balance 9), **61 pure helpers** in the delimited block,
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **413 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

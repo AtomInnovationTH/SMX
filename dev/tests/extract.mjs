@@ -64,6 +64,7 @@ const EXPORTED_SYMBOLS = [
   'waveTransportedPowerW',
   'waveSharedBudgetW',
   'powerShareCapW',
+  'waveModeCell',
   'temperatureAtAltitude',
   'thermalSuitIndex',
   'coldGripFactor',
