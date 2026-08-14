@@ -417,6 +417,11 @@
             <input type="range" id="resonance" min="0" max="1" step="1" value="0">
             <small class="setting-hint">The paper's p.10 lever: the anchor becomes a node and a standing wave fills the film between anchor and climber. Its tension holds the full stress budget, so the film runs its LOCAL stress ceiling whatever your stroke: power per unit anchor speed rises by v_cap/v_anchor, the table's 2.5 MW/mm² at 200 km/h against 150 kW plain. The price: the cavity only accepts its own modes, so the carrier is overridden by f = n·c/2h, the frequency falls as you rise, and each time the wavelength reaches the 100 km floor the anchor retunes to the next harmonic and pays one cavity round trip of weakened film (the 50 km transient). The stack's switching follows the cavity rate: nearly free aloft, kHz on the pad, so engage it once you are a kilometre up, not on the grass. While resonant the amplitude slider becomes the power budget: the skim cannot exceed the anchor's injection (stress budget × drive speed × section, the table's own P = σ·v). The boundary-value buildup is summarised as the one-round-trip ramp; the reflection interplay the paper calls tricky for multi-climber is not modelled.</small>
         </div>
+        <div class="slider-container">
+            <label>Power share with other climbers: <span id="powerShareValue">refuse</span></label>
+            <input type="range" id="powerShare" min="0" max="1" step="1" value="0">
+            <small class="setting-hint">The paper's p.14 open question (how to power more than one climber), playable at the budget level only. Refuse (the default) and you climb alone. Share, and when a second climber requests power at 85 km it boards your wave: the wave's transported power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw. Plain mode carries P = ρ·c·A·V² (slide 6): ~140 MW here against your ~15 kW skim, so sharing a plain wave costs nothing you can feel. Under resonance the budget is the anchor's injection (the P = σ·v the amplitude slider budgets while resonant), so sharing THERE halves your cruise: the paper's "retuning makes sharing tricky" (p.10), felt. The other rider is summarised as a twin in formation cruise (drawing weight × climb speed); what stays absent is the wave physics between riders: partial reflections (p.3) and the standing-pattern perturbation (p.10) are not modelled.</small>
+        </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
             An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
@@ -519,8 +524,11 @@
             &bull; What are the ways for a climber to <b>extract</b> the power? This game commits
             to one answer — pulsed eddy-current traction across an air gap — but that is a
             guess of ours, not a finding of the paper's.<br>
-            &bull; How do you power <b>more than one climber</b>? Retuning resonance as one
-            climber rises makes sharing tricky.
+            &bull; How do you power <b>more than one climber</b>? The budget answer is
+            playable now: share the wave above 85 km (Settings, Ground station) and each
+            rider's skim caps at the budget minus the other's draw. Still unsolved and
+            NOT modelled: the wave physics between riders (partial reflections, p.3; the
+            retune interplay that makes sharing tricky, p.10).
         </div>
         <small class="setting-hint">If you have an answer to any of these, the author is
         actively asking for one. See ATTRIBUTIONS.md for the paper and where to find it.</small>
@@ -620,6 +628,18 @@
         const DESCENDER_RIPPLE_AMP_PX = 7;           // schematic — comparable to A·PX_PER_M
         const DESCENDER_RIPPLE_FREQ_HZ = 2.5;
 
+        // UX/SIM (M4, p.14): MULTI-CLIMBER. The second climber's power request is the
+        // M3.4 schedule's 85 km beat. Above it, with the powerShare slider on, the
+        // wave's transported power becomes a SHARED budget (waveSharedBudgetW) and the
+        // skim caps at the budget minus the other rider's draw (powerShareCapW); below
+        // it nothing anywhere changes, because there is no second rider aboard yet.
+        // The rider is drawn holding formation this far below the player — a twin in
+        // cruise, the summarised half of the model (its skim is weight × climb speed,
+        // the same draw the player makes at cruise). Static glyph: no flash budget,
+        // reduced-motion safe by construction.
+        const SHARE_BOARD_ALTITUDE_M = 85000;
+        const SHARE_RIDER_OFFSET_M = 15;
+
         // UX (M3.7, decision 17): presets — an entry point instead of a slider wall.
         // Each reproduces its source's own numbers where the source gives them, and each
         // was validated against the balance harness's integrator (same step order).
@@ -639,11 +659,11 @@
         // through a preset click. Resonance (M4, p.10) is pinned off the same way: it
         // also moves the stroke cap (the cavity rate), so it fires in the same group.
         const PRESETS = [
-            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
-            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, taper: 1, resonance: 0, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
-            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, resonance: 0, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
+            { id: 'paper',      label: 'Paper baseline',        hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, resonance: 0, powerShare: 0, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'wessels',    label: 'Wessels 92 Hz · 60 cm', hz: 92,   amplitude: 0.60, stressBudget: 30, taper: 1, resonance: 0, powerShare: 0, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 8,  airGap: 0.10, weight: 3,  gravity: 1 },
+            { id: 'lofstrom',   label: 'Lofstrom 1000 Hz',      hz: 1000, amplitude: 0.10, stressBudget: 30, taper: 1, resonance: 0, powerShare: 0, material: 1, width: 45, thickness: 0.2, tension: 100, nPairs: 8,  airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxspeed',   label: 'Max speed',             hz: 92,   amplitude: 1.10, stressBudget: 60, taper: 1, resonance: 0, powerShare: 0, material: 2, width: 45, thickness: 0.2, tension: 100, nPairs: 16, airGap: 0.15, weight: 3,  gravity: 1 },
+            { id: 'maxpayload', label: 'Max payload',           hz: 92,   amplitude: 1.00, stressBudget: 30, taper: 1, resonance: 0, powerShare: 0, material: 1, width: 45, thickness: 0.2, tension: 400, nPairs: 32, airGap: 0.10, weight: 24, gravity: 1 },
         ];
 
         // UX: game-over gate (2e)
@@ -1269,6 +1289,60 @@
             const vCap = vMaxMps / Math.sqrt(r);
             const drag = waveDragSpeedFactorAt(altitudeM, vCap, widthMm, thicknessMm);
             return vCap * taperVelocityFactorAt(altitudeM, r, spanM) * drag * buildup;
+        }
+
+        // SIM (paper p.14 / M4): MULTI-CLIMBER POWER SHARING — the wave's
+        // transported power as a SHARED budget. p.14 names "How to get power to
+        // more than one climber?" unexplored and high-risk, so there is no
+        // mechanism to copy: the honest model is the budget law the rest of the
+        // sim already runs on. Plain mode carries slide 6's P = rho·c·A·V² over
+        // the local section (the p.10 table's plain rows: 150 kW/mm² at
+        // 200 km/h, 3.7 MW/mm² at 1000 km/h, pinned in tests/pure.test.mjs).
+        // At the demo scale that is ~140 MW against a ~15 kW skim, so sharing a
+        // plain wave is a rounding error — power is not what is scarce.
+        // Resonance mode carries the anchor's injection instead
+        // (resonanceSupplyW, the p.10 P = sigma·v already enforced as the
+        // single climber's supply cap at calculateContinuousCoupling): sharing
+        // THERE halves what each rider can skim, the paper's "tricky" (p.10)
+        // made feelable.
+        function waveTransportedPowerW(filmPeakMps, sectionM2) {
+            return GameConfig.TETHER.CARBON_DENSITY * tetherWaveSpeed() * sectionM2
+                * filmPeakMps * filmPeakMps;
+        }
+
+        // The shared budget itself: the anchor's resonant injection while
+        // resonant (resonanceSupplyCapW, computed by the caller where the
+        // cavity state lives), else the slide-6 transported power arriving at
+        // the climber's altitude — the local film peak (taper- and
+        // drag-adjusted, the SAME factors calculateContinuousCoupling's plain
+        // branch composes) over the local section. Taper holds the transported
+        // power constant with height (A·V² is altitude-independent); only drag
+        // saps it. One formula consumed by the game loop, the balance harness
+        // and the 85 km beat card, so the three cannot disagree.
+        function waveSharedBudgetW({ altitudeM, amplitudeM, freqHz, taperRatio, spanM, widthMm, thicknessMm, resonanceSupplyCapW = null }) {
+            if (resonanceSupplyCapW != null) return resonanceSupplyCapW;
+            const omega = freqHz * 2 * Math.PI;
+            const filmPeakMps = amplitudeM * omega
+                * taperVelocityFactorAt(altitudeM, taperRatio, spanM)
+                * waveDragSpeedFactorAt(altitudeM, amplitudeM * omega, widthMm, thicknessMm);
+            return waveTransportedPowerW(filmPeakMps,
+                filmCrossSectionM2(widthMm, thicknessMm) * taperSectionRatioAt(altitudeM, taperRatio, spanM));
+        }
+
+        // Each rider's skim caps at the shared budget minus the other rider's
+        // draw (conservation, exactly like the resonant supply cap: the cap
+        // throttles THRUST, never speed, and recedes as v_climber -> 0). The
+        // other rider's draw is summarised, not solved (§0: the player only
+        // watches it) — a twin in formation cruise, drawing weight × climb
+        // speed, which is what the player's own skim is at cruise, so at the
+        // bind both riders take an equal half of the budget. Floored at zero:
+        // a skim cap is never a brake. What stays ABSENT: the wave physics
+        // BETWEEN riders (partial reflections, p.3 — climbers are near-perfect
+        // reflectors; the standing-pattern perturbation that makes retuning
+        // with two riders "tricky", p.10). No per-climber wave-boundary solve
+        // anywhere.
+        function powerShareCapW(budgetW, otherDrawW) {
+            return Math.max(0, budgetW - otherDrawW);
         }
 
         // SIM (educational thermal layer): International Standard Atmosphere temperature (°C) by
@@ -2849,7 +2923,13 @@
             // a single mode (the carrier's harmonic content is filtered out, so the sine
             // path is the honest one), and the skim is capped by the anchor's resonant
             // injection (resonanceSupplyW, the p.10 table's own P = sigma.v).
-            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1, widthMm = 45, thicknessMm = 0.2, vMaxMps = 0, resonance = null }) {
+            // M4 (p.14): share is null with no second rider aboard, or { budgetW,
+            // otherDrawW } with one: the wave's transported power is then a SHARED
+            // budget (the anchor's injection while resonant, the slide-6 transported
+            // power plain) and the skim also caps at the budget minus the other rider's
+            // draw (powerShareCapW). Same conservation shape as the supply cap:
+            // throttles thrust, never speed, recedes as v_climber -> 0.
+            calculateContinuousCoupling(waveSystem, monkey, { kPerPair, nPairs, massKg, dt, gravityMult = 1, taperRatio = 1, widthMm = 45, thicknessMm = 0.2, vMaxMps = 0, resonance = null, share = null }) {
                 const omega = waveSystem.frequency * 2 * Math.PI;
                 // Film peak velocity in m/s at the CLIMBER's altitude (amplitude is the
                 // anchor's stroke in real metres, ≤ v_max/(ω·√R) via the §2.1+p.9 stress
@@ -2883,6 +2963,15 @@
                     // vanishes there anyway); it binds at cruise when the stroke's
                     // power budget is the limit. Never a clamp on SPEED.
                     thrustN = Math.min(thrustN, resonance.supplyCapW / vClimberMps);
+                }
+                if (share && vClimberMps > 0) {
+                    // M4 (p.14): conservation again — with a second rider aboard the
+                    // skim cannot exceed the shared budget minus the other rider's
+                    // draw. While resonant the budget IS the anchor's injection, so
+                    // this cap sits strictly under the supply cap above; plain, the
+                    // budget is the slide-6 transported power of the local film (both
+                    // computed by the caller, where the cavity/config state lives).
+                    thrustN = Math.min(thrustN, powerShareCapW(share.budgetW, share.otherDrawW) / vClimberMps);
                 }
                 const impulse = -(thrustN / Math.max(1e-9, massKg)) * GameConfig.PHYSICS.ALTITUDE_CONVERSION * dt;
                 // M3.6: display quality is thrust against the load the player actually
@@ -3105,6 +3194,9 @@
                     // Standing-wave resonance (M4, p.10): the anchor-node toggle. Off
                     // is the plain travelling wave (the shipped default).
                     resonance: { unit: '', formatter: (v) => parseFloat(v) >= 0.5 ? 'on · anchor is a node' : 'off' },
+                    // Multi-climber power sharing (M4, p.14): the share-or-refuse
+                    // toggle the 85 km beat points at. Refuse is the shipped default.
+                    powerShare: { unit: '', formatter: (v) => parseFloat(v) >= 0.5 ? 'share · the budget splits' : 'refuse' },
                     nPairs: { unit: ' pairs', formatter: null },
                     gravity: { unit: ' G', formatter: (v) => parseFloat(v).toFixed(2) },
                     weight: { unit: ' kg', formatter: null }
@@ -3128,6 +3220,7 @@
                         fire('stressBudget', p.stressBudget);
                         fire('taper', p.taper);
                         fire('resonance', p.resonance);
+                        fire('powerShare', p.powerShare);
                         fire('frequency', freqToLogSlider(p.hz));
                         fire('amplitude', p.amplitude);
                         fire('width', p.width);
@@ -3698,6 +3791,15 @@
                 this._resMode = null;         // cavity mode while resonant (resonanceModeAt)
                 this._resTransientS = 0;      // engage/retune buildup countdown (one round trip)
                 this._resonanceResets = 0;    // retunes paid this run (the 50 km one, per climb)
+                // M4 (p.14): power sharing — refuse at default, so the default trace
+                // cannot move. The rider boards only past the 85 km request with the
+                // slider on (SHARE_BOARD_ALTITUDE_M); the rest is per-frame readout.
+                this.powerShareOn = false;
+                this._shareRiderAboard = false;
+                this._shareBudgetW = 0;       // the shared budget (waveSharedBudgetW)
+                this._shareOtherDrawW = 0;    // the other rider's draw (weight x climb speed)
+                this._shareCapW = 0;          // this frame's skim cap (powerShareCapW)
+                this._shareRiderDrawnTotal = 0; // render-path counter for the smoke check
                 this.gravityMultiplier = 1.0;
 
                 // SIM (Stage 2 / B.5): EPM energy loop state (used in continuous-coupling mode)
@@ -3798,6 +3900,7 @@
                     stressBudget: { value: 30,   label: '30% of stress (9.0% of power)' },
                     taper:      { value: 1,      label: '1.0 : 1' },
                     resonance:  { value: 0,      label: 'off' },
+                    powerShare: { value: 0,      label: 'refuse' },
                     airGap:     { value: 0.15,   label: '0.15 mm' },
                     nPairs:     { value: 8,      label: '8 pairs' },
                     gravity:    { value: 1.00,   label: '1.00 G' },
@@ -3915,6 +4018,13 @@
                     }
                     this.clampAmplitudeToStressCap();
                     this.updateDerivedReadouts();
+                });
+                this.eventBus.on('settings:powerShare', (data) => {
+                    // M4 (p.14): the share-or-refuse toggle. No stroke-cap or panel
+                    // readout of its own: the rider boards only past the 85 km request
+                    // and the skim cap lives in updateContinuous. Aboard state is
+                    // recomputed per frame there, so a mid-climb flip just works.
+                    this.powerShareOn = scaleSettingValue('powerShare', data.value) >= 0.5;
                 });
                 this.eventBus.on('settings:airGap', (data) => { this.airGapMm = data.value; this.updateDerivedReadouts(); });
                 this.eventBus.on('settings:nPairs', (data) => { this.nPairs = Math.round(data.value); this.updateDerivedReadouts(); });
@@ -4406,6 +4516,37 @@
                             sigmaBudgetPa, filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm)),
                     };
                 }
+                // M4 (p.14): MULTI-CLIMBER power sharing. With the slider on AND the
+                // 85 km request passed, a second rider is aboard and the wave's
+                // transported power is a SHARED budget: the anchor's resonant injection
+                // while resonant, the slide-6 transported power of the local film plain
+                // (waveSharedBudgetW). The other rider is summarised (§0: watched, not
+                // reasoned with) as a twin in formation cruise, drawing weight × climb
+                // speed — the same draw the player makes at cruise, so the cap
+                // (powerShareCapW, applied in the coupling) splits the budget in equal
+                // halves at the bind. Readouts ride `share` so the HUD line, the beat
+                // card and the smoke test all read this frame's numbers. The balance
+                // harness mirrors this block call for call.
+                let share = null;
+                this._shareRiderAboard = false;
+                if (this.powerShareOn && this.monkey.altitude >= SHARE_BOARD_ALTITUDE_M) {
+                    const vPlayerMps = Math.max(0, -this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+                    const budgetW = waveSharedBudgetW({
+                        altitudeM: this.monkey.altitude, amplitudeM: this.waveSystem.amplitude,
+                        freqHz: this.waveSystem.frequency, taperRatio: this.taperRatio,
+                        spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
+                        widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm,
+                        resonanceSupplyCapW: resonance ? resonance.supplyCapW : null,
+                    });
+                    share = {
+                        budgetW,
+                        otherDrawW: weightN(this.totalMassKg(), this.gravityMultiplier) * vPlayerMps,
+                    };
+                    this._shareRiderAboard = true;
+                    this._shareBudgetW = budgetW;
+                    this._shareOtherDrawW = share.otherDrawW;
+                    this._shareCapW = powerShareCapW(budgetW, share.otherDrawW);
+                }
                 // Compute `engaged` once, at frame entry: the recovery check inside epmChargeStep
                 // can clear the latch at the END of the previous frame, so the branch must read
                 // the value as it stands on entry or a frame could both pulse and recover.
@@ -4428,7 +4569,7 @@
                         fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
-                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio, widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm, vMaxMps: this.vMaxMps(), resonance });
+                        { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio, widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm, vMaxMps: this.vMaxMps(), resonance, share });
                     // Cold reduces coupling unless the climber is adequately suited (thermal layer).
                     this.monkey.velocityY += c.impulse * this._coldFactor;
                     thrustFrameN = c.thrustN;
@@ -4694,16 +4835,47 @@
                         'switching watts; the cost is a longer ground stroke (A_max = v_max/ω), not speed. (paper p.11)',
                     ]);
                 }
-                // ~85 km — a second climber requests power. The paper leaves multi-climber
-                // power UNSOLVED (p.14; resonance retuning makes sharing "tricky", p.10) —
-                // so there is no share/refuse mechanic to invent: the beat is the open
-                // question itself.
-                if (upgradeCrossed(prev, alt, 85000, false)) {
-                    push('second-climber', 'a second climber requests power', [
-                        'the paper\u2019s own answer is \u201Cunsolved\u201D: resonance retuning makes sharing \u201Ctricky\u201D (p.10),',
-                        'and your FG40 stack skims power — it cannot route it. Powering more than one',
-                        'climber is an open question (p.14). You climb on alone.',
-                    ]);
+                // ~85 km — a second climber requests power (p.14). M4: now a REAL
+                // share-or-refuse decision, carried by the powerShare slider (Ground
+                // station). The honest model ships: the wave's transported power becomes
+                // a SHARED budget (slide-6 P = rho·c·A·V² plain; the anchor's resonant
+                // injection under resonance, p.10 — the rider boards within the n = 2
+                // mode, so no retune ever happens with two riders aboard), and each
+                // rider's skim caps at the budget minus the other's draw (the cap lives
+                // in updateContinuous, pinned by the balance harness). What stays
+                // absent: the wave physics BETWEEN riders (partial reflections, p.3;
+                // the retune interplay p.10 calls tricky) — marked here, never faked.
+                if (upgradeCrossed(prev, alt, SHARE_BOARD_ALTITUDE_M, false)) {
+                    const skimKw = Math.round((this._extractionW || 0) / 1000);
+                    const budgetW = this.powerShareOn ? this._shareBudgetW : waveSharedBudgetW({
+                        altitudeM: alt, amplitudeM: this.waveSystem.amplitude,
+                        freqHz: this.waveSystem.frequency, taperRatio: this.taperRatio,
+                        spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
+                        widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm,
+                        resonanceSupplyCapW: (this.resonanceOn && this._resMode)
+                            ? resonanceSupplyW(this.waveSystem.amplitude, this._resMode.freqHz,
+                                this.safetyFraction * GameConfig.MATERIALS[this.materialIndex].strengthGpa * 1e9,
+                                filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm))
+                            : null,
+                    });
+                    const budgetStr = budgetW >= 1e6 ? `${(budgetW / 1e6).toFixed(1)} MW` : `${(budgetW / 1000).toFixed(0)} kW`;
+                    if (this.powerShareOn) {
+                        push('second-climber', 'sharing the wave with a second climber', [
+                            `the wave is now a shared budget: your skim caps at ${budgetStr} minus the rider's draw.`,
+                            this.resonanceOn
+                                ? 'that budget is the anchor\'s injection (p.10): the split halves your cruise, the paper\'s "tricky" felt.'
+                                : `two ~${skimKw} kW skims against ${budgetStr}: on a plain wave the split costs nothing you can feel.`,
+                            'what the paper cannot answer stays absent (never faked): the wave physics between riders,',
+                            'partial reflections (p.3) and the retune interplay that makes sharing tricky (p.10). (paper p.14)',
+                        ]);
+                    } else {
+                        push('second-climber', 'a second climber requests power', [
+                            `this wave carries ~${budgetStr} against your ~${skimKw} kW skim: the budget is not what is scarce.`,
+                            'what the paper cannot yet answer is the wave physics between riders (p.3 reflections; p.10:',
+                            'retuning makes sharing "tricky"). you climb on alone. the share lever is in Settings,',
+                            'Ground station · power share. (paper p.14)',
+                        ]);
+                    }
                 }
                 // Card pump: one beat at a time, 7 s each (sim time — pauses with the game).
                 if (this._beatCard) {
@@ -5351,6 +5523,44 @@
                 }
             }
 
+            // M4 (p.14): the second rider, aboard while power share is on and the run has
+            // passed the 85 km request. A twin in formation BELOW the player (the
+            // summarised half of the shared-budget model: its skim is weight x climb
+            // speed, the same draw the player makes at cruise). Same rider glyph as the
+            // descenders, same decision-6 schematic rule; a static world entity, not an
+            // instrument, so it draws at every HUD level, spends no flash budget, and
+            // is reduced-motion safe by construction. Never on the film's own layer:
+            // it rides beside the crest overlay without touching the wave maths.
+            renderShareRider(ctx) {
+                if (!this._shareRiderAboard) return;
+                const pxPerM = GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+                const cy = this.monkey.y - this.camera.getY() + this.monkey.height / 2;
+                const sy = cy + SHARE_RIDER_OFFSET_M * pxPerM;
+                if (sy < -80 || sy > this.canvas.height + 80) return;
+                this._shareRiderDrawnTotal++;
+                const railDX = 34, unitW = 10, unitH = 6, pairs = 5, spanPx = 60;
+                ctx.save();
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = 'rgba(86, 180, 233, 0.65)';
+                ctx.lineWidth = 2;
+                for (const side of [-1, 1]) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.wave.x + side * railDX, sy - spanPx / 2);
+                    ctx.lineTo(this.wave.x + side * railDX, sy + spanPx / 2);
+                    ctx.stroke();
+                }
+                for (let j = 0; j < pairs; j++) {
+                    const uy = sy - spanPx / 2 + (spanPx / pairs) * (j + 0.5);
+                    for (const side of [-1, 1]) {
+                        ctx.fillStyle = 'rgba(20, 28, 36, 0.9)';
+                        ctx.fillRect(this.wave.x + side * railDX - unitW / 2 - 1, uy - unitH / 2 - 1, unitW + 2, unitH + 2);
+                        ctx.fillStyle = 'rgba(86, 180, 233, 0.8)';
+                        ctx.fillRect(this.wave.x + side * railDX - unitW / 2, uy - unitH / 2, unitW, unitH);
+                    }
+                }
+                ctx.restore();
+            }
+
             renderSpeedLines(ctx) {
                 this.particleSystem.getActiveSpeedLines().forEach(line => {
                     const screenY = line.y - this.camera.getY();
@@ -5649,6 +5859,7 @@
                 this.renderVine(ctx, width, height);
 
                 this.renderDescenders(ctx);
+                this.renderShareRider(ctx);
                 this.renderSpeedLines(ctx);
                 this.renderParticles(ctx);
                 this.renderMonkey(ctx);
@@ -6017,6 +6228,16 @@
                     // why thrust fades and why the skim line above collapses near v_max.
                     ctx.fillStyle = 'rgba(235, 242, 248, 0.85)';
                     ctx.fillText(`slip u = ${this.slipU().toFixed(2)}`, width - 8, ay + 48);
+                    // M4 (p.14): while a second rider is aboard, the shared budget in
+                    // numbers — the rider's draw and the budget the skim line above is
+                    // capped against (budget minus the rider's draw). Words carry the
+                    // state; colour mirrors the other readouts. Resonant budgets are
+                    // kW-scale, plain ones MW-scale: the unit adapts so both read.
+                    if (this._shareRiderAboard) {
+                        const bW = this._shareBudgetW || 0;
+                        const bStr = bW >= 1e6 ? `${(bW / 1e6).toFixed(1)} MW` : `${(bW / 1000).toFixed(0)} kW`;
+                        ctx.fillText(`share: rider ${((this._shareOtherDrawW || 0) / 1000).toFixed(0)} kW · budget ${bStr}`, width - 8, ay + 59);
+                    }
                 }
                 ctx.textAlign = 'center';
                 // brownout: the headline blinks (1.4 Hz — under the 3 flashes/s ceiling)

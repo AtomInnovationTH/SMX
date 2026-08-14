@@ -603,6 +603,74 @@ try {
     res.restoredOn === false && res.restoredLabel.includes('92.0'),
     JSON.stringify(res));
 
+  // 13c) M4 multi-climber (p.14): the 85 km share-or-refuse beat, live. Refuse
+  //     first: crossing 85 km with the slider off fires the request card and NO
+  //     rider boards. Then the share half: drop back below 85 km, clear the fired
+  //     beat, flip the slider through its own DOM event and cross again — the
+  //     sharing card queues, the rider boards and is genuinely drawn (the render
+  //     counter), and on a plain wave the budget reads ~140 MW with the cap far
+  //     above any skim (the budget is not what is scarce). Refusing again unboards
+  //     the rider. The binding halves are the balance harness's job, not smoke's.
+  const share = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.paused = false; g.gameOver = false; g.running = true;
+    const slider = document.getElementById('powerShare');
+    const titles = () => [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
+    // REFUSE: cross 85 km with the slider off. (At rest below the request first,
+    // so _lastFrameAltitude settles under the crossing test.)
+    g.monkey.velocityY = 0;
+    g.monkey.y = -845000; g.monkey.altitude = 84500; g.camera.y = g.monkey.y + 400;
+    await wait();
+    const before = { on: g.powerShareOn, aboard: g._shareRiderAboard, drawn: g._shareRiderDrawnTotal };
+    g.monkey.velocityY = -20000;                            // 2 km/s: deterministic crossing
+    await new Promise((r) => setTimeout(r, 400));           // crosses 85 km
+    g.monkey.velocityY = 0;
+    await wait();
+    const refusal = { fired: g._beatsFired.has('second-climber'), aboard: g._shareRiderAboard,
+                      drawn: g._shareRiderDrawnTotal, card: titles().some((t) => t === 'a second climber requests power') };
+    // SHARE: clear the beat, drop back below the request, flip the slider through
+    // its own DOM event (the same path a player's finger takes), cross again.
+    g._beatsFired.delete('second-climber');
+    g.monkey.y = -845000; g.monkey.altitude = 84500; g.camera.y = g.monkey.y + 400;
+    await wait();
+    slider.value = '1';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    const engaged = { on: g.powerShareOn, label: document.getElementById('powerShareValue').textContent };
+    g.monkey.velocityY = -20000;
+    await new Promise((r) => setTimeout(r, 400));           // crosses 85 km again
+    // Climb-on velocity for the readout: the rider's draw is weight x climb speed.
+    g.monkey.velocityY = -3000;
+    await wait();
+    const out = {
+      before, refusal, engaged,
+      aboard: g._shareRiderAboard,
+      card: titles().some((t) => t === 'sharing the wave with a second climber'),
+      drawn: g._shareRiderDrawnTotal,
+      budgetW: g._shareBudgetW, otherDrawW: g._shareOtherDrawW, capW: g._shareCapW,
+    };
+    // Refuse again through the same slider path: the rider unboards and the label
+    // restores. Settle the climber for the checks that follow.
+    slider.value = '0';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    g.monkey.velocityY = 0;
+    await wait();
+    out.refusedOn = g.powerShareOn;
+    out.refusedAboard = g._shareRiderAboard;
+    out.refusedLabel = document.getElementById('powerShareValue').textContent;
+    return out;
+  });
+  record('multi-climber: 85 km refusal fires the request card with no rider; sharing boards the rider, live shared-budget numbers; refuse unboards',
+    share.before.on === false && share.before.aboard === false && share.before.drawn === 0 &&
+    share.refusal.fired === true && share.refusal.aboard === false &&
+    share.refusal.drawn === 0 && share.refusal.card === true &&
+    share.engaged.on === true && share.engaged.label.includes('share') &&
+    share.aboard === true && share.card === true && share.drawn > share.refusal.drawn &&
+    share.budgetW > 1e8 && share.otherDrawW > 1e4 && share.capW > share.budgetW / 2 &&
+    share.refusedOn === false && share.refusedAboard === false && share.refusedLabel === 'refuse',
+    JSON.stringify(share));
+
   // 14) M3.7: presets apply a whole configuration through the SAME slider path (DOM
   //     events -> existing listeners -> eventBus), so labels, readouts and game state
   //     all track one click. Wessels pins his 60 cm stroke; Lofstrom's 1000 Hz lights the

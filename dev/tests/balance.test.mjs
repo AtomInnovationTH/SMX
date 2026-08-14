@@ -34,10 +34,11 @@ const SNAPSHOT_PATH = join(__dirname, 'balance.snapshot.json');
 
 const {
   GameConfig, WaveSystem, PhysicsEngine,
-  epmChargeStep, thermalStep, climbSpeedKmh,
+  epmChargeStep, thermalStep, climbSpeedKmh, weightN,
   maxMaterialVelocityMps, maxAmplitudeM, gapFluxT, pairCouplingK, stackDryMassKg,
   switchingPowerW, flutterAmplitudeMm, waveDragSpeedFactorAt,
   resonanceModeAt, resonanceSupplyW, resonantFilmPeakMps, filmCrossSectionM2,
+  waveSharedBudgetW, powerShareCapW,
 } = loadGameModule();
 
 // Documented defaults, mirroring initGame() exactly (M2.11 tuning): film 100 GPa
@@ -54,6 +55,10 @@ const {
 // linear low-altitude cap on the climber is gone, the film pays a few per cent aloft).
 // M4 (p.10) adds resonanceOn false (the plain travelling wave — the pre-resonance
 // model exactly, so the default trace cannot move with this one either).
+// M4 (p.14) adds powerShareOn false (refuse — the single-climber wave exactly, so
+// the default trace cannot move with this one either). The snapshot records DEFAULTS
+// and DEFAULT_CFG but diffs only doneAtS / finalSpeedKmh / the trace rows, so these
+// new fields do NOT churn it.
 const DEFAULTS = {
   gravityMultiplier: 1.0,
   vineWidth: 4.5,
@@ -63,6 +68,7 @@ const DEFAULTS = {
   cargoKg: GameConfig.MONKEY.WEIGHT,
   taperRatio: 1.0,
   resonanceOn: false,
+  powerShareOn: false,
 };
 
 // M2.4/M2.5: the hardware chain — air gap -> pole flux (FG40's published curve), flux ->
@@ -95,6 +101,7 @@ const DEFAULT_CFG = {
   widthMm: DEFAULTS.vineWidth * 10,
   thicknessMm: DEFAULTS.filmThicknessMm,
   resonanceOn: DEFAULTS.resonanceOn,
+  powerShareOn: DEFAULTS.powerShareOn,
   startAltM: 0,
   amplitudeM: GameConfig.WAVE.DEFAULT_AMPLITUDE,
 };
@@ -171,11 +178,29 @@ function runClimb(dt, wallS, over = {}) {
         vMaxMps: vMax,
       };
     }
+    // M4 (p.14): the share block, mirroring updateContinuous call for call — with a
+    // second rider aboard (slider on, the 85 km request passed) the wave's transported
+    // power is a SHARED budget (the anchor's resonant injection while resonant, the
+    // slide-6 transported power of the local film plain) and the other rider draws
+    // weight x climb speed (a twin in formation cruise). The coupling applies the cap.
+    let share = null;
+    if (cfg.powerShareOn && monkey.altitude >= 85000) {
+      const vPlayerMps = Math.max(0, -monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION);
+      share = {
+        budgetW: waveSharedBudgetW({
+          altitudeM: monkey.altitude, amplitudeM: ws.amplitude, freqHz: ws.frequency,
+          taperRatio: cfg.taperRatio, spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
+          widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm,
+          resonanceSupplyCapW: resonance ? resonance.supplyCapW : null,
+        }),
+        otherDrawW: weightN(massKg, DEFAULTS.gravityMultiplier) * vPlayerMps,
+      };
+    }
     const engaged = monkey.isGrabbing && !brownout;
     let quality = 0, thrustFrameN = 0;
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
-        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio, widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm, vMaxMps: resonance ? resonance.vMaxMps : 0, resonance });
+        { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio, widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm, vMaxMps: resonance ? resonance.vMaxMps : 0, resonance, share });
       monkey.velocityY += c.impulse * coldFactor;
       quality = c.quality;
       thrustFrameN = c.thrustN;
@@ -435,6 +460,58 @@ test('M4 resonance (p.10): the anchor-node mode flies with the boost, resets onc
   assert.ok(resPad.brownoutEpisodes.length >= 10,
     `pad engagement should cycle brownouts (got ${resPad.brownoutEpisodes.length}) — the energy loop never closes low`);
   assert.ok(resPad.finalAltM < 1000, `pad engagement reached ${resPad.finalAltM.toFixed(0)} m — expected to stay trapped low`);
+});
+
+test('M4 multi-climber (p.14): the shared budget is free on a plain wave and exactly halves the capped resonant cruise', () => {
+  // The power-sharing verification, in the integrator itself (always engaged,
+  // mirroring updateContinuous's share block call for call). Each run starts at
+  // 80 km and crosses the 85 km request mid-run; the shared runs differ only in
+  // powerShareOn. The DEFAULT trace cannot move: powerShareOn false is the
+  // single-climber wave, and the snapshot test above guards it.
+  //
+  // PLAIN: the slide-6 budget at 85+ km is ~140 MW against a ~13 kW skim, so the
+  // shared cap (budget minus the rider's weight x speed draw) sits ~4 orders of
+  // magnitude over the live thrust and NEVER binds: the shared run is the
+  // unshared run frame for frame. That non-event IS the honest p.14 answer for a
+  // plain wave at the demo scale: power is not what is scarce.
+  const plainSolo = runClimb(1 / 60, WALL_S, { startAltM: 80000 });
+  const plainShared = runClimb(1 / 60, WALL_S, { startAltM: 80000, powerShareOn: true });
+  assert.notEqual(plainSolo.doneAt, null, 'plain 80 km climb stalled');
+  assert.equal(plainShared.doneAt, plainSolo.doneAt,
+    `a plain shared wave never binds: ${plainShared.doneAt}s vs ${plainSolo.doneAt}s`);
+  assert.equal(plainShared.finalSpeedKmh, plainSolo.finalSpeedKmh,
+    'a plain shared wave never binds: identical final speed');
+  for (const [band, t] of plainSolo.crossings) {
+    assert.equal(plainShared.crossings.get(band), t, `plain shared crossing at ${band} m moved`);
+  }
+  // RESONANT + the 3 cm stroke (the resonance test's supply-capped fixture): the
+  // budget IS the anchor's injection, ~10.6 kW at the top against a ~13 kW
+  // unshared cruise skim, so the cap BINDS. Below the 85 km request there is no
+  // rider aboard, so the runs are frame-identical through the crossing itself
+  // (the rider boards on frame-entry altitude, so the crossing frame is the last
+  // unshared one). Above it the shared cruise is the equal-split fixed point the
+  // powerShareCapW unit test pins: extraction == budget/2, and since the cruise
+  // skim is weight x speed, the cruise speed HALVES the solo supply-capped one.
+  // Still no clamp on speed: the cap throttles thrust, and the climb completes.
+  const resSolo = runClimb(1 / 60, WALL_S, { startAltM: 80000, resonanceOn: true, amplitudeM: 0.03 });
+  const resShared = runClimb(1 / 60, WALL_S, { startAltM: 80000, resonanceOn: true, amplitudeM: 0.03, powerShareOn: true });
+  assert.notEqual(resSolo.doneAt, null, 'the solo supply-capped resonant climb stalled');
+  assert.notEqual(resShared.doneAt, null, 'the shared supply-capped resonant climb stalled');
+  assert.ok(resShared.chargeInRange, 'shared resonant charge left [0, CAPACITY]');
+  assert.equal(resShared.brownoutEpisodes.length, 0,
+    'switching follows the cavity rate (Hz-class aloft): no brownouts aboard');
+  assert.equal(resShared.crossings.get(85000), resSolo.crossings.get(85000),
+    'below the 85 km request there is no rider: the crossing must be frame-identical');
+  assert.ok(resShared.doneAt > resSolo.doneAt,
+    `sharing costs time once the rider boards: ${resShared.doneAt}s vs ${resSolo.doneAt}s`);
+  const half = resSolo.finalSpeedKmh / 2;
+  assert.ok(Math.abs(resShared.finalSpeedKmh - half) / half < 0.05,
+    `the shared cruise halves the solo capped one: ${resShared.finalSpeedKmh.toFixed(0)} vs ${half.toFixed(0)} km/h (x0.5)`);
+  assert.ok(Math.abs(resShared.finalExtractionW - resShared.finalSupplyW / 2) / (resShared.finalSupplyW / 2) < 0.01,
+    `aboard, the skim IS half the shared budget: extraction ${(resShared.finalExtractionW / 1e3).toFixed(2)} kW vs supply ${(resShared.finalSupplyW / 1e3).toFixed(2)} kW`);
+  // And the solo run keeps its own pin: exactly at the cap, the skim == supply.
+  assert.ok(Math.abs(resSolo.finalExtractionW - resSolo.finalSupplyW) / resSolo.finalSupplyW < 0.01,
+    `solo, the skim IS the injection: extraction ${(resSolo.finalExtractionW / 1e3).toFixed(2)} kW vs supply ${(resSolo.finalSupplyW / 1e3).toFixed(2)} kW`);
 });
 
 test('trace is frame-rate independent (dt = 1/60 vs 1/240)', () => {

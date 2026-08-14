@@ -50,6 +50,9 @@ const {
   resonanceBoostFactor,
   resonanceSupplyW,
   resonantFilmPeakMps,
+  waveTransportedPowerW,
+  waveSharedBudgetW,
+  powerShareCapW,
   temperatureAtAltitude,
   thermalSuitIndex,
   coldGripFactor,
@@ -105,6 +108,7 @@ test('extraction exposes the core pure symbols', () => {
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW,
     resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
+    waveTransportedPowerW, waveSharedBudgetW, powerShareCapW,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
@@ -132,11 +136,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 57 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 60 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 57);
+  assert.equal(declaredPureHelpers().length, 60);
 });
 
 // ---------------------------------------------------------------------------
@@ -1056,6 +1060,58 @@ test('resonantFilmPeakMps: the film runs the local stress ceiling, drag-damped, 
   const plain = vAnchor * taperVelocityFactorAt(50000, 1, span) * waveDragSpeedFactorAt(50000, vAnchor, 45, 0.2);
   assert.ok(Math.abs(b2 / plain - vMax / vAnchor) / (vMax / vAnchor) < 0.01,
     `the boost is v_cap/v_anchor: ${(b2 / plain).toFixed(3)} vs ${(vMax / vAnchor).toFixed(3)}`);
+});
+
+// ---------------------------------------------------------------------------
+// M4 (paper p.14): multi-climber power sharing — the wave's transported power
+// as a SHARED budget. Plain mode carries slide 6's P = rho·c·A·V² (the p.10
+// table's plain rows, pinned below); resonance mode carries the anchor's
+// injection (resonanceSupplyW, fixture-pinned above). Each rider's skim caps at
+// the budget minus the other's draw. The per-climber wave-boundary solve
+// (partial reflections, standing-pattern perturbation) stays ABSENT by design.
+// ---------------------------------------------------------------------------
+test('waveTransportedPowerW: the slide-6 plain rows per unit section — the shared budget law', () => {
+  // The p.10 table's plain rows ARE slide 6's law: 150 kW/mm² at 200 km/h,
+  // 3.7 MW/mm² at 1000 km/h. This is the budget a plain wave puts on the table
+  // for riders to split (and the numbers resonanceBoostFactor boosts).
+  const mm2 = 1e-6;
+  const r2 = (x) => Number(x.toPrecision(2));
+  assert.equal(r2(waveTransportedPowerW(200 / 3.6, mm2) / 1e3), 150, 'P/A @ 200 km/h = 150 kW/mm^2 (slide 6)');
+  assert.equal(r2(waveTransportedPowerW(1000 / 3.6, mm2) / 1e6), 3.7, 'P/A @ 1000 km/h = 3.7 MW/mm^2 (slide 6)');
+  // Quadratic in film speed (5x speed = 25x power), linear in section.
+  approx(waveTransportedPowerW(1000 / 3.6, mm2) / waveTransportedPowerW(200 / 3.6, mm2), 25, 1e-12);
+  approx(waveTransportedPowerW(200 / 3.6, 9 * mm2) / waveTransportedPowerW(200 / 3.6, mm2), 9, 1e-12);
+});
+
+test('waveSharedBudgetW: resonant injection while resonant, drag-sapped but taper-constant plain', () => {
+  const span = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+  // While resonant the budget IS the anchor's injection — the p.10 supply cap,
+  // computed where the cavity state lives (the caller), passed straight through.
+  assert.equal(waveSharedBudgetW({ altitudeM: 85000, amplitudeM: 1, freqHz: 92, taperRatio: 1, spanM: span, widthMm: 45, thicknessMm: 0.2, resonanceSupplyCapW: 12345 }), 12345);
+  // Plain mode: transported power is CONSTANT along the film (the taper's own
+  // law — A(alt) grows by R(alt) while V(alt) falls by sqrt(R(alt))) and only
+  // drag saps it with height. With a taper the 85 km budget sits a few per
+  // cent under the 2 km one, never more on this film.
+  const at2k = waveSharedBudgetW({ altitudeM: 2000, amplitudeM: 1, freqHz: 92, taperRatio: 2, spanM: span, widthMm: 45, thicknessMm: 0.2 });
+  const at85k = waveSharedBudgetW({ altitudeM: 85000, amplitudeM: 1, freqHz: 92, taperRatio: 2, spanM: span, widthMm: 45, thicknessMm: 0.2 });
+  assert.ok(at85k < at2k && at85k / at2k > 0.95,
+    `drag saps a few per cent of the budget with height, nothing more: ${(100 * at85k / at2k).toFixed(1)}%`);
+  // At the shipped defaults and 85 km the plain budget is ~140 MW against a
+  // ~15 kW skim — sharing a plain wave is a rounding error, the honest p.14
+  // answer the 85 km beat card quotes.
+  const budget = waveSharedBudgetW({ altitudeM: 85000, amplitudeM: GameConfig.WAVE.DEFAULT_AMPLITUDE, freqHz: GameConfig.WAVE.DEFAULT_FREQUENCY, taperRatio: 1, spanM: span, widthMm: 45, thicknessMm: 0.2 });
+  assert.ok(budget > 1e8 && budget < 2e8, `~140 MW at 85 km on the default film: ${(budget / 1e6).toFixed(1)} MW`);
+});
+
+test('powerShareCapW: skim caps at the budget minus the other rider\'s draw, floored at zero', () => {
+  assert.equal(powerShareCapW(100, 40), 60);
+  assert.equal(powerShareCapW(100, 0), 100, 'no other draw: the whole budget');
+  assert.equal(powerShareCapW(100, 100), 0, 'the other rider took the lot: nothing left');
+  assert.equal(powerShareCapW(100, 120), 0, 'floored at zero — a skim cap, never a brake');
+  // The symmetric fixed point: two identical riders, each capping at the budget
+  // minus the other's draw, settle at exactly half the budget each. This is the
+  // halved resonant cruise the balance harness pins end-to-end.
+  approx(powerShareCapW(416e3, 208e3), 208e3, 1e-9, 'E = budget − E lands on budget/2');
 });
 
 test('B.14 split is gone, and M4 took the aero half too: gravity only, no drag on the climber', () => {

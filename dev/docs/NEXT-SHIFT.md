@@ -1,9 +1,10 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the shift that shipped M4 standing-wave
-resonance (paper p.10: the anchor as a node, the frequency falling as the climber rises
-and resetting at the 100 km wavelength floor, paying one cavity round trip of transient).
+that have already cost time. Updated at the end of the shift that shipped M4 multi-climber
+power sharing (paper p.14: the wave's transported power as a shared budget, each rider's
+skim capped at the budget minus the other's draw, the 85 km beat made the share-or-refuse
+decision).
 
 ## Where things stand
 
@@ -11,18 +12,73 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 132 unit tests, 28 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 391 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 137 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 407 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
-- **Physics**: M1, M2, M3.1-M3.8 and M4's first three items (taper p.9, wave drag p.7,
-  standing-wave resonance p.10) are complete. The deferred list is powering more than
-  one climber (p.14), mode conversion (p.12) and the hot side of thermal. All are
-  marked absent in-game rather than approximated. Do not fake them.
-- **Default climb**: unchanged by the resonance shift (the mode is off by default):
-  100 km in 350.7 s, mean 1027 km/h, cruise 1085 km/h = 0.48 v_max, no brownouts,
-  31 kg/h of throughput with 3 kg of cargo.
+- **Physics**: M1, M2, M3.1-M3.8 and M4's first four items (taper p.9, wave drag p.7,
+  standing-wave resonance p.10, multi-climber power sharing p.14) are complete. The
+  deferred list is mode conversion (p.12) and the hot side of thermal. Both are marked
+  absent in-game rather than approximated. Do not fake them. The p.14 wave-boundary solve
+  (partial reflections, the retune interplay between riders) stays marked absent even
+  though the budget-level sharing shipped: it is not on the deferred list, it is the
+  paper's own unsolved problem.
+- **Default climb**: unchanged by the sharing shift (the toggle defaults to refuse) and
+  by the resonance shift before it (off by default): 100 km in 350.7 s, mean 1027 km/h,
+  cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **M4 multi-climber power sharing (paper p.14) is live, and the 85 km beat is now a
+  share-or-refuse decision.** Three new pure helpers (`waveTransportedPowerW`,
+  `waveSharedBudgetW`, `powerShareCapW`; count 57 -> 60) and ONE new slider
+  (Ground-station group, `powerShare` 0/1, default refuse). The honest model, chosen
+  against section 0 because the paper names the question unexplored and high-risk and
+  there is no mechanism to copy: the wave's transported power becomes a SHARED budget.
+  Plain mode carries slide 6's P = rho·c·A·V^2 computed on the LOCAL film (taper- and
+  drag-adjusted peak over the local section, fixture-pinned to the p.10 table's plain
+  rows: 150 kW/mm^2 at 200 km/h, 3.7 MW/mm^2 at 1000 km/h); resonance mode carries the
+  anchor's injection (the p.10 P = sigma·v already enforced as the single climber's
+  supply cap). Each rider's skim caps at the budget minus the other's draw
+  (`powerShareCapW`, applied inside the coupling EXACTLY like the resonance supply cap:
+  it throttles thrust, never speed, and recedes as v -> 0). The other rider is
+  summarised as a twin in formation cruise (draw = weight x climb speed, the player's
+  own skim at cruise, so at the bind both riders take the budget's half exactly) and
+  drawn in formation 15 m below the player with the descenders' glyph: a static world
+  entity at every HUD level, no flash budget spent, reduced-motion safe by construction,
+  and the state rides words (the HUD line and the card), not colour.
+- **The balance harness verified the law before it shipped, and the default trace did
+  NOT move (snapshot not regenerated).** The new test runs four climbs from 80 km: plain
+  solo vs plain shared are frame-identical (the ~140 MW budget against the ~13 kW skim
+  means the cap never binds: at the demo scale power is not what is scarce, and that
+  non-event IS the honest p.14 answer), while resonant (3 cm stroke, supply-capped)
+  solo vs shared split exactly: the 85 km crossing is frame-identical between them (the
+  rider boards on frame-entry altitude, so the crossing frame is the last unshared one),
+  then the shared cruise halves the solo one and the skim pins at supply/2. No brownouts
+  aboard (switching follows the cavity rate). The harness's `powerShareOn` knob defaults
+  false and mirrors updateContinuous's share block call for call.
+- **New smoke check (13c) drives the slider through its own DOM event both ways**:
+  refuse at the 85 km crossing fires the request card with no rider aboard and nothing
+  drawn; share boards the rider (`_shareRiderDrawnTotal` proves the glyph painted),
+  quotes the live budget/draw/cap, and refuse-again unboards and restores the `refuse`
+  label. The harness owns the binding halves; smoke owns the DOM path and the render.
+- **The stills did not move, verified by re-shooting them** (256.3 m / 360.0 m, centres
+  exact; the committed PNGs restored rather than churned on shader noise). The rider
+  render was verified on staged 85.3 km frames in both modes (the plain-mode share line
+  reads "budget 136.6 MW"; resonant reads kW-scale and the engage transient showed as
+  extraction 0, exactly the one-round-trip buildup). Capture seeds the beat id already:
+  `second-climber` is in `capture.mjs`'s `_beatsFired` seed.
+- **Presets pin `powerShare: 0`** (fired with the same `fire('powerShare', ...)` line),
+  same pattern as `resonance: 0` and `taper: 1`.
+- **Em dashes in new prose: none.** The new player-facing strings (slider hint, both
+  beat cards, the labels, the Unsolved rewrite) were written clean; the backlog sweep
+  stays its own task (priority 2 below).
+- **The wave-boundary solve stays marked absent, by design.** The refusal card keeps
+  the open question named (and points at the lever); the share card and the slider hint
+  say exactly what is not modelled: partial reflections (p.3) and the standing-pattern
+  perturbation that makes retuning with two riders aboard tricky (p.10). If a real
+  per-climber wave-boundary solve ever lands, it lands with fixtures, not as prose.
+
+## What the shift before changed, so you do not undo it
 
 - **M4 standing-wave resonance (paper p.10) is live, and it unlocks the marked 40-70 km
   retune beat.** Four new pure helpers (`resonanceModeAt`, `resonanceBoostFactor`,
@@ -96,7 +152,7 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
   cavity rings one mode), and the Unsolved panel's "retuning makes sharing tricky"
   line now references a mechanic the player has actually felt.
 
-## What the shift before changed, so you do not undo it
+### From the shift before (M4 wave drag p.7, plus captures and the clip)
 
 - **M4 wave drag (paper p.7) is live, and it unlocks the 2-12 km beat.** Three new pure
   helpers (`densityColumnKgM2`, `waveDragSpeedFactorAt`, `waveDragColumnPowerW`; count
@@ -273,7 +329,7 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
   and the count assertion failed. Write straight calls inside helpers, or expect the
   loud failure (the count went 46 → 47 with `slipGateFactor`).
 
-### From the shift before (M4 taper, paper p.9)
+### From earlier shifts (M4 taper, paper p.9)
 
 - **Taper is live: one Film-group slider (anchor:top section ratio R = 1-10, step 0.5,
   default 1.0 = the uniform film).** The film's peak velocity is the LOCAL one at the
@@ -370,31 +426,34 @@ and resetting at the 100 km wavelength floor, paying one cavity round trip of tr
 
 ## Priorities for this shift
 
-Last shift's priority 1 is **done**: standing-wave resonance (p.10) shipped with its own
-balance-harness verification (the boost flies, exactly one retune at 50 km, the supply
-cap pinned as extraction == supply, the pad pinned as the honest teeth), the marked
-40-70 km retune beat is live (off-mode availability card at 45 km, on-mode retune card
-at the 50 km reset), the default trace did NOT move (the mode is off by default, the
-snapshot deliberately not regenerated), and the stills did not move (renderer
-untouched; re-shot, confirmed, restored). The taper and wave-drag shifts before it
-shipped the same way, and the moving picture and score work survive as is. Do not
-reopen any of them.
+Last shift's priority 1 is **done**: multi-climber power sharing (p.14) shipped with its
+own balance-harness verification (the plain shared run is the unshared run frame for
+frame, the resonant shared cruise halves the solo supply-capped one with the skim pinned
+at supply/2, the 85 km crossing frame-identical between solo and shared), the 85 km
+beat is the share-or-refuse decision with live numbers either way, the default trace did
+NOT move (the toggle defaults to refuse, the snapshot deliberately not regenerated), and
+the stills did not move (re-shot, confirmed, restored). The resonance, taper and
+wave-drag shifts before it shipped the same way. Do not reopen any of them.
 
 ### 1. M4 physics, next item only
 
-Multi-climber (p.14) is the last deferred M4 physics item, and the p.10 note that
-resonance retuning makes multi-climber "tricky" is why it comes after resonance. It
-needs its own balance-harness verification before it ships. The spec lives in section 8
-of `.kilo/plans/1785893790322-fg40-film-coupling-fidelity-plan.md` (gitignored, local
-only; sections 4-9 are the milestone authority). That file's STATUS block lags this
-file, but **this file is the committed handoff and wins wherever they disagree**. The
-85 km second-climber beat already ships as the paper's open question; the item is the
-real power-sharing model, whatever the paper actually supports. Note section 8's
-"Touch support" bullet is DONE (shift 9); do not re-implement it.
+**Mode conversion (paper p.12/13).** The only deferred simulation item left. The
+paper's table has a mode column: longitudinal vs transverse, and inside each, travelling
+vs standing. The game runs the longitudinal travelling cell now; the resonance shift
+landed standing. Mode conversion between them (the p.12/13 story) is unsolved by the
+paper except as a layout, and its honest shape is not yet decided: section 8 of
+`.kilo/plans/1785893790322-fg40-film-coupling-fidelity-plan.md` (gitignored, local only;
+sections 4-9 are the milestone authority, and this file wins wherever they disagree)
+closes on it. Decide section 0's verdict on that page before choosing a playable shape.
 
-### 2. Two contained hygiene tasks nobody has claimed
+### 2. Then the hot side of thermal (paper p.5)
 
-- **The em-dash ban is not enforced in the shipped copy.** Counted this shift: 41 quoted
+The ISA temperature readout and the suit are in; the paper's IR-budget account of
+"temperature cycle is more difficult" is untouched and is a shift's work on its own.
+
+### 3. Two contained hygiene tasks nobody has claimed
+
+- **The em-dash ban is not enforced in the shipped copy.** Counted earlier: 41 quoted
   strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
   plus 6 `&mdash;` entities in the settings markup. New prose has been clean for several
   shifts, but the backlog still ships to players. The sweep is mechanical and needs a
@@ -402,9 +461,18 @@ real power-sharing model, whatever the paper actually supports. Note section 8's
 - **`dev/docs/v1.0-roadmap.md` still presents itself as the current plan.** It is pre-M1
   history with superseded physics (it predates slip coupling entirely), and it even
   contains an item asking for exactly this treatment of other files. Mark it historical at
-  the top or retire it; a reader who finds it before this file gets the wrong model. The
-  fidelity plan's other M3.9 leftovers are closed: the in-panel concept copy shipped in
-  shift 10, and the DEVELOPERS/CHANGELOG re-read happened this shift.
+  the top or retire it; a reader who finds it before this file gets the wrong model.
+
+### Backlog, any order
+
+- **Wave power budget display (slide 6-ish).** The skim/supply readout says where the
+  residual goes; a display line for P = rho·c·A·V^2 arriving at the climber's altitude
+  would make the mode's budgeting plain. `waveSharedBudgetW` is already the single
+  formula consumed by the coupling, the harness and the 85 km beat card (with the p.14
+  rider aboard it IS the shared budget), so the readout cannot disagree with the physics.
+- **Resonance texture**: `resonanceModeAt.periodS` is on the readout; a visible crest
+  scale could ride it.
+- **Bootstrap pacing**: `throughputKgPerHour` is pinned and shown at the minimal level.
 
 ## Screenshot recipe, already paid for
 
@@ -472,7 +540,7 @@ rediscover the traps:
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 57). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 60). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.

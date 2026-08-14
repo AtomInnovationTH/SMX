@@ -79,6 +79,9 @@ Exact, because you make decisions with them:
 * standing-wave resonance (paper p.10), off by default: engage it and the anchor becomes a node,
   the film runs its local stress ceiling, the carrier locks to the cavity (falling as you climb,
   retuning at 50 km and paying a transient), and the stack's switching follows the cavity rate
+* multi-climber power sharing (the paper's p.14 open question, playable at the budget level),
+  off by default: past the 85 km request a second rider boards your wave, the wave's transported
+  power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw
 * switching power `4·N·E_switch·f`, extraction `F̄ · v`, and US Standard Atmosphere density
 
 The impedance and power table on the paper's slide 6 reproduces to 2-3 significant figures, and
@@ -88,11 +91,13 @@ at 200 km/h, 12.5 MW/mm² at 1000 km/h).
 
 Simplified on purpose, and labelled on screen: the reflection band, the stack's firing animation
 (slowed down, and frozen if you prefer reduced motion), the monkey and the drawn magnet stack (not
-to scale), the ripple a passing descender leaves in the film, and the resonant buildup after a
-retune (one cavity round trip, not a boundary-value solve).
+to scale), the ripple a passing descender leaves in the film, the resonant buildup after a
+retune (one cavity round trip, not a boundary-value solve), and the second rider, who is a twin
+in formation cruise (drawing weight x climb speed), not a solved body.
 
-Missing rather than faked: powering more than one climber (the paper's own open question, p.14),
-mode conversion, and heat.
+Missing rather than faked: the wave physics between riders (partial reflections, paper p.3, and
+the standing-pattern perturbation that makes retuning with two aboard tricky, p.10), mode
+conversion, and heat.
 
 Estimated rather than published, and flagged in the code: per-pair traction, gap flux, structure
 mass, battery size.

@@ -86,7 +86,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 57-helper count assertion in
+Keep the 60-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -419,9 +419,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **132 unit tests**
-  (pure 113, sliders 11, balance 8), **57 pure helpers** in the delimited block,
-  **98 = 98** asset references, **28 browser smoke checks**, `index.html` **391 KB**.
+- **Current gate numbers** (keep these updated when they move): **137 unit tests**
+  (pure 116, sliders 12, balance 9), **60 pure helpers** in the delimited block,
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **407 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

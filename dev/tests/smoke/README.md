@@ -13,8 +13,9 @@ cannot boot the game, render, or catch asset 404s. This smoke test drives the bu
 - and the checks later shifts added: settings via a real gear click, the restart latch,
   the literal 8-pair FG40 stack and its firing sweep, the film band, both photosafety
   ceilings and the reduced-motion freezes, the event schedule, the descenders, the
-  presets, the persistence purge, touch play, the HUD levels and the slip-crest overlay
-  (26 checks today; the script's own comments are the per-check record).
+  multi-climber power sharing, the presets, the persistence purge, touch play, the HUD
+  levels and the slip-crest overlay
+  (29 checks today; the script's own comments are the per-check record).
 
 ## It is optional and adds no committed dependency
 

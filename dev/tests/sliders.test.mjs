@@ -150,3 +150,16 @@ test('resonance slider is the anchor-node toggle (M4, p.10), default off', () =>
   assert.equal(d.max, '1');
   assert.equal(d.step, '1', 'a toggle: no half-engaged state');
 });
+
+test('powerShare slider is the share-or-refuse toggle (M4, p.14), default refuse', () => {
+  // The raw value IS the flag (0/1, documented pass-through in scaleSettingValue).
+  // Default REFUSE is the single-climber wave — the pre-sharing model exactly,
+  // which is what keeps the committed balance trace valid. Every preset pins it
+  // to 0, the same pattern as taper's pin to 1 and resonance's pin to 0.
+  const d = sliderDefaults().powerShare;
+  assert.equal(scaleSettingValue('powerShare', parseFloat(d.inputValue)), 0);
+  assert.equal(d.staticLabel, 'refuse');
+  assert.equal(d.min, '0');
+  assert.equal(d.max, '1');
+  assert.equal(d.step, '1', 'a toggle: no half-shared state');
+});

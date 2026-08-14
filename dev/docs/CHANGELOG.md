@@ -12,9 +12,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
-M4's deferred physics has started (taper, wave drag, resonance).
+M4's deferred physics has started (taper, wave drag, resonance, multi-climber sharing).
 
 #### Added (M4 physics, August 2026)
+
+- **Multi-climber power sharing (paper p.14), the fourth M4 item.** p.14's own open
+  question, "How to get power to more than one climber?", is now playable at the budget
+  level. A new Ground-station slider answers the M3.4 schedule's 85 km beat (formerly an
+  open-question card), which is now the share-or-refuse decision. Refuse (the shipped
+  default) and nothing anywhere changes: no rider, no cap, the committed trace
+  untouched. Share, and a second rider boards the wave past 85 km (drawn in formation
+  cruise, world-anchored like the descenders): the wave's transported power becomes a
+  shared budget, slide 6's P = rho·c·A·V^2 in plain mode (a new regression fixture
+  against the p.10 table's plain rows, 150 kW/mm^2 at 200 km/h and 3.7 MW/mm^2 at
+  1000 km/h) and the anchor's resonant injection (p.10's P = sigma·v, already the
+  single climber's supply cap) while resonant, and each rider's skim caps at the budget
+  minus the other's draw. The other rider is summarised, never solved (a twin in
+  formation cruise, drawing weight x climb speed); the per-climber wave-boundary solve
+  the paper cannot do yet (partial reflections, p.3; the standing-pattern perturbation
+  that makes retuning with two riders aboard tricky, p.10) stays marked absent in the
+  slider hint, the beat cards and the Unsolved panel. Verified in the balance harness
+  before shipping: on a plain wave the cap never binds (the budget ~140 MW at cruise
+  altitude against two ~13 kW skims, so the shared run is the unshared run frame for
+  frame: the honest p.14 answer at demo scale), while under resonance with the 3 cm
+  stroke the shared cruise halves the solo supply-capped one with the skim pinned at
+  supply/2, and the 85 km crossing is frame-identical between the solo and shared runs
+  (the rider boards on frame-entry altitude, so the crossing frame is the last unshared
+  one). Off by default; the balance snapshot was NOT regenerated. A full-HUD readout
+  line shows the rider's draw against the budget while aboard, and the smoke suite
+  drives the slider through its own DOM event in both directions.
 
 - **Standing-wave resonance (paper p.10), the third M4 item.** A new Ground-station
   slider engages the anchor-as-node mode, off by default (the plain travelling wave, so
