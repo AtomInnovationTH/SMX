@@ -85,6 +85,10 @@ Exact, because you make decisions with them:
 * the paper's p.12/13 mode table as a live readout: you fly the longitudinal travelling cell,
   the resonance lever moves you to longitudinal standing and back, and at 42 km a beat card asks
   the paper's own question ("Consider mode conversion above the atmosphere?") verbatim
+* the hot side of thermal as a live book, not a temperature (paper p.7's drag-heating note +
+  the FG40 datasheet): the stack's switching dissipation and the wave's local drag-heating rate
+  in W/m, against the datasheet's +73 °C internal ceiling and the ISA air that stops convecting
+  as you climb
 * switching power `4·N·E_switch·f`, extraction `F̄ · v`, and US Standard Atmosphere density
 
 The impedance and power table on the paper's slide 6 reproduces to 2-3 significant figures, and
@@ -101,8 +105,10 @@ in formation cruise (drawing weight x climb speed), not a solved body.
 Missing rather than faked: the wave physics between riders (partial reflections, paper p.3, and
 the standing-pattern perturbation that makes retuning with two aboard tricky, p.10), the
 mode-conversion mechanism (the paper offers a table and a question but no converter, so the game
-ships the labelled table and the verbatim question, never a converter), and heat (the hot side of
-p.5's thermal budget, the last deferred simulation item).
+ships the labelled table and the verbatim question, never a converter), and any temperature (the
+paper's only thermal hook is p.7's "possibly by drag heating", a maybe with no number, and the
+datasheet publishes the +73 °C ceiling but no thermal resistance, so the game books the exact
+watts against the exact ceiling and models no temperature of its own).
 
 Estimated rather than published, and flagged in the code: per-pair traction, gap flux, structure
 mass, battery size.
@@ -144,7 +150,7 @@ paper leaves unsolved at the wave level.
 ## Run and build
 
 ```bash
-node --test dev/tests/*.test.mjs   # 138 tests, no dependencies
+node --test dev/tests/*.test.mjs   # 140 tests, no dependencies
 bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```
@@ -171,6 +177,8 @@ the author's copy.
 
 [MIT](LICENSE), code and art alike.
 
-Still in progress, so the live build moves around. The hot side of thermal (paper p.7's
-drag-heating note), the last deferred simulation item, is next.
+Still in progress, so the live build moves around. The paper's deferred simulation list is
+complete: taper, wave drag, resonance, multi-climber sharing, mode conversion and, as of this
+shift, the hot side of thermal (booked exactly, temperature marked absent). What remains
+unsimulated is the paper's own unsolved problems.
 Issues and pull requests welcome: [CONTRIBUTING.md](.github/CONTRIBUTING.md).

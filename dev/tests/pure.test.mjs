@@ -46,6 +46,7 @@ const {
   densityColumnKgM2,
   waveDragSpeedFactorAt,
   waveDragColumnPowerW,
+  waveDragHeatingWM,
   resonanceModeAt,
   resonanceBoostFactor,
   resonanceSupplyW,
@@ -107,7 +108,7 @@ test('extraction exposes the core pure symbols', () => {
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
     freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipGateFactor,
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
-    densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW,
+    densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW, waveDragHeatingWM,
     resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
     waveTransportedPowerW, waveSharedBudgetW, powerShareCapW, waveModeCell,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
@@ -137,11 +138,11 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 61 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 62 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 61);
+  assert.equal(declaredPureHelpers().length, 62);
 });
 
 // ---------------------------------------------------------------------------
@@ -957,6 +958,50 @@ test('waveDragColumnPowerW: the drag table\'s longitudinal row is a regression f
     * (1000 / 3.6) ** 3 * densityColumnKgM2(100000);
   assert.ok(Math.abs(firstOrder - row) / row < 0.02,
     `first-order ${(firstOrder / 1e6).toFixed(3)} MW vs exact ${(row / 1e6).toFixed(3)} MW`);
+});
+
+// M4 (paper p.7 + FG40 datasheet): the hot side. The local drag-heating rate is the
+// p.7 "possibly by drag heating" term itself; the FG40 ceiling constants are the
+// datasheet's absolute maximum ratings (verified against the Zubax FluxGrip
+// reference manual, FG40 hardware chapter). The temperature between the watts and
+// the ceiling is NOT modelled: no heat capacity or transfer coefficient is
+// published anywhere, so these tests pin the exact watts and the exact ceiling only.
+test('waveDragHeatingWM: the local drag-heating rate, the p.7 hook\'s own term', () => {
+  // Sea level, the paper's 1000 km/h, the 9 mm2 film: ½·ρ·Cd·2t·V³ ≈ 105 W/m.
+  const q0 = waveDragHeatingWM(0, 1000 / 3.6, 45, 0.2);
+  assert.ok(q0 > 100 && q0 < 110, `sea-level rate ${q0.toFixed(1)} W/m at 1000 km/h (expected ~105)`);
+  // A standing film heats nothing, at any altitude.
+  approx(waveDragHeatingWM(0, 0, 45, 0.2), 0, 1e-12);
+  approx(waveDragHeatingWM(50000, 0, 45, 0.2), 0, 1e-12);
+  // Cubic in film speed, linear in thickness (the same law's scalings).
+  approx(waveDragHeatingWM(0, 2000 / 3.6, 45, 0.2) / q0, 8, 1e-9, 'rate is cubic in film speed');
+  approx(waveDragHeatingWM(0, 1000 / 3.6, 45, 0.4) / q0, 2, 1e-9, 'rate is linear in thickness');
+  // The medium dies with altitude: at 30 km the rate is ~1.5% of its sea-level value
+  // (densityRatio's own ratio) even though the film there is barely damped.
+  const q30 = waveDragHeatingWM(30000, 1000 / 3.6, 45, 0.2);
+  assert.ok(q30 < q0 * 0.02 && q30 > q0 * 0.01,
+    `30 km rate ${q30.toFixed(2)} W/m should track the air, ~1.5% of sea level`);
+  // THE CROSS-READING FIXTURE: the local rate integrated over the whole column IS
+  // the column bill (q = −dP/dy by construction). Trapezoid quadrature of the local
+  // rate must reproduce waveDragColumnPowerW to quadrature error, so the two
+  // readings of the same law can never drift.
+  let quad = 0;
+  const step = 10;
+  for (let h = 0; h < 100000; h += step) {
+    quad += (waveDragHeatingWM(h, 1000 / 3.6, 45, 0.2) + waveDragHeatingWM(h + step, 1000 / 3.6, 45, 0.2)) / 2 * step;
+  }
+  const bill = waveDragColumnPowerW(1000 / 3.6, 45, 0.2);
+  assert.ok(Math.abs(quad - bill) / bill < 2e-3,
+    `quadrature ${(quad / 1e6).toFixed(3)} MW vs column bill ${(bill / 1e6).toFixed(3)} MW disagree`);
+});
+
+test('the FG40 thermal ceiling is the datasheet\'s absolute-maximum internal temperature', () => {
+  // Zubax FluxGrip reference manual, FG40 hardware chapter, absolute maximum
+  // ratings: internal +73 °C (the heat-deflection limit of the polymer composite
+  // body; the electronics is designed to withstand 105 °C continuously) and
+  // ambient minimum −40 °C. Pin the published figures so a silent edit turns red.
+  assert.equal(GameConfig.FG40.MAX_INTERNAL_TEMP_C, 73);
+  assert.equal(GameConfig.FG40.MIN_AMBIENT_TEMP_C, -40);
 });
 
 // ---------------------------------------------------------------------------

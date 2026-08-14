@@ -57,6 +57,7 @@ const EXPORTED_SYMBOLS = [
   'densityColumnKgM2',
   'waveDragSpeedFactorAt',
   'waveDragColumnPowerW',
+  'waveDragHeatingWM',
   'resonanceModeAt',
   'resonanceBoostFactor',
   'resonanceSupplyW',

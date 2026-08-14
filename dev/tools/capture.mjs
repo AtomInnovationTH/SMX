@@ -200,7 +200,7 @@ async function boot(query) {
     if (g._rafId !== null) { cancelAnimationFrame(g._rafId); g._rafId = null; }
     // The recipe's seeds: no beat cards, act banner, descenders or suit toasts from the
     // teleports, and a run clock that makes the HUD print sane figures.
-    g._beatsFired = new Set(['taper', 'wave-drag', 'transverse', 'thinning', 'fatigue', 'second-climber', 'resonance', 'resonance-retune', 'mode-conversion']);
+    g._beatsFired = new Set(['taper', 'wave-drag', 'transverse', 'thinning', 'fatigue', 'second-climber', 'resonance', 'resonance-retune', 'mode-conversion', 'stack-heat']);
     g._descendersFired = new Set(['desc-30', 'desc-60']);
     g._actBreakFired = true;
     g.landmarksPassed = new Set(g.landmarkSystem.landmarks.map((l) => l.altitude));

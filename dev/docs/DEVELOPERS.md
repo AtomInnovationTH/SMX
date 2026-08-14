@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-413 KB and must be served alongside the
+421 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -86,7 +86,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 61-helper count assertion in
+Keep the 62-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -300,6 +300,28 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   Unsolved bullet, all quoting the one helper so they cannot drift. The transverse
   cells stay captions (the 12 km beat's 45 km/h, 20 kW drag row). No slider, no
   physics: `updateContinuous` is untouched and the balance trace cannot move.
+- **The hot side of thermal, booked and absent (paper p.7 + FG40 datasheet, M4)**
+  (`waveDragHeatingWM`, M4): the deck's only thermal hook is p.7's "longitudinal will
+  be limited by stress limit, wave generator strength-to-weight ratio and possibly by
+  drag heating" (a maybe with no number), and the datasheet publishes a ceiling, not
+  a model: +73 °C internal absolute maximum (the heat-deflection limit of the polymer
+  body; the electronics tolerates 105 °C continuously), ambient minimum -40 °C
+  (`GameConfig.FG40.MAX_INTERNAL_TEMP_C` / `MIN_AMBIENT_TEMP_C`, pinned by a unit
+  test). What no source publishes is the heat capacity, convective transfer
+  coefficient or emissivity that would turn watts into a temperature, so NO
+  temperature is modelled (section 0: never invented). What ships is the exact
+  bookkeeping: a Ground-station readout (Stack heat; NO slider, the levers are the
+  carrier and pairs the player already has) refreshed per frame with the live
+  switching dissipation against the ISA air figure (convection dies with the air;
+  aloft the stack can only radiate); the 2 km wave-drag card's new closing line (the
+  bill leaves the wave as heat, p.7's maybe, no film temperature); a new 30 km beat
+  card booking stack watts against the ceiling with the temperature marked absent;
+  and the Unsolved panel's drag-heating bullet. The helper is the p.7 hook's own
+  term, the local drag-heating rate ½·ρ(y)·Cd·2t·V(y)³ in W/m, and its fixture is a
+  cross-reading: trapezoid quadrature over the column must reproduce
+  `waveDragColumnPowerW` (q = −dP/dy by construction), so the local rate and the
+  column bill can never drift. No mechanic: `updateContinuous` is untouched, the
+  balance harness has nothing new to mirror, and the default trace cannot move.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -339,9 +361,14 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     (the anchor is the brutal part; taper helps; p.9, live since M4's taper shipped,
     quoting the player's own anchor speed and stroke cap), ~2 km (the dense air taxes
     the wave; p.7, live since M4's wave drag shipped, quoting the drag table's
-    longitudinal row and the player's own bill in MW), ~12 km
+    longitudinal row and the player's own bill in MW, and closing on the bill leaving
+    the wave as heat: p.7's drag-heating maybe, no film temperature modelled), ~12 km
     (a transverse wave would be dead here: p.7's 45 km/h, 20 kW cap, against the player's
     live speed and live longitudinal drag bill), ~20 km (air thinning; the stress-budget lever, quoting the LOCAL v_max),
+    ~30 km (the hot side: the stack's live switching watts against the FG40's +73 °C
+    internal ceiling, the convection medium falling on the same ISA table, and the
+    temperature marked absent, no heat capacity or transfer coefficient being published
+    anywhere; paper p.7 + FG40 datasheet, live since M4's thermal item shipped),
     ~42 km (the mode-conversion question, asked verbatim and marked unanswered; p.12/13,
     live since M4's mode-conversion item shipped, fired just past the 40 km act break so
     the card never shares the screen with its banner),
@@ -355,7 +382,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
     physics the sim does not have stay deliberately absent rather than faked; the
     rider-to-rider wave-boundary solve (p.14's unsolved half) is the standing example,
-    with the mode-conversion mechanism (p.12) alongside it as a card that says so.
+    with the mode-conversion mechanism (p.12) alongside it as a card that says so, and
+    any temperature (p.7's drag-heating maybe has no number; the FG40 datasheet gives a
+    ceiling but no thermal resistance) as the readout-and-card that says so.
 - **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
   `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
@@ -451,9 +480,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **138 unit tests**
-  (pure 117, sliders 12, balance 9), **61 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **413 KB**.
+- **Current gate numbers** (keep these updated when they move): **140 unit tests**
+  (pure 119, sliders 12, balance 9), **62 pure helpers** in the delimited block,
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **421 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

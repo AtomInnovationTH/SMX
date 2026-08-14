@@ -511,6 +511,9 @@ try {
   //     mode-conversion beat asks the paper's question verbatim and marks the
   //     mechanism absent (no converter in the paper, so none modelled; the card
   //     fires past the act break so it never shares the screen with its banner).
+  //     M4 (hot side): the same teleport also crosses 30 km, where the stack-heat
+  //     beat books the exact watts against the datasheet's +73 °C ceiling and
+  //     marks the temperature absent; the Stack heat readout must track altitude.
   //     Assert on the active card PLUS the queue (the same pattern check 13 uses).
   const beats = await page.evaluate(async () => {
     const g = window.__smokeGame;
@@ -520,24 +523,35 @@ try {
     await new Promise((r) => setTimeout(r, 400));           // crosses 12 km
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'),
-                  dragFired: g._beatsFired.has('wave-drag'), titles };
-    g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20/42/45 km)
+                  dragFired: g._beatsFired.has('wave-drag'), titles,
+                  heatLabelLow: document.getElementById('stackHeatValue').textContent };
+    g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20/30/42/45 km)
     await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
     const titles2 = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const modeCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
       .find((c) => c.title === 'above the atmosphere: convert modes? the paper asks');
+    const heatCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
+      .find((c) => c.title === 'the air stops carrying your heat');
     const out = { t12, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
                   queueLen: g._beatQueue.length,
                   modeFired: g._beatsFired.has('mode-conversion'),
                   modeTitle: titles2.some((t) => t.includes('convert modes')),
-                  modeBody: (modeCard || { lines: [] }).lines.join(' ') };
+                  modeBody: (modeCard || { lines: [] }).lines.join(' '),
+                  heatFired: g._beatsFired.has('stack-heat'),
+                  heatTitle: titles2.some((t) => t.includes('stops carrying your heat')),
+                  heatBody: (heatCard || { lines: [] }).lines.join(' '),
+                  heatLabelHigh: document.getElementById('stackHeatValue').textContent };
     g.monkey.velocityY = 0;
     return out;
   });
-  record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal + 42 km mode question fire; 70 km fatigue beat silent at 92 Hz',
+  record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal + 30 km stack-heat + 42 km mode question fire; 70 km fatigue beat silent at 92 Hz',
     beats.t12.fired === true && beats.t12.taperFired === true && beats.t12.dragFired === true &&
     beats.t12.titles.some((t) => t.includes('transverse')) &&
     beats.modeFired === true && beats.modeTitle === true && /no converter/.test(beats.modeBody) &&
+    beats.heatFired === true && beats.heatTitle === true &&
+    /no temperature is modelled/.test(beats.heatBody) && /\+73 /.test(beats.heatBody) &&
+    /of sea level/.test(beats.t12.heatLabelLow) && /of sea level/.test(beats.heatLabelHigh) &&
+    beats.t12.heatLabelLow !== beats.heatLabelHigh &&   // the medium falls with altitude
     beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
     JSON.stringify(beats));
 

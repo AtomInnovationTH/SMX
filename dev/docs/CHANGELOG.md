@@ -12,10 +12,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
-M4's deferred physics has started (taper, wave drag, resonance, multi-climber sharing,
-mode conversion).
+M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
+sharing, mode conversion, the hot side of thermal).
 
 #### Added (M4 physics, August 2026)
+
+- **The hot side of thermal (paper p.7 + FG40 datasheet), the sixth and last deferred
+  M4 item: the exact watts against the published ceiling, the temperature marked
+  absent.** The deck's only thermal hook is p.7's "longitudinal will be limited by
+  stress limit, wave generator strength-to-weight ratio and possibly by drag heating"
+  (a maybe with no number; a full-deck sweep finds no other thermal passage), and the
+  FG40's datasheet publishes a ceiling, not a model: +73 °C internal absolute maximum
+  (the heat-deflection limit of the polymer composite body; the electronics tolerates
+  105 °C continuously) and a -40 °C ambient minimum, now pinned in `GameConfig.FG40`
+  with a unit test. No heat capacity, convective transfer coefficient or emissivity is
+  published anywhere, so the section-0 verdict is that NO temperature can be computed
+  honestly: what ships is the bookkeeping, never an invented trace. One new pure
+  helper, `waveDragHeatingWM` (count 61 -> 62), is the p.7 hook's own term, the local
+  drag-heating rate 0.5*rho(y)*Cd*2t*V(y)^3 in W/m; its fixture is a cross-reading,
+  trapezoid quadrature over the column reproducing `waveDragColumnPowerW` (q = -dP/dy
+  by construction), so the local rate and the column bill can never drift. A new
+  Ground-station readout (Stack heat; NO slider, because the levers are the carrier
+  and pair-count sliders the player already has) is refreshed per frame with the live
+  switching dissipation against the ISA air figure: convection dies with the air, and
+  aloft the stack can only radiate. The 2 km wave-drag card closes on the bill leaving
+  the wave as heat (p.7's maybe, no film temperature), a new 30 km beat card books the
+  stack's live watts against the +73 °C ceiling with the temperature marked absent,
+  and the Unsolved panel gains the drag-heating bullet. No mechanic: `updateContinuous`
+  is untouched, the balance harness has nothing new to mirror, the snapshot was NOT
+  regenerated, and the slide-6, p.7 drag-row, p.10 resonance and p.14 power-sharing
+  fixtures all keep passing. Smoke check 12 now pins the 30 km card's firing and body
+  plus the readout tracking altitude; the card's paint was verified on staged 30 km
+  frames (title at minimal, six-line body at full); the committed stills did not move
+  (the card fires at 30 km, the stills sit under 400 m; `capture.mjs` seeds the new
+  beat id `stack-heat` like every other). With this item the paper's deferred
+  simulation list is empty: what remains unsimulated is the paper's own unsolved
+  problems (the wave physics between riders, the mode-conversion mechanism, and any
+  temperature), all marked in-game rather than faked.
 
 - **Mode conversion (paper p.12/13), the fifth M4 item: the mode table made
   legible, the conversion mechanism marked absent.** The paper sorts ribbon

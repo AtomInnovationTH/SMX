@@ -405,6 +405,10 @@
             <small class="setting-hint">4·N·E_switch·f — flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
         </div>
         <div class="slider-container">
+            <label>Stack heat: <span id="stackHeatValue">11.8 kW while engaged · air 100.0% of sea level</span></label>
+            <small class="setting-hint">The hot side of the energy loop, booked honestly. While you hold, the switching watts above are dissipated in the magnets (the datasheet's own 4 J per transition). The FG40's published ceiling is +73 °C internal: an absolute maximum set by the heat-deflection limit of the polymer body (the electronics tolerates 105 °C). Low down, the moving air convects the heat away; as the air thins the stack is left with radiation only. What no source publishes is the heat capacity, thermal resistance or emissivity that would turn these watts into a temperature, so no stack temperature is modelled: the watts and the ceiling are the whole honest book. The film's own drag dissipation (the 2 km beat's bill) is the paper's "possibly by drag heating" (p.7); where that heat lands, air or film, the paper does not say, so no film temperature is modelled either.</small>
+        </div>
+        <div class="slider-container">
             <label>Standing-wave resonance: <span id="resonanceValue">off</span></label>
             <input type="range" id="resonance" min="0" max="1" step="1" value="0">
             <small class="setting-hint">The paper's p.10 lever: the anchor becomes a node and a standing wave fills the film between anchor and climber. Its tension holds the full stress budget, so the film runs its LOCAL stress ceiling whatever your stroke: power per unit anchor speed rises by v_cap/v_anchor, the table's 2.5 MW/mm² at 200 km/h against 150 kW plain. The price: the cavity only accepts its own modes, so the carrier is overridden by f = n·c/2h, the frequency falls as you rise, and each time the wavelength reaches the 100 km floor the anchor retunes to the next harmonic and pays one cavity round trip of weakened film (the 50 km transient). The stack's switching follows the cavity rate: nearly free aloft, kHz on the pad, so engage it once you are a kilometre up, not on the grass. While resonant the amplitude slider becomes the power budget: the skim cannot exceed the anchor's injection (stress budget × drive speed × section, the table's own P = σ·v). The boundary-value buildup is summarised as the one-round-trip ramp; the reflection interplay the paper calls tricky for multi-climber is not modelled.</small>
@@ -516,6 +520,14 @@
             paper's 0.02 is labelled a guess, and the entire in-atmosphere power limit hangs
             off it.<br>
             &bull; What <b>else</b> could limit in-atmosphere speed?<br>
+            &bull; Is <b>drag heating</b> real? The paper's p.7 says the longitudinal wave
+            will be limited by stress, wave-generator strength-to-weight and "possibly by
+            drag heating", and stops there: no temperature, no rate. The wave's drag bill
+            is live in this game (the 2 km beat quotes it), but where that heat lands and
+            what it raises is not published, so no film temperature is modelled. Your
+            stack's heat is booked the same way: the datasheet's 4 J per transition and
+            +73 °C internal ceiling are exact, the thermal resistance between them is not
+            published, so no stack temperature is modelled either.<br>
             &bull; How unreasonable is <b>1000 km/h machinery</b>, really?<br>
             &bull; What are the ways for a climber to <b>extract</b> the power? This game commits
             to one answer — pulsed eddy-current traction across an air gap — but that is a
@@ -1224,6 +1236,25 @@
             const f = waveDragSpeedFactorAt(GameConfig.MISSION.DELIVER_ALTITUDE_M,
                 anchorSpeedMps, widthMm, thicknessMm);
             return z * aM2 * anchorSpeedMps * anchorSpeedMps * (1 - f * f);
+        }
+
+        // SIM (paper p.7 / M4): the LOCAL drag-heating rate, the same law's other
+        // reading and the deck's only thermal hook. Per unit length the wave's drag
+        // dissipation is ½·ρ(y)·Cd·2t·V(y)³, with V(y) the drag-damped local film
+        // speed: this is the "possibly by drag heating" term itself, in watts per
+        // metre of film. Its column integral IS waveDragColumnPowerW (q = −dP/dy by
+        // construction), pinned as a quadrature fixture in tests/pure.test.mjs so the
+        // local rate and the column bill can never drift. What the paper does NOT
+        // publish is where the heat lands (the air vs the film) or any temperature:
+        // no film temperature is modelled, and the settings panel's Unsolved section
+        // says so. ρ(y) reads the same US Standard Atmosphere table densityRatio
+        // interpolates, so the rate dies with the air.
+        function waveDragHeatingWM(altitudeM, anchorSpeedMps, widthMm, thicknessMm) {
+            const vLocal = anchorSpeedMps
+                * waveDragSpeedFactorAt(altitudeM, anchorSpeedMps, widthMm, thicknessMm);
+            const rho = densityRatio(altitudeM) * ATMO_DENSITY_KGM3[0][1];
+            return 0.5 * rho * GameConfig.TETHER.DRAG_CD_LONGITUDINAL
+                * (2 * thicknessMm / 1000) * vLocal * vLocal * vLocal;
         }
 
         // SIM (paper p.10 / M4): STANDING-WAVE RESONANCE — the anchor becomes a node.
@@ -2728,7 +2759,19 @@
                 // controller, film guides) as a fraction of magnet mass. §2.5's ~10:1
                 // thrust-to-weight counts magnets only; this keeps that honest. Never
                 // quote as measured.
-                STRUCTURE_MASS_FRACTION: 0.25
+                STRUCTURE_MASS_FRACTION: 0.25,
+                // Datasheet (FG40 hardware chapter, absolute maximum ratings): the hot
+                // side's CEILING. +73 °C internal is the heat-deflection limit of the
+                // polymer composite body (the electronics is designed to withstand
+                // 105 °C continuously); -40 °C is the ambient minimum. NOTHING in the
+                // sim reads these: the watts that would threaten the ceiling are exact
+                // (switchingPowerW, the datasheet's own 4 J per transition), but no heat
+                // capacity, thermal resistance or emissivity is published anywhere, so
+                // no stack temperature is modelled (section 0: never invented). The
+                // Stack heat readout and the 30 km beat quote the ceiling against the
+                // live watts and the live air.
+                MAX_INTERNAL_TEMP_C: 73,
+                MIN_AMBIENT_TEMP_C: -40
             };
 
             // SIM: slider raw-value -> model-value scalings (see setupEventListeners).
@@ -3500,6 +3543,8 @@
                 this.altimeterLabel = document.getElementById('ux-altimeter-label');
                 // B.14: cached air-density readout element (refreshed per frame in update()).
                 this.airDensityLabel = document.getElementById('airDensityValue');
+                // M4 (hot side): the Stack heat readout element, refreshed per frame too.
+                this.stackHeatLabel = document.getElementById('stackHeatValue');
                 
                 // UX: load persisted best altitude + ghost (2c). Clamp on read (F9).
                 // (M3.8: the key is now honestly named — it always stored altitude.)
@@ -4303,6 +4348,20 @@
                 this.airDensityLabel.textContent = airDensityReadout(this.monkey.altitude);
             }
 
+            // M4 (hot side, paper p.7 + FG40 datasheet): the Stack heat readout, live.
+            // The dissipation is computed FRESH (the same switchingPowerW the energy
+            // loop and the Switching row read, at the active frequency: the cavity
+            // rate while resonant), so the row can never quote a stale cache. The
+            // convection medium is the same ISA air the density readout books:
+            // convection dies with it, and aloft the stack can only radiate. The
+            // temperature between the watts and the ceiling is NOT modelled (no heat
+            // capacity or transfer coefficient is published anywhere); the hint says so.
+            updateStackHeatReadout() {
+                if (!this.stackHeatLabel || !this.waveSystem) return;
+                const kw = (switchingPowerW(this.activeFreqHz(), this.nPairs, GameConfig.FG40.E_SWITCH_J) / 1000).toFixed(1);
+                this.stackHeatLabel.textContent = `${kw} kW while engaged · air ${airDensityReadout(this.monkey.altitude)} of sea level`;
+            }
+
             // M4 (p.10): while resonant the cavity rate drifts with altitude every
             // frame, so the panel lines that quote the active frequency refresh every
             // frame too (the carrier label shows the override honestly, the same class
@@ -4743,10 +4802,12 @@
             // upgradeCrossed (frame-size independent, once per run via the fired set).
             // Every scheduled beat is now live: taper (p.9) at 1 km, wave drag (p.7)
             // at 2 km, the transverse reveal (p.7) at 12 km, the stress-budget lever
-            // at 20 km, the mode-conversion question (p.12/13, verbatim, unanswered)
-            // at 42 km, resonance (p.10) offered at 45 km off-mode and retuning at
-            // 50 km on-mode, gigacycle fatigue (p.11) at 70 km on a hot carrier, and
-            // the share-or-refuse decision (p.14) at 85 km. The 40 km
+            // at 20 km, the hot side (p.7's drag-heating note + the FG40 ceiling,
+            // watts booked, temperature absent) at 30 km, the mode-conversion
+            // question (p.12/13, verbatim, unanswered) at 42 km, resonance (p.10)
+            // offered at 45 km off-mode and retuning at 50 km on-mode, gigacycle
+            // fatigue (p.11) at 70 km on a hot carrier, and the share-or-refuse
+            // decision (p.14) at 85 km. The 40 km
             // vacuum-threshold beat is M3.3's act break; 100 km delivery + GEO
             // context is the Kármán game-over panel.
             _updateClimbBeats(dt) {
@@ -4798,6 +4859,8 @@
                         `you drive ${anchorKmh} km/h, so your live bill is ${billMw} MW: quadratic drag on the wave itself,`,
                         'cubic in film speed and worst in this band where the air is densest; by 40 km it is gone.',
                         'hold speed and the ground station pays it (spend stress budget), or accept the damped film.',
+                        'that bill leaves the wave as heat in the air and the film: p.7\'s "possibly by drag heating",',
+                        'a maybe with no number, so no film temperature is modelled. (the 30 km beat books the stack\'s heat.)',
                     ]);
                 }
                 // ~12 km — the reveal (p.7 drag table: transverse caps at 45 km/h, 20 kW).
@@ -4821,6 +4884,32 @@
                         `air ${airDensityReadout(alt)} of sea level and falling — drag is letting go.`,
                         `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(localVMax * 3.6)} km/h here.`,
                         'if you left margin in the stress budget, this is where it pays. (paper p.7)',
+                    ]);
+                }
+                // 30 km: the hot side (paper p.7's drag-heating note + the FG40's
+                // published ceiling). M4's last deferred item, shipped with the
+                // section-0 verdict: the sources publish the watts (the datasheet's
+                // own 4 J per transition for the stack; the p.7 law's integrand for
+                // the film) and the ceiling (+73 °C internal, the polymer body's
+                // heat-deflection limit), but no heat capacity, thermal resistance
+                // or emissivity exists anywhere, so NO TEMPERATURE is modelled
+                // (marked, never faked). The beat sits between the 20 km "drag is
+                // letting go" card and the 40 km vacuum banner: the air that lets
+                // go of the wave is the same air that stops carrying the stack's
+                // heat. Numbers computed FRESH at the crossing (never read off a
+                // cache: updateContinuous runs before updatePosition, so a cache
+                // can be a frame stale).
+                if (upgradeCrossed(prev, alt, 30000, false)) {
+                    const heatKw = (switchingPowerW(this.activeFreqHz(), this.nPairs, GameConfig.FG40.E_SWITCH_J) / 1000).toFixed(1);
+                    const qWm = waveDragHeatingWM(alt, this.waveSystem.amplitude * f * 2 * Math.PI,
+                        this.vineWidth * 10, this.filmThicknessMm);
+                    push('stack-heat', 'the air stops carrying your heat', [
+                        `your stack dissipates ${heatKw} kW while you hold (the datasheet's own 4 J per transition); its`,
+                        `published ceiling is +${GameConfig.FG40.MAX_INTERNAL_TEMP_C} °C internal. the air that convects it away is`,
+                        `${airDensityReadout(alt)} of sea level here and falling: aloft the stack can only radiate. the wave's`,
+                        `own drag heating runs ~${qWm.toFixed(0)} W/m of film here, p.7's "possibly by drag heating". no heat`,
+                        'capacity or transfer coefficient is published for either, so no temperature is modelled:',
+                        'the watts and the ceiling are the honest book. (paper p.7 · FG40 datasheet)',
                     ]);
                 }
                 // 42 km: above the atmosphere, the paper's mode-conversion question
@@ -5009,6 +5098,7 @@
                 if (speedKmhNow > this._topSpeedKmh) this._topSpeedKmh = speedKmhNow;
                 this.updateThermal();
                 this.updateAirDensityReadout();
+                this.updateStackHeatReadout();
                 this.updateResonanceReadout();
                 // M3.3 (§2.7): the two acts. Act I is drag-dominated, Act II is vacuum —
                 // read off the SAME densityRatio the drag model uses, no new physics.

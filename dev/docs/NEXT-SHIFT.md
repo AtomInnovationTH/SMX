@@ -1,9 +1,10 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the review-and-docs pass that followed
-the M4 mode-conversion shift: no physics, no mechanics, one stale code comment corrected,
-the README caught up to the last three shifts, and the v1.0 roadmap marked historical.
+that have already cost time. Updated at the end of the M4 hot-side-of-thermal shift: the
+last deferred simulation item shipped with the section-0 discipline (exact watts against
+the datasheet's published ceiling, the temperature marked absent, never faked), no
+physics, the balance trace untouched, and the paper's deferred list now empty.
 
 ## Where things stand
 
@@ -11,26 +12,97 @@ the README caught up to the last three shifts, and the v1.0 roadmap marked histo
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 138 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 413 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 140 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 421 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
-- **Physics**: M1, M2, M3.1-M3.8 and all five M4 items (taper p.9, wave drag p.7,
-  standing-wave resonance p.10, multi-climber power sharing p.14, mode conversion
-  p.12/13) are complete. The only deferred simulation item left is the hot side of
-  thermal (the deck's only hook is p.7's "possibly by drag heating"; see priority 1),
-  absent and not yet marked in-game. Do not fake it. The
-  p.14 wave-boundary solve (partial reflections, the retune interplay between riders)
-  stays marked absent even though the budget-level sharing shipped: it is not on the
-  deferred list, it is the paper's own unsolved problem. Mode conversion shipped the
-  same discipline: the paper offers a table and a question, so the game ships the
-  labelled cell and the verbatim question, never a converter.
-- **Default climb**: unchanged by the mode-conversion shift (no physics at all: one
-  helper, one readout, one card), by the sharing shift (the toggle defaults to refuse)
-  and by the resonance shift before it (off by default): 100 km in 350.7 s, mean 1027
-  km/h, cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of
-  cargo.
+- **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
+  standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
+  (p.12/13) and, as of this shift, the hot side of thermal (p.7's drag-heating note + the
+  FG40 ceiling). The paper's deferred simulation list is EMPTY. What remains unsimulated
+  is the paper's own unsolved problems, all marked in-game rather than faked: the
+  wave-boundary solve between riders (partial reflections p.3, the retune interplay
+  p.10), the mode-conversion mechanism (p.12 offers a table and a question, no
+  converter), and any temperature (no heat capacity, transfer coefficient or emissivity
+  is published anywhere).
+- **Default climb**: unchanged by the thermal shift (no physics at all: one helper, one
+  readout, one new card, one card extended, constants and docs), by the mode-conversion
+  shift before it (no physics either), by the sharing shift (the toggle defaults to
+  refuse) and by the resonance shift before that (off by default): 100 km in 350.7 s,
+  mean 1027 km/h, cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput
+  with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The hot side of thermal (paper p.7's drag-heating note + the FG40 ceiling) is live
+  as the exact bookkeeping, with the temperature marked absent.** The section-0 verdict,
+  decided before any code and verified against the sources: the deck's ONLY thermal hook
+  is p.7's "longitudinal will be limited by stress limit, wave generator
+  strength-to-weight ratio and possibly by drag heating" (a full-deck regex sweep for
+  heat/thermal/temp/convect/radiat/celsius/kelvin returns exactly this one hit; there is
+  no IR-budget account anywhere). The FG40 datasheet was fetched and verified against
+  the live Zubax reference manual (FG40 hardware chapter, absolute maximum ratings, as
+  the priority entry demanded before pinning): internal +73 °C absolute maximum, set by
+  the heat-deflection temperature of the polymer composite body, with the electronics
+  designed to withstand 105 °C continuously; ambient minimum -40 °C. What NO source
+  publishes: the stack's heat capacity, any convective transfer coefficient (geometry or
+  correlation), the package's emissivity, or how the drag dissipation splits between air
+  and film. A temperature trace would need at least three invented constants, so the
+  mode-conversion shape applies: ship the labelled budget, quote the paper's maybe, mark
+  the temperature absent. What shipped: ONE new pure helper (`waveDragHeatingWM`, count
+  61 -> 62), the local drag-heating rate 0.5*rho(y)*Cd*2t*V(y)^3 in W/m (the p.7 hook's
+  own term, reading the same ISA table densityRatio interpolates, so the rate dies with
+  the air); ONE new Ground-station readout (Stack heat; NO slider, because the levers
+  are the carrier and pair-count sliders the player already has) refreshed per frame
+  with the FRESH-computed switching dissipation against the live air figure (convection
+  dies with the air; aloft the stack can only radiate); ONE new beat card at 30 km
+  ('stack-heat', booking the stack's live watts against the +73 °C ceiling with the
+  temperature marked absent, computed FRESH at the crossing altitude per the
+  stale-cache lesson of the share shift); the 2 km wave-drag card's new closing line
+  (the bill leaves the wave as heat, p.7's maybe, no film temperature); the Unsolved
+  panel's new drag-heating bullet; and the datasheet ceiling constants in
+  `GameConfig.FG40` (`MAX_INTERNAL_TEMP_C` 73, `MIN_AMBIENT_TEMP_C` -40), pinned by a
+  unit test.
+- **No physics changed, so the balance harness is untouched and the default trace did
+  NOT move (snapshot not regenerated).** `updateContinuous` is byte-identical: there is
+  no new mechanic to mirror (the readout computes fresh from `switchingPowerW` and
+  `activeFreqHz()`, the beat computes fresh at the crossing), so the mirror rule has
+  nothing to attach to, exactly like the mode-conversion shift. The slide-6, p.7
+  drag-row, p.10 resonance and p.14 power-sharing fixtures all keep passing, and the
+  advisory snapshot diff is silent.
+- **Fixtures for the published numbers, in the established style.** The helper's
+  regression fixture is a CROSS-READING: trapezoid quadrature of `waveDragHeatingWM`
+  over the column reproduces `waveDragColumnPowerW` to quadrature error (q = -dP/dy by
+  construction), so the local rate and the column bill can never drift; the sea-level
+  rate at the paper's 1000 km/h is pinned at ~105 W/m for the 9 mm^2 film, with the
+  law's scalings (cubic in film speed, linear in thickness, zero for a standing film)
+  and the medium's collapse at 30 km (~1.5% of the sea-level rate) pinned alongside.
+  The datasheet's +73 °C / -40 °C constants are pinned by their own test so a silent
+  edit turns red.
+- **Smoke: check 12 pins the new beat (fired flag, title, a `no temperature is
+  modelled` body fragment and the `+73 ` ceiling) inside its existing 69.5 km teleport,
+  plus the Stack heat readout tracking altitude** (the span's air figure must differ
+  between the 11.5 km and 69.5 km samples). No new checks (29 total): the beat rides
+  the schedule check, the readout rides it too, matching how the mode readout rode the
+  resonance check.
+- **The card's paint was verified on staged 30 km frames** (title only at minimal;
+  title plus six body lines at full; the 124 px plate fits at 1280 and stays clear of
+  the badge, the landmark pill and the stack plate). The committed stills did not move:
+  the card fires at 30 km and the stills sit under 400 m; `capture.mjs` seeds the new
+  beat id (`stack-heat`) like every other.
+- **The 30 km slot was chosen for the narrative arc, and it is clear by construction.**
+  20 km says "drag is letting go", 30 km says "the air that cools your stack is going
+  with it", 40 km is the vacuum banner. The band between 20 and 42 km was empty, and
+  the beat queue absorbs any collision with the 30 km descender's pass card. Both new
+  card texts run six body lines (the previous tallest verified plate was five); the
+  plate auto-sizes (`22 + lines * 17` px at y = 130), so 124 px ends at 254, clear of
+  everything above mid-screen at any playable viewport.
+- **Em dashes in new prose: none.** Two were caught and fixed during the shift before
+  any commit: the new readout span used the old em-dash placeholder convention (the M4
+  rows ship meaningful boot-state text instead, so it now reads the boot figures), and
+  one code comment opened with an em dash after the altitude (now a colon). The backlog
+  sweep stays its own task (priority 1 below).
+
+### From earlier shifts (the review-and-docs pass after M4 mode conversion)
 
 - **A review-and-docs pass only; no physics, no mechanics, no new strings.** The gate
   went in green and came out green (138 unit, 29 smoke, 98 = 98, 413 KB), the balance
@@ -533,41 +605,20 @@ the README caught up to the last three shifts, and the v1.0 roadmap marked histo
 
 ## Priorities for this shift
 
-The mode-conversion shift's priority 1 is **done**: mode conversion (p.12/13) shipped as
-the labelled layout the paper supports and nothing more (the section-0 verdict: the paper
-offers a table and a question, no mechanism, so never invent one). `waveModeCell` is the
-single source for the live cell (longitudinal travelling; longitudinal standing under the
-resonance lever), a Ground-station readout names it, the 42 km beat asks the paper's
-question verbatim, and the transverse cells stay marked absent (45 km/h, 20 kW, p.7).
-No physics, so the balance harness and the default trace are untouched (snapshot not
-regenerated) and the stills did not move (staged 42 km frames verified the card's
-paint). The taper, wave-drag, resonance and power-sharing shifts before it shipped the
-same way, and the review-and-docs pass after it changed no behaviour either.
-Do not reopen any of them.
+The thermal shift's priority 1 is **done**: the hot side of thermal shipped as the
+exact bookkeeping the sources support and nothing more (the section-0 verdict: the
+paper's p.7 hook is a maybe with no number, the FG40 datasheet publishes a ceiling but
+no thermal resistance, so never invent a temperature). `waveDragHeatingWM` is the p.7
+term in W/m with a cross-reading fixture against the column bill, a Ground-station
+Stack heat readout books the live watts against the +73 °C ceiling and the falling air,
+the 30 km beat says it to the player, and the Unsolved panel names it. No physics, so
+the balance harness and the default trace are untouched (snapshot not regenerated) and
+the stills did not move (staged 30 km frames verified the card's paint). The taper,
+wave-drag, resonance, power-sharing and mode-conversion shifts before it shipped the
+same way, and the review-and-docs pass after mode conversion changed no behaviour
+either. The paper's deferred simulation list is now EMPTY. Do not reopen any of them.
 
-### 1. The hot side of thermal (paper p.7 hook, FG40 hardware ceiling)
-
-Section 0 was done in the review-and-docs pass so nobody hunts for a passage that is
-not there: the deck's ONLY thermal hook is p.7's "longitudinal will be limited by
-stress limit, wave generator strength-to-weight ratio and possibly by drag heating".
-There is no IR-budget account and no "temperature cycle" passage anywhere in the deck
-(p.5 is the concept figures only: Ratchet Climber, the two launchers, the Descender);
-an earlier version of this entry quoted one, and that was a paraphrase, not a citation.
-The honest material to build from: (a) p.7's drag-heating maybe, tied to the shipped
-p.7 wave-drag law (`waveDragColumnPowerW` already computes the dissipated watts it
-would come from); (b) the real hardware ceiling, the FG40's published operating-temp
-limit (the plan's backlog line gives 73 °C: datasheet, not paper, verify against the
-Zubax sheet before pinning it); (c) the loss of convection with altitude, off the same
-ISA table `densityRatio` reads (cold convects away low down, nothing convects aloft).
-What is already in, and cold-only: `temperatureAtAltitude` (ISA), `thermalSuitIndex`
-plus the suit overlays, `coldGripFactor` (the under-dressed shiver penalty), the
-thermometer readout. The shift's work: decide the honest hot-side model (stack
-self-heating from the shipped `4·N·E_switch·f` switching watts and the extraction
-losses, against radiative-only cooling aloft, with the drag-heating maybe on the film),
-or mark it absent with the same discipline as mode conversion if the numbers cannot be
-pinned. It is the last deferred simulation item.
-
-### 2. One contained hygiene task nobody has claimed
+### 1. One contained hygiene task nobody has claimed
 
 - **The em-dash ban is not enforced in the shipped copy.** Counted earlier: 41 quoted
   strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
@@ -666,7 +717,7 @@ rediscover the traps:
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 60). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 62). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.
