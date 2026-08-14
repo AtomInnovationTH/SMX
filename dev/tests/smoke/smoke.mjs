@@ -628,7 +628,8 @@ try {
     g.monkey.velocityY = 0;
     await wait();
     const refusal = { fired: g._beatsFired.has('second-climber'), aboard: g._shareRiderAboard,
-                      drawn: g._shareRiderDrawnTotal, card: titles().some((t) => t === 'a second climber requests power') };
+                      drawn: g._shareRiderDrawnTotal, card: titles().some((t) => t === 'a second climber requests power'),
+                      cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'a second climber requests power') || { lines: [] }).lines.join(' ') };
     // SHARE: clear the beat, drop back below the request, flip the slider through
     // its own DOM event (the same path a player's finger takes), cross again.
     g._beatsFired.delete('second-climber');
@@ -647,6 +648,10 @@ try {
       before, refusal, engaged,
       aboard: g._shareRiderAboard,
       card: titles().some((t) => t === 'sharing the wave with a second climber'),
+      // The shared card quotes the live budget: it must be computed FRESH at the
+      // crossing, never read off a stale cache (the crossing frame's updateContinuous
+      // ran before updatePosition, so the rider was not aboard yet).
+      cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'sharing the wave with a second climber') || { lines: [] }).lines.join(' '),
       drawn: g._shareRiderDrawnTotal,
       budgetW: g._shareBudgetW, otherDrawW: g._shareOtherDrawW, capW: g._shareCapW,
     };
@@ -665,9 +670,13 @@ try {
     share.before.on === false && share.before.aboard === false && share.before.drawn === 0 &&
     share.refusal.fired === true && share.refusal.aboard === false &&
     share.refusal.drawn === 0 && share.refusal.card === true &&
+    /~\d+(\.\d+)? MW against/.test(share.refusal.cardBody) &&
     share.engaged.on === true && share.engaged.label.includes('share') &&
-    share.aboard === true && share.card === true && share.drawn > share.refusal.drawn &&
+    share.aboard === true && share.card === true &&
+    /shared budget: your skim caps at \d+(\.\d+)? MW minus/.test(share.cardBody) &&
+    share.drawn > share.refusal.drawn &&
     share.budgetW > 1e8 && share.otherDrawW > 1e4 && share.capW > share.budgetW / 2 &&
+    share.capW < share.budgetW &&   // with the rider drawing, the cap sits strictly under the budget
     share.refusedOn === false && share.refusedAboard === false && share.refusedLabel === 'refuse',
     JSON.stringify(share));
 

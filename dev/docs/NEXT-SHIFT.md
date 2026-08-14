@@ -77,6 +77,22 @@ decision).
   say exactly what is not modelled: partial reflections (p.3) and the standing-pattern
   perturbation that makes retuning with two riders aboard tricky (p.10). If a real
   per-climber wave-boundary solve ever lands, it lands with fixtures, not as prose.
+- **The review pass caught one real bug and two doc slips, all fixed in the follow-up
+  commit.** The shared beat card read `_shareBudgetW` on the crossing frame, but
+  updateContinuous runs before updatePosition, so the rider boards on the NEXT frame
+  and the crossing frame's cache is stale (0 on a first shared climb): the card would
+  have printed "caps at 0 kW minus the rider's draw". The card now computes the budget
+  FRESH at the crossing altitude for both variants, and smoke 13c pins the card bodies
+  (the refusal card's "~N MW against", the shared card's "shared budget: your skim caps
+  at N MW minus") so the staleness class cannot come back silently. The slider hint's
+  "~15 kW skim" now says ~13 kW (the measured cruise skim the harness and the other
+  docs already quoted), and DEVELOPERS.md's simulation-model list gained the p.14 entry
+  plus the event-schedule line (85 km is the live share-or-refuse, not an absent beat),
+  with the "beats absent rather than faked" sentence re-pointed at the wave-boundary
+  solve. The refusal card also learned the resonant variant: while resonant it admits
+  the budget IS the scarce thing (the anchor's injection), not the plain-mode "not what
+  is scarce" line. The live card was verified rendered (staged 85.3 km frame, title at
+  minimal, rider aboard below).
 
 ## What the shift before changed, so you do not undo it
 

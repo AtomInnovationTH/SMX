@@ -274,6 +274,22 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   carrier's travelling component (the standing arch is tens of km wide, sub-visible at
   screen scale, like the drag's sub-pixel damping). The boundary-value buildup is
   summarised as the one-round-trip ramp and the hint says so.
+- **Multi-climber power sharing** (`waveTransportedPowerW` / `waveSharedBudgetW` /
+  `powerShareCapW`, M4, paper p.14): a Ground-station toggle, refuse by default (the
+  single-climber wave, so the committed balance trace cannot move). Past the 85 km
+  request a second rider boards and the wave's transported power becomes a SHARED
+  budget: slide 6's `P = ρ·c·A·V²` over the local film in plain mode, the anchor's
+  resonant injection (`P = σ·v`, already the single climber's supply cap) while
+  resonant. Each rider's skim caps at the budget minus the other's draw, applied in the
+  coupling exactly like the resonance supply cap (throttles thrust, never speed,
+  recedes as `v → 0`). The other rider is summarised as a twin in formation cruise
+  (drawing weight × climb speed, the player's own skim at cruise, so at the bind the
+  split is an exact half) and rendered in formation below the player; the per-climber
+  wave-boundary solve (partial reflections p.3, the retune interplay p.10) stays marked
+  absent. The harness pins the honest outcomes: a plain shared wave never binds (~140
+  MW against two ~13 kW skims, so the shared run is the unshared run frame for frame),
+  while a resonant shared cruise halves the solo supply-capped one with the skim at
+  supply/2.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -321,14 +337,16 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     100 km wavelength floor; the anchor resets to the next harmonic and pays one cavity
     round trip of weakened film), ~70 km (gigacycle fatigue,
     only when the carrier sits in the paper's top decade), ~85 km (a second climber
-    requests power; the paper's own open question, p.14). Crossings reuse the pure
+    requests power: the share-or-refuse decision, live since M4's multi-climber shipped,
+    quoting the live shared budget either way; p.14). Crossings reuse the pure
     `upgradeCrossed`, so **it is load-bearing beyond the pickups**. Beats that would need
-    physics the sim does not have (powering more than
-    one climber, p.14) are deliberately absent rather than faked.
+    physics the sim does not have stay deliberately absent rather than faked; the
+    rider-to-rider wave-boundary solve (p.14's unsolved half) is the standing example.
 - **Governing numbers, all pinned by tests** (`dev/tests/pure.test.mjs`,
   `dev/tests/balance.test.mjs`): the **slide-6 fixture** (c = 21 / 6.3 km/s, Z/A = 48 / 14
   N/(m/s)/mm², P/A = 150 kW/mm² @ 200 km/h, 3.7 MW/mm² @ 1000 km/h, 42 MW/mm² @ 45 GPa —
-  all to 2 s.f., and they only reproduce at the paper's ρ = 2300); the **p.7 drag-table
+  all to 2 s.f., and they only reproduce at the paper's ρ = 2300; the two plain rows are
+  also the p.14 shared-budget law, pinned on `waveTransportedPowerW` per unit section); the **p.7 drag-table
   fixture** (the longitudinal row: 0.9 MW at 1000 km/h for the 9 mm² film, and the
   first-order ½·Cd·2t·V³·Σ form agreeing with the exact loss); the **p.10 resonance
   fixture** (`Long + resonance` 2.5 MW/mm² @ 200 km/h, 12.5 MW/mm² @ 1000 km/h:

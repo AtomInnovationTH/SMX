@@ -420,7 +420,7 @@
         <div class="slider-container">
             <label>Power share with other climbers: <span id="powerShareValue">refuse</span></label>
             <input type="range" id="powerShare" min="0" max="1" step="1" value="0">
-            <small class="setting-hint">The paper's p.14 open question (how to power more than one climber), playable at the budget level only. Refuse (the default) and you climb alone. Share, and when a second climber requests power at 85 km it boards your wave: the wave's transported power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw. Plain mode carries P = ρ·c·A·V² (slide 6): ~140 MW here against your ~15 kW skim, so sharing a plain wave costs nothing you can feel. Under resonance the budget is the anchor's injection (the P = σ·v the amplitude slider budgets while resonant), so sharing THERE halves your cruise: the paper's "retuning makes sharing tricky" (p.10), felt. The other rider is summarised as a twin in formation cruise (drawing weight × climb speed); what stays absent is the wave physics between riders: partial reflections (p.3) and the standing-pattern perturbation (p.10) are not modelled.</small>
+            <small class="setting-hint">The paper's p.14 open question (how to power more than one climber), playable at the budget level only. Refuse (the default) and you climb alone. Share, and when a second climber requests power at 85 km it boards your wave: the wave's transported power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw. Plain mode carries P = ρ·c·A·V² (slide 6): ~140 MW here against your ~13 kW skim, so sharing a plain wave costs nothing you can feel. Under resonance the budget is the anchor's injection (the P = σ·v the amplitude slider budgets while resonant), so sharing THERE halves your cruise: the paper's "retuning makes sharing tricky" (p.10), felt. The other rider is summarised as a twin in formation cruise (drawing weight × climb speed); what stays absent is the wave physics between riders: partial reflections (p.3) and the standing-pattern perturbation (p.10) are not modelled.</small>
         </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
@@ -4846,8 +4846,12 @@
                 // absent: the wave physics BETWEEN riders (partial reflections, p.3;
                 // the retune interplay p.10 calls tricky) — marked here, never faked.
                 if (upgradeCrossed(prev, alt, SHARE_BOARD_ALTITUDE_M, false)) {
+                    // NOTE: computed FRESH at the crossing altitude, never read off
+                    // _shareBudgetW: updateContinuous ran before updatePosition this
+                    // frame, so on the crossing frame itself the rider was not aboard
+                    // yet and the cached budget is stale (0 on a first shared climb).
                     const skimKw = Math.round((this._extractionW || 0) / 1000);
-                    const budgetW = this.powerShareOn ? this._shareBudgetW : waveSharedBudgetW({
+                    const budgetW = waveSharedBudgetW({
                         altitudeM: alt, amplitudeM: this.waveSystem.amplitude,
                         freqHz: this.waveSystem.frequency, taperRatio: this.taperRatio,
                         spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
@@ -4870,7 +4874,9 @@
                         ]);
                     } else {
                         push('second-climber', 'a second climber requests power', [
-                            `this wave carries ~${budgetStr} against your ~${skimKw} kW skim: the budget is not what is scarce.`,
+                            this.resonanceOn
+                                ? `this wave's shared budget would be the anchor's injection (${budgetStr}, p.10): refusing keeps it all yours.`
+                                : `this wave carries ~${budgetStr} against your ~${skimKw} kW skim: the budget is not what is scarce.`,
                             'what the paper cannot yet answer is the wave physics between riders (p.3 reflections; p.10:',
                             'retuning makes sharing "tricky"). you climb on alone. the share lever is in Settings,',
                             'Ground station · power share. (paper p.14)',
