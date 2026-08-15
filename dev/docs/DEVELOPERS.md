@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-431 KB and must be served alongside the
+432 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -461,6 +461,12 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   existed. The clause is guarded by `bootstrapKg > 0`, so the written states that pin the
   shift-12 strings keep matching, while a real delivery always has one (the credit just
   fired). The 600 kg target is the game's own S16 design number, not a paper figure.
+  At compact width the full block's goal and pace branches carry short forms
+  ("Mission: N kg to Kármán (100 km)", "pace N kg/h to Kármán (best M)"), the same
+  shift-9 phone pattern the vine block and the frequency table use (same facts, fewer
+  words): the goal sentence overflowed a 390 px screen and the pace line came within
+  4 px of it at the stress figures. The delivered line fits as-is and is one string
+  at both widths; desktop lines are byte-identical.
   A scoring system the default screen never mentions is the failure mode that change
   fixed; do not fold it back behind `H`.
 - **M3.5–M3.8, the rest of the current surface**:
@@ -511,7 +517,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   browser smoke suite.
 - **Current gate numbers** (keep these updated when they move): **142 unit tests**
   (pure 121, sliders 12, balance 9), **62 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **431 KB**.
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **432 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

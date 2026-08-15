@@ -970,7 +970,10 @@ try {
   //     too (the one pacing reference the game owns; the paper publishes no pacing figure
   //     to cite), at minimal and in the full block's pace branch alike. The bootstrap-
   //     progress shift adds the fifth: the delivered line carries the cumulative tether
-  //     meter the one moment it moves, read live from the game's own bootstrapKg.
+  //     meter the one moment it moves, read live from the game's own bootstrapKg. The
+  //     phone-forms fix adds the sixth: at a 390 px viewport the full mission block's
+  //     goal and pace branches carry short forms (the block overflowed the screen), and
+  //     the long forms are gone there.
   const drawn = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
@@ -1038,6 +1041,49 @@ try {
     g._beatCard = null;
     return out;
   });
+  // The full mission block at PHONE width: the goal and pace branches carry short
+  // forms under _compactHud (the block overflowed a 390 px screen; the delivered line
+  // fits and stays one string). Same figures, so the narrow pace pin reuses the exact
+  // 50 km / 100 s / best 34 state. Restores the desktop viewport for the checks after.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const drawnNarrow = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const setLevel = async (want) => {
+      for (let i = 0; i < 4 && g._hudLevelDrawn !== want; i++) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return g._hudLevelDrawn === want;
+    };
+    const capture = async () => {
+      const seen = [];
+      const orig = g.ctx.fillText.bind(g.ctx);
+      g.ctx.fillText = (s, x, y) => { seen.push(String(s)); return orig(s, x, y); };
+      await new Promise((r) => setTimeout(r, 220));
+      delete g.ctx.fillText;
+      return seen;
+    };
+    const out = {};
+    out.narrowSet = await setLevel(1);          // full level on the phone layout
+    out.compact = g._compactHud;
+    out.fullGoal = await capture();             // quiet ground: the goal branch
+    g.monkey.velocityY = 0;
+    g.monkey.y = -500000; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
+    g._runTimeS = 200; g._climbStartS = 100;
+    g.cargoBest = 34;
+    await new Promise((r) => setTimeout(r, 80));
+    out.fullClimb = await capture();
+    // Teardown: the quiet ground state the crest check builds on, minimal level, and
+    // the 40 km crossing's banner and beat card cleared (same discipline as above).
+    g.cargoBest = 0;
+    g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
+    g._runTimeS = 0; g._climbStartS = null; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
+    g._actBreakTimer = 0; g._beatCardTimer = 0; g._beatCard = null;
+    await new Promise((r) => setTimeout(r, 80));
+    await setLevel(0);
+    return out;
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
   const has = (a, re) => a.some((s) => re.test(s));
   record('levels: minimal draws the beat TITLE, a bare energy bar and the score line; full adds the readouts',
     drawn.minimalSet && drawn.fullSet &&
@@ -1064,13 +1110,25 @@ try {
     has(drawn.groundBest, /score: kg\/h to Kármán · cargo 3 kg · best 34 kg\/h/) &&
     // Bootstrap progress: the delivered line carries the cumulative meter the moment
     // it moves, reading the game's live bootstrapKg (40 written above, exact figures).
-    has(drawn.deliveredBoot, /delivered 28 kg\/h · best 31 kg\/h · tether 40\/600 kg/),
+    has(drawn.deliveredBoot, /delivered 28 kg\/h · best 31 kg\/h · tether 40\/600 kg/) &&
+    // The mission block at phone width: the goal and pace branches carry short forms
+    // (goal matched without its cargo figure, like the minimal goal pin above: the
+    // settings the reload restores are not this check's business); the long forms are
+    // gone at 390 px; the pace pin is exact because this check wrote the state.
+    drawnNarrow.narrowSet && drawnNarrow.compact === true &&
+    has(drawnNarrow.fullGoal, /^Mission: \d+ kg to Kármán \(100 km\)$/) &&
+    !has(drawnNarrow.fullGoal, /deliver it to/) &&
+    has(drawnNarrow.fullClimb, /^pace 54 kg\/h to Kármán \(best 34\)$/) &&
+    !has(drawnNarrow.fullClimb, /Mission: \d+ kg cargo ·/),
     JSON.stringify({ minimalSet: drawn.minimalSet, fullSet: drawn.fullSet,
                      minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14),
                      climbing: drawn.climbing.slice(0, 14), delivered: drawn.delivered.slice(0, 14),
                      deliveredBoot: (drawn.deliveredBoot || []).slice(0, 14),
                      fullClimbing: (drawn.fullClimbing || []).slice(0, 14),
-                     groundBest: (drawn.groundBest || []).slice(0, 14) }));
+                     groundBest: (drawn.groundBest || []).slice(0, 14),
+                     narrowSet: drawnNarrow.narrowSet, compact: drawnNarrow.compact,
+                     narrowGoal: drawnNarrow.fullGoal.slice(0, 14),
+                     narrowClimb: drawnNarrow.fullClimb.slice(0, 14) }));
 
   // 21) Shift 11, slip crests: the wave OVERTAKING the climber is drawn, not numbered.
   //     Held at u = 0 the chevron stream scrolls at the capped rate and the push factor

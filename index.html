@@ -6198,9 +6198,21 @@
             // persisted best beside it once one exists; after delivery it locks to the
             // recorded figure and the persisted best. Bootstrap
             // line unchanged. Band: top-left y 16/30 (claimed since M3).
+            // Phone forms: at compact width the goal sentence and the pace+best line
+            // overflow a 390 px screen (the goal is ~60 chars and overflows even at
+            // the 3 kg default), so those two branches carry short forms, the same
+            // pattern the vine block and the frequency table already use (shift 9:
+            // same facts, fewer words, never a different claim). The goal keeps cargo, destination, altitude
+            // ("Mission: N kg to Kármán (100 km)"); the pace mirrors the minimal plate's
+            // pace line with the delivered branch's own "(best N)" style ("pace N kg/h
+            // to Kármán (best M)"), so no level shows a figure another hides. The
+            // delivered line fits as-is at 390 px (45 chars at the stress figures), so it
+            // is one string at both widths. Desktop lines are byte-identical. The block
+            // keeps its y 16/30 band: no wrap, no cascade into the thermal/act blocks.
             renderMissionHud(ctx, width) {
                 const cargoKg = this.cargoKg || 0;
                 const bootPct = bootstrapPct(this.bootstrapKg);
+                const narrow = this._compactHud;
                 ctx.save();
                 ctx.textAlign = 'left';
                 ctx.font = 'bold 11px monospace';
@@ -6217,9 +6229,13 @@
                     // the delivered branch's own "(best N)" style, so no level shows a
                     // reference another hides.
                     const best = this.cargoBest > 0 ? ` (best ${Math.round(this.cargoBest)})` : '';
-                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo · pace ${pace.toFixed(0)} kg/h to Kármán${best}`;
+                    scoreLabel = narrow
+                        ? `pace ${pace.toFixed(0)} kg/h to Kármán${best}`
+                        : `Mission: ${cargoKg.toFixed(0)} kg cargo · pace ${pace.toFixed(0)} kg/h to Kármán${best}`;
                 } else {
-                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo, deliver it to the Kármán line (100 km)`;
+                    scoreLabel = narrow
+                        ? `Mission: ${cargoKg.toFixed(0)} kg to Kármán (100 km)`
+                        : `Mission: ${cargoKg.toFixed(0)} kg cargo, deliver it to the Kármán line (100 km)`;
                 }
                 ctx.fillText(scoreLabel, 10, 16);
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';

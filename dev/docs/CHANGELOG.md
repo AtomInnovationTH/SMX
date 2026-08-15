@@ -15,6 +15,41 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Added (full mission block on phones, August 2026)
+
+- **The full mission block carries short forms at compact width, the last post-backlog
+  candidate: no helper, no slider, no physics.** At full HUD on a 390 px phone the
+  block's goal sentence ran off the screen (measured: 406 px at the 50 kg stress
+  figures, and still past 390 at the 3 kg default), and the pace+best line reached
+  386 px at the stress figures, which overflows every supported phone narrower than
+  ~380 px (the candidate's estimate said ~393; the font measures 386). The fix is the repo's
+  own shift-9 phone pattern rather than a wrap: at `_compactHud` the goal and pace
+  branches carry short forms ("Mission: N kg to Kármán (100 km)", "pace N kg/h to
+  Kármán (best M)"), the same facts in fewer words, the pace form mirroring the
+  minimal plate's pace line with the delivered branch's own "(best N)" style, so no
+  level shows a figure another hides. The delivered line fits at 390 px as-is (308 px
+  at the stress figures) and stays one string at both widths. No wrap, no layout
+  cascade: the block keeps its y 16/30 band and the thermal/act blocks never move.
+  Desktop lines are byte-identical, proven on staged frames: a cross-build A/B (the
+  deployed build and the new build side by side, Math.random seeded identically per
+  page, raster paths warmup-settled) shows the 1280x800 full-level frames and the
+  390 px minimal-plate frames pixel-identical in every branch state, the 390 px
+  full-level diffs confined to the mission band (y 8-18), and the delivered branch
+  identical at both widths. Smoke check 20 gained the narrow-full pins by resizing
+  the main page mid-check (29 checks, no new one): the short goal and pace forms are
+  pinned at 390 px (the pace exact, from the written 50 km / 100 s / best 34 state)
+  and the long forms pinned absent there. Three new staged-frame traps paid for and
+  recorded in NEXT-SHIFT.md: a freeze that lands before the loading overlay clears
+  is cancelled-and-resurrected (the loop starts on `loadingManager.onComplete` after
+  the fade, so wait for the overlay first, then kill-confirm the chain); the
+  thermometer and suit sprites are not counted by the loading manager (wait for every
+  canvas-consumed image); and a second build served at /old/ resolves its relative
+  asset URLs to /old/assets/* (map them back or the "diff" is an undrawn sprite).
+  `updateContinuous` is byte-identical, the balance harness has nothing to mirror,
+  the snapshot was NOT regenerated, and the committed captures did not move (the
+  stills boot HUD off; the clip runs the minimal plate). No em dashes in the new
+  prose.
+
 #### Added (bootstrap progress, August 2026)
 
 - **The cumulative bootstrap meter rides the minimal delivered line, the first

@@ -1,43 +1,54 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the bootstrap-progress shift: the first
-post-backlog candidate shipped (the minimal compact plate's delivered line now carries the
-cumulative tether meter, "· tether N/600 kg", the one moment the meter moves, guarded by
-bootstrapKg > 0 so every pinned string survives verbatim; section 0 found the 600 kg
-target is the game's own S16 design number, so this is presentation of owned state, not a
-citation). No physics, no helper, no slider; smoke pins the clause by riding check 20 (29
-total, a written-meter capture beside the live-zero one); pure.test gained the clause, the
-rounding, the non-finite guards and the widest width variant (142 unit); the render change
-was verified on staged frames, never by reading the code (a single-page A/B at 500 m: the
-clause diff 295 px strictly inside the compact plate's third-line band, the round trip
-exactly 0, the goal and pace lines confirmed meter-free with a total on record, the full
-mission block reads the same live meter, and the 390 px phone plate keeps the widest
-realistic line inside it). The gate is green at 142/29/98 and 431 KB, and the committed
-captures did not move (the stills boot HUD off, re-shot at 256.3 m / 360.0 m and restored;
-the clip's fresh context never delivers). The review pass found four small things, all
-fixed in place: two stale gate-number spots in DEVELOPERS.md (141/120/430 KB, now
-142/121/431 KB), a self-contradictory smoke aside in this record, and the boot-overlay
-smoke flake itself, fixed at the root after it showed twice locally and once in CI (the
-check 1 boot wait is now state-based, not a fixed 500 ms wall clock), plus the same
-wall-clock class in the 85 km crossing check, surfaced by the docs-push run and fixed
-the same way (both legs now climb until altitude proves the crossing); the CI log also
-taught that the smoke job is advisory by design and never gates a deploy. The shift is
-pushed, deployed and live-verified md5-identical, with every job green, smoke included,
-on the redeploy run. No new trap was paid: the recorded staged-frame traps (the seeds,
-the frozen clock, the raster-path warmup) all held. Before that, the bootstrap-pacing
-shift: backlog item 3, the last one, shipped (the persisted best rides the minimal compact plate's goal and pace lines
-whenever one exists, and the full mission block's pace branch quotes it too, pinned in
-smoke 20 and pure.test, A/B-verified on staged 500 m frames), reviewed, pushed, deployed
-and live-verified md5-identical. Before that, the resonance-texture shift: backlog item 2
-shipped (the crest train breathes in place at the cavity rate while resonant, pinned in
-smoke 13b and A/B-verified on staged frames), reviewed, pushed, deployed and live-verified
+that have already cost time. Updated at the end of the phone-forms fix: the last
+post-backlog candidate shipped (at compact width the full mission block's goal and pace
+branches now carry short forms, "Mission: N kg to Kármán (100 km)" and "pace N kg/h to
+Kármán (best M)", the repo's own shift-9 same-facts-fewer-words pattern, so the block no
+longer runs off a 390 px screen; the delivered line fits as-is and stays one string at
+both widths; desktop lines byte-identical, proven on a cross-build staged-frame A/B).
+Smoke check 20 gained the narrow-full pins by resizing the main page mid-check (29
+checks, no new one); the gate is green at 142/29/98 and 432 KB. THREE new staged-frame
+traps were paid this fix, all recorded below: a freeze that lands before the loading
+overlay clears is cancelled-and-resurrected (the loop starts on loadingManager.onComplete
+after the fade), the thermometer and suit sprites are not counted by the loading manager
+(wait for every canvas-consumed image), and a second build served at /old/ resolves its
+relative asset URLs to /old/assets/* (map them back). Before that, the bootstrap-progress
+shift: the first post-backlog candidate shipped (the minimal compact plate's delivered
+line now carries the cumulative tether meter, "· tether N/600 kg", the one moment the
+meter moves, guarded by bootstrapKg > 0 so every pinned string survives verbatim; section
+0 found the 600 kg target is the game's own S16 design number, so this is presentation of
+owned state, not a citation). No physics, no helper, no slider; smoke pins the clause by
+riding check 20 (29 total, a written-meter capture beside the live-zero one); pure.test
+gained the clause, the rounding, the non-finite guards and the widest width variant (142
+unit); the render change was verified on staged frames, never by reading the code (a
+single-page A/B at 500 m: the clause diff 295 px strictly inside the compact plate's
+third-line band, the round trip exactly 0, the goal and pace lines confirmed meter-free
+with a total on record, the full mission block reads the same live meter, and the 390 px
+phone plate keeps the widest realistic line inside it). The review pass found four small
+things, all fixed in place: two stale gate-number spots in DEVELOPERS.md (141/120/430 KB,
+now 142/121/431 KB), a self-contradictory smoke aside in this record, and the
+boot-overlay smoke flake itself, fixed at the root after it showed twice locally and once
+in CI (the check 1 boot wait is now state-based, not a fixed 500 ms wall clock), plus the
+same wall-clock class in the 85 km crossing check, surfaced by the docs-push run and
+fixed the same way (both legs now climb until altitude proves the crossing); the CI log
+also taught that the smoke job is advisory by design and never gates a deploy. The
+bootstrap-progress shift is pushed, deployed and live-verified md5-identical, with every
+job green, smoke included, on the redeploy run. No new trap was paid on that shift: the
+recorded staged-frame traps (the seeds, the frozen clock, the raster-path warmup) all
+held. Before that, the bootstrap-pacing shift: backlog item 3, the last one, shipped (the
+persisted best rides the minimal compact plate's goal and pace lines whenever one exists,
+and the full mission block's pace branch quotes it too, pinned in smoke 20 and pure.test,
+A/B-verified on staged 500 m frames), reviewed, pushed, deployed and live-verified
+md5-identical. Before that, the resonance-texture shift: backlog item 2 shipped (the
+crest train breathes in place at the cavity rate while resonant, pinned in smoke 13b and
+A/B-verified on staged frames), reviewed, pushed, deployed and live-verified
 md5-identical. Before that, the wave-budget-display shift: backlog item 1 shipped (the
 slide-6 "Wave arriving" readout, computed per frame from the very `waveSharedBudgetW` the
 coupling reads), reviewed, pushed, deployed and live-verified md5-identical. Before that,
 the em-dash sweep of the shipped copy (no player-facing em dash remains), and before that
-the review-and-fix pass on the M4 hot-side-of-thermal shift (the 30 km card reads the film
-speed the physics runs).
+the review-and-fix pass on the M4 hot-side-of-thermal shift (the 30 km card reads the
+film speed the physics runs).
 
 ## Where things stand
 
@@ -46,7 +57,7 @@ speed the physics runs).
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
   Currently 142 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 431 KB. Only assets under 20 KB are inlined; the clouds,
+- **Payload**: `index.html` is 432 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
@@ -72,6 +83,63 @@ speed the physics runs).
   cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The full mission block carries short forms at compact width (the last post-backlog
+  candidate), not a wrap; no physics, no helper, no slider, and no committed screen's
+  text or layout moved.** Section 0: pure presentation, no paper hook needed, exactly as
+  the candidate recorded. The options were wrap or accept; the shipped answer is
+  neither, it is the repo's own shift-9 phone pattern (the vine info block and the
+  frequency table already carry short forms under `_compactHud`: same facts, fewer
+  words, never a different claim). Measured on the real font, not estimated: the goal
+  sentence reaches 406 px at the 50 kg stress figures and still overflows 390 at the
+  3 kg default; the pace+best line reaches 386 px at the stress figures (the
+  candidate's estimate said ~393), which overflows every supported phone narrower than
+  ~380 px; the delivered line is 308 px at the stress figures and fits. So the goal
+  and pace branches carry short forms at `_compactHud` ("Mission: N kg to Kármán
+  (100 km)" and "pace N kg/h to Kármán (best M)", the pace form mirroring the minimal
+  plate's pace line with the delivered branch's own "(best N)" style, so no level
+  shows a figure another hides), and the delivered branch stays one string at both
+  widths. No wrap, no layout cascade: the block keeps its y 16/30 band and the thermal
+  (44-85) and act (96) blocks never move. Desktop lines are byte-identical.
+- **Smoke pins the narrow forms by riding check 20 (29 total, no new check).** The
+  check resizes its main page to 390x844 mid-run (the game re-lays out live:
+  `resizeCanvas` on window resize, `_compactHud` recomputed per frame), captures the
+  full level in the quiet ground state and in the exact 50 km / 100 s / best 34
+  climbing state, pins the short forms present and the long forms absent (the goal
+  matched without its cargo figure, same discipline as the minimal goal pin), and
+  restores ground state, minimal level and the desktop viewport for the checks after.
+- **The render change was verified on staged frames, never by reading the code** (a
+  CROSS-BUILD A/B this time: the deployed build mined from git and the new build side
+  by side in two pages of one browser, Math.random seeded identically per page, the
+  documented seeds, raster paths warmup-settled, and an old-vs-old determinism
+  baseline proving the harness before any comparison). The 1280x800 full-level frames
+  are pixel-identical between builds in all three branch states (0 px), the 390 px
+  minimal-plate frames are pixel-identical (0 px), the 390 px full-level goal/pace
+  diffs are confined to the mission band (y 8-18), the delivered branch is identical
+  at both widths, and the eyeball shots show the old pace line clipped at the right
+  edge where the new short form sits inside it.
+- **THREE NEW STAGED-FRAME TRAPS, paid this fix.** (1) A freeze that lands before the
+  loading overlay clears is CANCELLED-AND-RESURRECTED: the loop starts on
+  `loadingManager.onComplete` after the 500 ms fade, so a kill issued early is undone
+  by `_startLoop()` and the page keeps simulating (two "frozen" pages then differ in
+  every time-fed draw: wave phase, idle-trickled EPM charge, crest scroll). Wait for
+  the overlay to clear first, then kill-confirm the chain (two consecutive quiet
+  windows with no re-arm). (2) The thermometer and suit sprites are NOT counted by the
+  loading manager, so the overlay can clear with them undecoded and whether one
+  painted by snapshot time is a per-page race (a 280 px thermometer-column diff):
+  wait for every canvas-consumed image to complete. (3) A second build served at
+  /old/ resolves its RELATIVE asset URLs to /old/assets/*: map them back to the repo's
+  assets/ or the "diff" is an undrawn sprite, not a code difference.
+- **The committed stills and the clip did not move.** The stills boot ?clean at HUD
+  off; the clip runs the minimal plate at a fresh boot. The full level's phone forms
+  appear in no committed capture. `updateContinuous` is byte-identical, the balance
+  harness has nothing to mirror, the snapshot was NOT regenerated, the pure-helper
+  count stays 62 and the 13 slider ids are unchanged.
+- **Em dashes in new prose: none.** The new strings, code comments, smoke comments and
+  doc prose were written clean (the added diff lines were grepped for U+2014 before
+  commit).
+
+### From earlier shifts (the bootstrap progress meter at minimal)
 
 - **Bootstrap progress at minimal (the first post-backlog candidate) is live as ONE
   guarded clause on the minimal delivered line, not a mechanic; no physics, no helper,
@@ -1032,23 +1100,30 @@ the paper hook, or stay presentation-only with numbers the game already owns).
 
 No physics item can be queued honestly: the paper's deferred simulation list is empty,
 and its unsolved problems (the wave-boundary solve between riders, the mode-conversion
-mechanism, any temperature) are deliberately marked in-game rather than faked. What
-remains is presentation of state the game already owns:
+mechanism, any temperature) are deliberately marked in-game rather than faked. The
+post-backlog candidates are all done now too:
 
-- **(done) Bootstrap progress at minimal (the meter, not the pace).** Shipped this
+- **(done) Bootstrap progress at minimal (the meter, not the pace).** Shipped last
   shift: the minimal delivered line carries the cumulative meter ("· tether N/600 kg")
   the one moment it moves, guarded by `bootstrapKg > 0` so every pinned string survives
   verbatim (the smoke's written delivered state reads the game's live value, 0, and a
   written-meter capture beside it pins the clause). Section 0 found the 600 kg target
   is the game's own S16 design number, so this is presentation of owned state, not a
   citation. Pinned in smoke 20 and pure.test, A/B-verified on staged 500 m frames. See
-  "What last shift changed" above.
-- **The full mission block on phones.** Recorded last shift: at full on a 390 px phone
-  the pace+best line reaches ~393 px in the extreme, and the goal sentence already
-  overflowed pre-existing. Options: wrap the block to two lines at narrow widths, or
-  accept it (the minimal plate is the phone surface; full is a desktop level). Section
-  0: pure presentation, no paper hook needed. The trap is the smoke check 20 full-level
-  pins, which match substrings and survive a wrap.
+  "From earlier shifts (the bootstrap progress meter at minimal)" above.
+- **(done) The full mission block on phones.** Shipped this shift as short forms under
+  `_compactHud`, the repo's own shift-9 phone pattern rather than a wrap: the goal and
+  pace branches read "Mission: N kg to Kármán (100 km)" and "pace N kg/h to Kármán
+  (best M)" at compact width, the delivered line fits as-is and stays one string at
+  both widths, and desktop lines are byte-identical. Measured on the real font: the
+  goal reached 406 px at the stress figures (still past 390 at the 3 kg default), the
+  pace+best 386 (the estimate said ~393). Pinned in smoke 20 (a mid-check resize to
+  390x844), cross-build A/B-verified on staged frames. See "What last shift changed"
+  above.
+
+What remains is presentation of state the game already owns; nothing is queued. When
+the next candidate is seen, it goes here with its section-0 bar (name the paper hook,
+or stay presentation-only with numbers the game already owns).
 
 ## Screenshot recipe, already paid for
 
