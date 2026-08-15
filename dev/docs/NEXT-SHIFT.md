@@ -656,7 +656,14 @@ either. The paper's deferred simulation list is now EMPTY. Do not reopen any of 
   safer than it looks: NO test pins an expected string value containing an em dash
   (verified: every assertion with an em dash is a test name or a failure message, and
   the only em-dash-adjacent guard is `minimalScoreLine`'s "no em dash" test, which
-  the sweep cannot trip), and the smoke suite pins no toast text. The sweep itself is
+  the sweep cannot trip), and the smoke suite pins no toast text. The other side of
+  that coin: smoke DOES match card titles by `includes()` ('transverse', 'convert
+  modes', 'stops carrying your heat', 'descending climber', 'power from the top')
+  and two by exact equality ('a second climber requests power', 'sharing the wave
+  with a second climber'), plus the body fragments `/no converter/`,
+  `/no temperature is modelled/` and `/\+73 /`: before rewriting any player-facing
+  string, grep `dev/tests/smoke/smoke.mjs` for its distinctive words and keep any
+  matched fragment verbatim. The sweep itself is
   mechanical (commas, colons, parentheses, full stops; keep each string's meaning and
   roughly its width) and needs a capture pass after it, because several of those
   strings are width-tuned to a plate: eyeball every text-carrying still that moves.
