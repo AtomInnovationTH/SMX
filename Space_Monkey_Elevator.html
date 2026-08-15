@@ -603,6 +603,19 @@
         // (span and brightness then carry u statically, no motion). Motion, span and
         // brightness all carry the signal, so colour is never the only channel.
         //
+        // M4 (p.10) resonance texture: while resonant the wave is STANDING, so no
+        // crest translates past the climber; the film rings in place once per
+        // resonanceModeAt.periodS (the period the 45 km card quotes). The train
+        // carries that as an in-place breath at the cavity rate: the chevrons' V-depth
+        // and brightness swell and relax together, depth and brightness beating in
+        // phase so the period never rides colour alone. The breath saturates at
+        // CREST_PASS_MAX_HZ below ~4 km (the same slowed-schematic cap the scroll
+        // obeys; the pad trap reads as a shimmer, matching the kHz switching the
+        // readouts book) and freezes mid-pose under reduced motion. The swell only
+        // ADDS to the picture (a 1.0 to 1.28 multiplier), so the shipped slip
+        // carriage below is the floor: scroll, span, spacing and under-strokes are
+        // untouched by it.
+        //
         // The GEOMETRY is load-bearing, not taste. A first pass drew 2 px chevrons only
         // 26 px wide: they vanished into the film's own strain rungs and behind the
         // climber sprite, so the picture said nothing at cruise. The span therefore runs
@@ -5493,6 +5506,20 @@
                 // the smoke check reads the difference between two samples to prove the
                 // stream advances, and a wrapped counter would make that read negative.
                 this._crestScrollPx += crestSpeed * dtCrest;
+                // M4 (p.10) resonance texture: while resonant the wave is STANDING
+                // (waveModeCell), so the film rings in place once per
+                // resonanceModeAt.periodS and nothing translates. The train breathes
+                // that rate as an in-place swell of V-depth and brightness, capped at
+                // CREST_PASS_MAX_HZ (below ~4 km the cavity outruns the photosafety
+                // ceiling, the same slowed-schematic convention as the scroll), frozen
+                // mid-pose under reduced motion, additive only so the shipped slip
+                // carriage is the floor. See the constants block for the contract.
+                const breathHz = (this.resonanceOn && this._resMode)
+                    ? Math.min(this._resMode.freqHz, CREST_PASS_MAX_HZ) : 0;
+                if (breathHz === 0) this._crestBreathPhase = 0;   // the next engage rises from the floor
+                this._crestBreathPhase = ((this._crestBreathPhase || 0) + dtCrest * breathHz) % 1;
+                const breathBeat = 0.5 - 0.5 * Math.cos((_uxReducedMotion ? 0.25 : this._crestBreathPhase) * 2 * Math.PI);
+                const crestBreathe = breathHz > 0 ? 1 + 0.28 * breathBeat : 1;
                 this._crestDrawn = false;
                 if (_uxHudLevel !== HUD_OFF) {
                     this._crestDrawn = true;
@@ -5501,7 +5528,7 @@
                     const scroll = _uxReducedMotion ? CREST_SPACING_PX * 0.5
                                                     : this._crestScrollPx % CREST_SPACING_PX;
                     const half = CREST_HALF_MIN_PX + (CREST_HALF_MAX_PX - CREST_HALF_MIN_PX) * crestPush;
-                    const drop = half * 0.35;   // how deep the V is: wide crests are tall
+                    const drop = half * 0.35 * crestBreathe;   // wide crests are tall; the ring swells
                     const alpha0 = 0.30 + 0.45 * crestPush;
                     const kMax = Math.ceil(CREST_BAND_HALF_PX / CREST_SPACING_PX) + 1;
                     for (let k = -kMax; k <= kMax; k++) {
@@ -5510,11 +5537,13 @@
                         const taper = 1 - Math.abs(yy - cy) / CREST_BAND_HALF_PX;
                         if (taper <= 0) continue;
                         // Two passes: a dark under-stroke so the crest reads against the
-                        // bright low sky AND the green film, then the bright core.
+                        // bright low sky AND the green film, then the bright core. Both
+                        // ride crestBreathe while resonant: the ring swells as one train,
+                        // never a bright ghost over a static shadow.
                         for (const pass of [0, 1]) {
                             ctx.strokeStyle = pass === 0
-                                ? `rgba(8, 20, 28, ${(0.22 * taper).toFixed(3)})`
-                                : `rgba(255, 255, 255, ${(alpha0 * taper).toFixed(3)})`;
+                                ? `rgba(8, 20, 28, ${(0.22 * taper * crestBreathe).toFixed(3)})`
+                                : `rgba(255, 255, 255, ${(alpha0 * taper * crestBreathe).toFixed(3)})`;
                             ctx.lineWidth = pass === 0 ? 5 : 2.5;
                             ctx.beginPath();
                             ctx.moveTo(this.wave.x - half, yy + drop);
@@ -5529,6 +5558,8 @@
                 this._crestScrollPxS = crestSpeed;
                 this._crestPassHzMax = CREST_PASS_MAX_HZ;
                 this._crestScrollFrozen = _uxReducedMotion;
+                this._crestBreathHz = breathHz;
+                this._crestBreathe = crestBreathe;
                 ctx.restore();
             }
 

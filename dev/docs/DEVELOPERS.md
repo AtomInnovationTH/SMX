@@ -272,8 +272,12 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   the amplitude slider becomes the power budget). The builder is `activeFreqHz()`:
   every instrument reads the cavity rate while resonant, while the RENDERER keeps the
   carrier's travelling component (the standing arch is tens of km wide, sub-visible at
-  screen scale, like the drag's sub-pixel damping). The boundary-value buildup is
-  summarised as the one-round-trip ramp and the hint says so.
+  screen scale, like the drag's sub-pixel damping). The crest overlay carries the mode's
+  one visible channel: while resonant the train breathes in place at the cavity rate
+  (capped at the scroll's 2.5 Hz ceiling, frozen mid-pose under reduced motion), an
+  additive swell of the chevrons' V-depth and brightness that leaves the scroll, the
+  26-74 px span, the 96 px spacing and the under-strokes untouched. The boundary-value
+  buildup is summarised as the one-round-trip ramp and the hint says so.
 - **Multi-climber power sharing** (`waveTransportedPowerW` / `waveSharedBudgetW` /
   `powerShareCapW`, M4, paper p.14): a Ground-station toggle, refuse by default (the
   single-climber wave, so the committed balance trace cannot move). Past the 85 km
@@ -496,7 +500,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   browser smoke suite.
 - **Current gate numbers** (keep these updated when they move): **140 unit tests**
   (pure 119, sliders 12, balance 9), **62 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **426 KB**.
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **428 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

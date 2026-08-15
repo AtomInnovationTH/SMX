@@ -591,6 +591,9 @@ try {
   //     produce exactly one retune: n 1 -> 2, the transient counting down, the card
   //     queued. The cavity owns the active frequency (switching collapses to watts)
   //     while the renderer's carrier stays 92 Hz; disengage restores the label.
+  //     The resonance texture rides this check too: while engaged the crest train's
+  //     breath rate IS the cavity rate capped at the scroll's 2.5 Hz ceiling, and the
+  //     channel goes dark on disengage.
   const res = await page.evaluate(async () => {
     const g = window.__smokeGame;
     const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -620,6 +623,8 @@ try {
       carrier: g.waveSystem.frequency,
       switchW: g._switchingW,
       budgetEngaged: document.getElementById('waveBudgetValue').textContent,
+      crestBreathHz: g._crestBreathHz,
+      crestBreathe: g._crestBreathe,
     };
     // Restore: disengage through the same slider path (the handler reverts the
     // carrier label), and settle the climber.
@@ -631,6 +636,8 @@ try {
     out.restoredLabel = document.getElementById('frequencyValue').textContent;
     out.restoredModeLabel = document.getElementById('modeCellValue').textContent;
     out.budgetRestored = document.getElementById('waveBudgetValue').textContent;
+    out.restoredBreathHz = g._crestBreathHz;
+    out.restoredBreathe = g._crestBreathe;
     return out;
   });
   record('resonance: 50 km retune fires (n 1 -> 2, transient paid, card queued), the cavity owns the active frequency, disengage restores',
@@ -645,6 +652,12 @@ try {
     res.retuneFired === true && res.availFired === true &&
     Math.abs(res.activeFreq - 0.417) < 0.01 && Math.abs(res.carrier - 92) < 1 &&
     res.switchW < 100 &&
+    // M4 (p.10) resonance texture: the crest train breathes at the cavity rate while
+    // engaged (capped at the scroll's own 2.5 Hz slowed-schematic ceiling), the swell
+    // stays inside its additive 1.0 to 1.28 range, and disengage goes dark exactly.
+    Math.abs(res.crestBreathHz - Math.min(res.activeFreq, 2.5)) < 1e-9 &&
+    res.crestBreathe >= 1 && res.crestBreathe <= 1.281 &&
+    res.restoredBreathHz === 0 && res.restoredBreathe === 1 &&
     res.restoredOn === false && res.restoredLabel.includes('92.0') &&
     res.restoredModeLabel.includes('travelling'),
     JSON.stringify(res));

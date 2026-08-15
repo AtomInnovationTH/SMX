@@ -15,6 +15,33 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Added (resonance texture, August 2026)
+
+- **The crest train breathes at the cavity rate while resonant (p.10), the second
+  backlog item: no helper, no slider, no physics.** The standing wave translates
+  nothing, so the period the 45 km card quotes (`resonanceModeAt.periodS`) now rides
+  the crest overlay as an in-place breath: the chevrons' V-depth and brightness swell
+  and relax together at `min(f_res, 2.5 Hz)`, the same slowed-schematic cap the
+  scroll obeys (below ~4 km the cavity outruns the photosafety ceiling, so the
+  breath saturates there, matching the kHz switching the readouts book). The swell
+  only adds to the shipped picture (a 1.0 to 1.28 multiplier): the scroll, the
+  26-74 px span, the 96 px spacing and the dark under-strokes are untouched, the
+  slip carriage stays the floor, and depth plus brightness beat in phase so the
+  period never rides colour alone. Reduced motion freezes the breath mid-pose,
+  exactly like the parked scroll; the overlay keeps its HUD-level rule (drawn at
+  minimal and full, hidden at off). Verified on staged frames, never by reading the
+  code: a single-page A/B at 30 km pairs each resonant frame with a plain frame at
+  the same sim time, so the only channel that may differ is the breath. The floor
+  diffs 28 px (sub-visible, as designed), the peak diffs 2709 px inside the band
+  and 0 off it, and a reduced-motion page holds the swell constant with the cavity
+  rate live. Smoke check 13b pins the rate (the capped cavity rate while engaged,
+  dark on disengage), so no new checks (29 total). `updateContinuous` is
+  byte-identical, the balance harness has nothing to mirror, the snapshot was NOT
+  regenerated, and the committed stills were verified compositionally unchanged
+  (256.3 m / 360.0 m, centres exact) and restored: they boot HUD off and resonance
+  is off by default, so the breath is in no committed capture. No em dashes in the
+  new prose.
+
 #### Fixed (review pass after the wave-budget display, August 2026)
 
 - **The Wave arriving hint no longer names dev-side machinery.** The single-source

@@ -1,22 +1,26 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the wave-budget-display shift: backlog
-item 1 shipped (the slide-6 transported-power budget as a live "Wave arriving" readout in
-the Ground-station group, computed per frame from the very `waveSharedBudgetW` the
-coupling reads, so it cannot disagree with the physics; no helper, no slider, no
-physics), gate green at 140/29/98 and 426 KB, stills verified compositionally unchanged
-and restored. The post-commit review pass found and fixed two nits (the hint now speaks
-in-world, this file's heading chain restored), and the shift is pushed, deployed and
-live-verified md5-identical. Before that, the em-dash sweep of the shipped copy: priority
-1's sweep of
-the shipped copy landed (no em dash remains in any player-facing string or
-markup; comments untouched by design), gate green at 140/29/98, captures re-shot and
-committed, no physics and no layout changes. Before that, the review-and-fix pass on the
-M4 hot-side-of-thermal shift: one correctness bug in the new card found and fixed
-(the drag-heating figure now reads the film speed the physics actually runs, under
-resonance and taper), no physics, the balance trace untouched, and the paper's deferred
-list still empty.
+that have already cost time. Updated at the end of the resonance-texture shift: backlog
+item 2 shipped (the crest train breathes in place at the cavity rate while resonant,
+riding the very `resonanceModeAt.periodS` the 45 km card quotes: an additive 1.0-1.28
+swell of the chevrons' V-depth and brightness, capped at the scroll's own 2.5 Hz
+slowed-schematic ceiling, frozen mid-pose under reduced motion, hidden at HUD off with
+the rest of the overlay; the load-bearing geometry, span 26-74 px at 96 px spacing with
+dark under-strokes, is untouched; no helper, no slider, no physics). The render change was
+verified on staged frames, never by reading the code (a single-page A/B at 30 km pairs
+each resonant frame with a plain frame at the same sim time: floor diffs 28 px, peak
+2709 px inside the band, 0 off it, and a reduced-motion page holds the swell constant
+with the cavity rate live), smoke 13b pins the rate engaged and the dark channel on
+disengage (no new checks, 29 total), the gate is green at 140/29/98 and 428 KB, and the
+stills re-shot compositionally identical (256.3 m / 360.0 m, centres exact) and were
+restored (HUD off, resonance off by default: the breath is in no committed capture; the
+clip was not re-shot, no captured screen text moved). Before that, the wave-budget-display
+shift: backlog item 1 shipped (the slide-6 "Wave arriving" readout, computed per frame
+from the very `waveSharedBudgetW` the coupling reads), reviewed, pushed, deployed and
+live-verified md5-identical. Before that, the em-dash sweep of the shipped copy (no
+player-facing em dash remains), and before that the review-and-fix pass on the M4
+hot-side-of-thermal shift (the 30 km card reads the film speed the physics runs).
 
 ## Where things stand
 
@@ -25,7 +29,7 @@ list still empty.
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
   Currently 140 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 426 KB. Only assets under 20 KB are inlined; the clouds,
+- **Payload**: `index.html` is 428 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
@@ -36,7 +40,9 @@ list still empty.
   mode-conversion mechanism (p.12 offers a table and a question, no converter), and any
   temperature (no heat capacity, transfer coefficient or emissivity is published
   anywhere).
-- **Default climb**: unchanged by the thermal shift (no physics at all: one helper, one
+- **Default climb**: unchanged by the resonance-texture shift (render-only: the crest
+  overlay breathes while resonant, and resonance is off by default; `updateContinuous`
+  byte-identical), by the thermal shift (no physics at all: one helper, one
   readout, one new card, one card extended, constants and docs), by the review pass
   after it (display-only fix: the 30 km card's heating figure now mirrors the coupling's
   film speed, nothing in the trace's path moved), by the mode-conversion shift (no
@@ -45,6 +51,68 @@ list still empty.
   cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The resonance texture (backlog item 2, p.10) is live as ONE render channel on the
+  crest overlay, not a mechanic; no physics, no helper, no slider, and no committed
+  screen's text or layout moved.** Section 0, decided before any code: while resonant
+  the shipped model has the film oscillating IN PLACE at f_res = 1/periodS (the
+  coupling's own omegaActive), the standing pattern translates nothing (the arch is
+  tens of km wide, sub-visible at screen scale, which is why the renderer keeps the
+  carrier's travelling component), and thrust still comes from the same slip integral
+  against the local envelope, so the overlay's scroll, span and alpha already carry
+  the true slip story while resonant. The one honest channel left for the period is
+  an in-place BREATH of the train at the cavity rate: `crestBreathe` runs 1.0 to 1.28
+  (additive only, so the shipped picture is the floor and nothing the geometry lesson
+  paid for is given back) on the chevrons' V-depth and brightness together, at
+  min(f_res, CREST_PASS_MAX_HZ): below ~4 km the cavity outruns the photosafety
+  ceiling and the breath saturates at the same slowed-schematic cap the scroll obeys,
+  matching the kHz switching the readouts book there. Depth and brightness beat in
+  phase, so the period never rides colour alone; reduced motion freezes the breath
+  mid-pose (phase pinned at 0.25, a static 1.14 swell); the overlay's HUD rule is
+  untouched (drawn at minimal and full, hidden at off). What it must not do and does
+  not: no translation keyed to the period (that would re-assert a travelling wave),
+  no spacing or span change (the geometry is load-bearing), no flash above 2.5 Hz,
+  no colour-only signal, and no breath while plain (the channel is exactly dark:
+  `_crestBreathHz` 0, `_crestBreathe` 1).
+- **No physics changed, so the balance harness is untouched and the default trace did
+  NOT move (snapshot not regenerated).** `updateContinuous` is byte-identical: the
+  change lives entirely in renderVine, so the mirror rule has nothing to attach to,
+  exactly like the wave-budget, thermal and mode-conversion shifts. The pure-helper
+  count stays 62 (the rate cap is an inline Math.min in the renderer, not a helper)
+  and the slider rituals never fire (the 13 slider ids are unchanged).
+- **Smoke pins the channel by riding check 13b (29 total, no new check).** While
+  engaged, `_crestBreathHz` asserts equal to min(activeFreqHz(), 2.5) and
+  `_crestBreathe` sits inside its 1.0-1.28 range; after the disengage restore the
+  handles read exactly 0 and 1. Deterministic state pins, not wall-clock phase deltas
+  (the timing-flake class the doc already warns about). The new render handles follow
+  the existing `_crestPush` / `_crestScrollPxS` pattern.
+- **The render change was verified on staged frames, never by reading the code** (the
+  A/B plate-paint pattern, single-page variant): one page parked at 30 km, resonance
+  engaged ALOFT through the slider's own DOM event, stepped by hand off a synthetic
+  clock; each resonant frame pairs with a plain frame disengaged at the SAME sim
+  time, so the only canvas channel that may differ is the breath. Floor diffs 28 px
+  (sub-visible, as designed), peak diffs 2709 px inside the crest band and 0 off it,
+  and a reduced-motion page holds the swell constant over 90 frames with the cavity
+  rate live. The traps the verification harness paid for, in the order they bit:
+  engage aloft, never on the pad (the kHz cavity clamps the stroke to centimetres at
+  engage, the clamp never auto-raises, and the bent stroke bends the drawn rungs for
+  the whole comparison); seed EVERY km milestone up to the staged altitude
+  (milestoneMarkerAt otherwise fires its Math.random camera shake plus a 16-particle
+  burst on the first stepped frame, and the shake jitters the camera per render even
+  at dt 0; capture.mjs's 1-12 seed only covers its own low shots); seed the altimeter
+  landmark for the staged altitude (currentLandmarkName / currentLandmarkAlt) or the
+  pill re-shows on the first update; freeze performance.now (the hands glow pulses on
+  wall time); and if two pages must compare, seed Math.random per page before boot
+  (the sky's star texture is boot-random per page).
+- **The committed stills did not move, verified by re-shooting** (256.3 m / 360.0 m,
+  centres exact; the stills boot ?clean at HUD off, where the overlay draws nothing,
+  and resonance is off by default and in no committed capture). The two PNGs differed
+  on shader noise only and were restored. The clip was not re-shot: no captured
+  screen text moved.
+- **Em dashes in new prose: none.** The new code comments, the smoke comments and the
+  doc prose were written clean.
+
+### From earlier shifts (the wave power budget display, slide 6)
 
 - **The wave power budget display (backlog item 1, slide 6) is live as a readout,
   not a mechanic; no physics, and no committed screen's text or layout moved.**
@@ -755,12 +823,15 @@ The standing hygiene list is now empty; the backlog below is next.
 
 ### Backlog, any order
 
-- **(done) Wave power budget display (slide 6).** Shipped this shift as the Ground-station
+- **(done) Wave power budget display (slide 6).** Shipped two shifts ago as the Ground-station
   "Wave arriving" readout, computed per frame from `waveSharedBudgetW` itself, with the
   plain / resonant-injection / shared readings all pinned in smoke checks 12/13b/13c.
-  See "What last shift changed" above.
-- **Resonance texture**: `resonanceModeAt.periodS` is on the readout; a visible crest
-  scale could ride it.
+  See "From earlier shifts (the wave power budget display)" above.
+- **(done) Resonance texture.** Shipped this shift as the crest train's in-place breath
+  at the cavity rate while resonant (the period the 45 km card quotes, made visible):
+  additive-only swell of V-depth and brightness, capped at the scroll's 2.5 Hz ceiling,
+  frozen mid-pose under reduced motion, pinned in smoke 13b, A/B-verified on staged
+  frames. See "What last shift changed" above.
 - **Bootstrap pacing**: `throughputKgPerHour` is pinned and shown at the minimal level.
 
 ## Screenshot recipe, already paid for
