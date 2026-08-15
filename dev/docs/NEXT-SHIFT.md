@@ -1,8 +1,13 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the em-dash sweep shift: priority 1's
-sweep of the shipped copy landed (no em dash remains in any player-facing string or
+that have already cost time. Updated at the end of the wave-budget-display shift: backlog
+item 1 shipped (the slide-6 transported-power budget as a live "Wave arriving" readout in
+the Ground-station group, computed per frame from the very `waveSharedBudgetW` the
+coupling reads, so it cannot disagree with the physics; no helper, no slider, no
+physics), gate green at 140/29/98 and 426 KB, stills verified compositionally unchanged
+and restored. Before that, the em-dash sweep of the shipped copy: priority 1's sweep of
+the shipped copy landed (no em dash remains in any player-facing string or
 markup; comments untouched by design), gate green at 140/29/98, captures re-shot and
 committed, no physics and no layout changes. Before that, the review-and-fix pass on the
 M4 hot-side-of-thermal shift: one correctness bug in the new card found and fixed
@@ -17,7 +22,7 @@ list still empty.
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
   Currently 140 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 422 KB. Only assets under 20 KB are inlined; the clouds,
+- **Payload**: `index.html` is 426 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
@@ -36,7 +41,58 @@ list still empty.
   resonance shift before that (off by default): 100 km in 350.7 s, mean 1027 km/h,
   cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
-## What last shift changed, so you do not undo it
+## What the shift before changed, so you do not undo it
+
+(This section reads newest-first: the em-dash sweep entry below is now the second-most-recent shift.)
+
+- **The wave power budget display (backlog item 1, slide 6) is live as a readout,
+  not a mechanic; no physics, and no committed screen's text or layout moved.**
+  Section 0, verified against the deck PDF before any code: slide 6 publishes
+  exactly "Power transmitted: P = vF = Z·V² = F²/Z" with Z = c·ρ·A, plus the
+  P/A = c·ρ·V² = σ²/(c·ρ) forms with the velocity-limit and stress-limit
+  annotations, so nothing the readout quotes needed the absent-rather-than-faked
+  treatment (the slide's 48 N/(m/s)/mm² longitudinal impedance row is already the
+  repo's slide-6 fixture, reproducing 150 kW/mm² at 200 km/h and 3.7 MW/mm² at
+  1000 km/h). What shipped: ONE new Ground-station row (Wave arriving; NO slider,
+  there is no lever to add: the levers are the carrier, amplitude, budget, taper
+  and film sliders the player already has) refreshed per frame
+  (`updateWaveBudgetReadout`, cached element like Stack heat), computing FRESH from
+  `waveSharedBudgetW` with the same arguments the coupling's share block passes
+  (the share shift's stale-cache lesson): the local film's transported power while
+  plain (taper holds A·V² constant, p.9; the p.7 drag tax saps it with altitude:
+  144.2 MW at the pad, 138.1 MW at 11.5 km, 136.6 MW at 69.5 km at the defaults),
+  the anchor's resonant injection (p.10's P = σ·v at the active cavity rate,
+  kW-scale) while resonant, and a "· shared with the second climber (p.14)" suffix
+  while the rider is aboard, where the figure IS the shared budget. The unit adapts
+  as the 85 km card's already does. The hint cites slide 6's formula and names what
+  the number is under each mode.
+- **No physics changed, so the balance harness is untouched and the default trace
+  did NOT move (snapshot not regenerated).** `updateContinuous` is byte-identical
+  (md5-verified): the readout only reads state and writes a label, so the mirror
+  rule has nothing to attach to, exactly like the thermal and mode-conversion
+  shifts. The pure-helper count stays 62 (the readout reuses `waveSharedBudgetW`,
+  no new helper) and the slider rituals never fire (a readout row is not a slider,
+  `sliderDefaults()` scrapes only the 13 slider ids).
+- **Smoke pins all three readings by riding the existing checks (29 total, no new
+  check).** Check 12 pins the plain `N.N MW · P = ρ·c·A·V² (slide 6)` form at both
+  teleports, drag-sapped strictly lower at 69.5 km than at 11.5 km and never above
+  the untouched 144.2 MW anchor figure; check 13b pins the resonant `N kW · the
+  anchor's injection, P = σ·v (p.10)` form while engaged and the plain restore on
+  disengage; check 13c pins the `· shared with the second climber (p.14)` suffix
+  while the rider is aboard and the plain form after refusal. Distinctive
+  player-facing words now smoke-pinned, for the next text edit: those three
+  label fragments on `waveBudgetValue`.
+- **The committed stills did not move, verified by re-shooting** (256.3 m / 360.0 m,
+  centres exact; the settings panel appears in no capture: the stills boot `?clean`
+  at HUD off and the clip runs the minimal plate). The two PNGs differed on shader
+  noise only and were restored. The clip was not re-shot: no captured screen text
+  moved. The gate passed on the first run with the regenerated index.html already
+  staged (140 unit, 29 smoke, 98 = 98, 426 KB).
+- **Em dashes in new prose: none.** The new label, hint, smoke comments and doc
+  prose were written clean; one slipped into a smoke comment during drafting and
+  was fixed before commit.
+
+## What the em-dash sweep changed (the shift before), so you do not undo it
 
 - **The em-dash sweep of the shipped copy (old priority 1); no physics, no mechanics,
   no layout.** Every player-facing em dash in `Space_Monkey_Elevator.html` was replaced
@@ -695,11 +751,10 @@ The standing hygiene list is now empty; the backlog below is next.
 
 ### Backlog, any order
 
-- **Wave power budget display (slide 6-ish).** The skim/supply readout says where the
-  residual goes; a display line for P = rho·c·A·V^2 arriving at the climber's altitude
-  would make the mode's budgeting plain. `waveSharedBudgetW` is already the single
-  formula consumed by the coupling, the harness and the 85 km beat card (with the p.14
-  rider aboard it IS the shared budget), so the readout cannot disagree with the physics.
+- **(done) Wave power budget display (slide 6).** Shipped this shift as the Ground-station
+  "Wave arriving" readout, computed per frame from `waveSharedBudgetW` itself, with the
+  plain / resonant-injection / shared readings all mined in smoke checks 12/13b/13c.
+  See "What the shift before changed" above.
 - **Resonance texture**: `resonanceModeAt.periodS` is on the readout; a visible crest
   scale could ride it.
 - **Bootstrap pacing**: `throughputKgPerHour` is pinned and shown at the minimal level.

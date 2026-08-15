@@ -89,6 +89,9 @@ Exact, because you make decisions with them:
   the FG40 datasheet): the stack's switching dissipation and the wave's local drag-heating rate
   in W/m, against the datasheet's +73 °C internal ceiling and the ISA air that stops convecting
   as you climb
+* the slide-6 power budget as a live readout (Ground station, "Wave arriving"):
+  P = ρ·c·A·V² on the local film at your altitude (taper-constant, drag-sapped on the way up),
+  the anchor's injection while resonant, and the shared budget when a second climber is aboard
 * switching power `4·N·E_switch·f`, extraction `F̄ · v`, and US Standard Atmosphere density
 
 The impedance and power table on the paper's slide 6 reproduces to 2-3 significant figures, and

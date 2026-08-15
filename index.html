@@ -413,6 +413,10 @@
             <small class="setting-hint">4·N·E_switch·f: flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
         </div>
         <div class="slider-container">
+            <label>Wave arriving: <span id="waveBudgetValue">144.2 MW · P = ρ·c·A·V² (slide 6)</span></label>
+            <small class="setting-hint">Where the budget comes from: slide 6's transported power, P = vF = Z·V² = ρ·c·A·V² with the impedance Z = ρ·c·A (48 N/(m/s)/mm² for this film class, the table's longitudinal row exactly). The figure is computed on the LOCAL film at your altitude by the very same formula the coupling, the balance harness and the 85 km beat card read, so it cannot disagree with the physics. Taper (p.9) holds the transported power constant as the section thins (A·V² is altitude-independent); the p.7 drag tax saps a few percent over the column, so the figure drifts down a little as you climb. While resonant the scarce thing is the anchor's injection instead (p.10's P = σ·v, the budget the amplitude slider then sets), so the line switches to that. With a second climber sharing (p.14) this IS the budget both skims cap against, minus his draw. Read it against the switching and stack-heat rows around it: the wave carries MW against the stack's kW, which is the paper's whole argument for mechanical power.</small>
+        </div>
+        <div class="slider-container">
             <label>Stack heat: <span id="stackHeatValue">11.8 kW while engaged · air 100.0% of sea level</span></label>
             <small class="setting-hint">The hot side of the energy loop, booked honestly. While you hold, the switching watts above are dissipated in the magnets (the datasheet's own 4 J per transition). The FG40's published ceiling is +73 °C internal: an absolute maximum set by the heat-deflection limit of the polymer body (the electronics tolerates 105 °C). Low down, the moving air convects the heat away; as the air thins the stack is left with radiation only. What no source publishes is the heat capacity, thermal resistance or emissivity that would turn these watts into a temperature, so no stack temperature is modelled: the watts and the ceiling are the whole honest book. The film's own drag dissipation (the 2 km beat's bill) is the paper's "possibly by drag heating" (p.7); where that heat lands, air or film, the paper does not say, so no film temperature is modelled either.</small>
         </div>
@@ -3558,6 +3562,8 @@
                 this.airDensityLabel = document.getElementById('airDensityValue');
                 // M4 (hot side): the Stack heat readout element, refreshed per frame too.
                 this.stackHeatLabel = document.getElementById('stackHeatValue');
+                // M4 (slide 6): the Wave arriving readout element, refreshed per frame too.
+                this.waveBudgetLabel = document.getElementById('waveBudgetValue');
                 
                 // UX: load persisted best altitude + ghost (2c). Clamp on read (F9).
                 // (M3.8: the key is now honestly named — it always stored altitude.)
@@ -4375,6 +4381,36 @@
                 this.stackHeatLabel.textContent = `${kw} kW while engaged · air ${airDensityReadout(this.monkey.altitude)} of sea level`;
             }
 
+            // M4 (paper slide 6 / backlog): the Wave arriving readout, live. The wave
+            // power budget arriving at the climber's altitude, computed FRESH each
+            // frame from waveSharedBudgetW with the SAME arguments the coupling's
+            // share block passes (the readout can never disagree with the physics):
+            // slide 6's transported power of the local film (taper- and
+            // drag-adjusted; taper holds A·V² constant, drag saps it with altitude)
+            // while plain, and the anchor's resonant injection (p.10's P = σ·v,
+            // evaluated at the ACTIVE cavity rate) while resonant. With the p.14
+            // rider aboard this IS the shared budget, and the suffix says so. The
+            // unit adapts (plain budgets are MW-scale, resonant ones kW-scale), the
+            // same formatting the 85 km card and the HUD share line use.
+            // Altitude-dependent like the Stack heat row, so it refreshes per frame.
+            updateWaveBudgetReadout() {
+                if (!this.waveBudgetLabel || !this.waveSystem) return;
+                const budgetW = waveSharedBudgetW({
+                    altitudeM: this.monkey.altitude, amplitudeM: this.waveSystem.amplitude,
+                    freqHz: this.waveSystem.frequency, taperRatio: this.taperRatio,
+                    spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M,
+                    widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm,
+                    resonanceSupplyCapW: this.resonanceOn
+                        ? resonanceSupplyW(this.waveSystem.amplitude, this.activeFreqHz(),
+                            this.safetyFraction * GameConfig.MATERIALS[this.materialIndex].strengthGpa * 1e9,
+                            filmCrossSectionM2(this.vineWidth * 10, this.filmThicknessMm))
+                        : null,
+                });
+                const bStr = budgetW >= 1e6 ? `${(budgetW / 1e6).toFixed(1)} MW` : `${(budgetW / 1000).toFixed(0)} kW`;
+                this.waveBudgetLabel.textContent = `${bStr} · ${this.resonanceOn ? "the anchor's injection, P = σ·v (p.10)" : 'P = ρ·c·A·V² (slide 6)'}`
+                    + (this._shareRiderAboard ? ' · shared with the second climber (p.14)' : '');
+            }
+
             // M4 (p.10): while resonant the cavity rate drifts with altitude every
             // frame, so the panel lines that quote the active frequency refresh every
             // frame too (the carrier label shows the override honestly, the same class
@@ -5129,6 +5165,7 @@
                 this.updateThermal();
                 this.updateAirDensityReadout();
                 this.updateStackHeatReadout();
+                this.updateWaveBudgetReadout();
                 this.updateResonanceReadout();
                 // M3.3 (§2.7): the two acts. Act I is drag-dominated, Act II is vacuum —
                 // read off the SAME densityRatio the drag model uses, no new physics.

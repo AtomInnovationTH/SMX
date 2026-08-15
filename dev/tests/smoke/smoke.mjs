@@ -514,6 +514,9 @@ try {
   //     M4 (hot side): the same teleport also crosses 30 km, where the stack-heat
   //     beat books the exact watts against the datasheet's +73 °C ceiling and
   //     marks the temperature absent; the Stack heat readout must track altitude.
+  //     M4 (slide 6 budget display): the Wave arriving readout rides this check
+  //     too, in the plain slide-6 form at both sampled altitudes, drag-sapped at
+  //     the higher one (the p.7 tax grows with the column below you).
   //     Assert on the active card PLUS the queue (the same pattern check 13 uses).
   const beats = await page.evaluate(async () => {
     const g = window.__smokeGame;
@@ -524,7 +527,8 @@ try {
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'),
                   dragFired: g._beatsFired.has('wave-drag'), titles,
-                  heatLabelLow: document.getElementById('stackHeatValue').textContent };
+                  heatLabelLow: document.getElementById('stackHeatValue').textContent,
+                  budgetLabelLow: document.getElementById('waveBudgetValue').textContent };
     g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20/30/42/45 km)
     await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
     const titles2 = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
@@ -540,7 +544,8 @@ try {
                   heatFired: g._beatsFired.has('stack-heat'),
                   heatTitle: titles2.some((t) => t.includes('stops carrying your heat')),
                   heatBody: (heatCard || { lines: [] }).lines.join(' '),
-                  heatLabelHigh: document.getElementById('stackHeatValue').textContent };
+                  heatLabelHigh: document.getElementById('stackHeatValue').textContent,
+                  budgetLabelHigh: document.getElementById('waveBudgetValue').textContent };
     g.monkey.velocityY = 0;
     return out;
   });
@@ -552,6 +557,12 @@ try {
     /no temperature is modelled/.test(beats.heatBody) && /\+73 /.test(beats.heatBody) &&
     /of sea level/.test(beats.t12.heatLabelLow) && /of sea level/.test(beats.heatLabelHigh) &&
     beats.t12.heatLabelLow !== beats.heatLabelHigh &&   // the medium falls with altitude
+    // M4 (slide 6): the Wave arriving readout, plain form at both teleports, the
+    // higher one sapped by the drag column below it (138.1 MW -> 136.6 MW here).
+    /^\d+\.\d+ MW · P = ρ·c·A·V² \(slide 6\)$/.test(beats.t12.budgetLabelLow) &&
+    /^\d+\.\d+ MW · P = ρ·c·A·V² \(slide 6\)$/.test(beats.budgetLabelHigh) &&
+    parseFloat(beats.t12.budgetLabelLow) > parseFloat(beats.budgetLabelHigh) &&
+    parseFloat(beats.t12.budgetLabelLow) < 144.2 &&   // never above the untouched anchor figure
     beats.fatigueFired === false && Math.abs(beats.freq - 92) < 1,   // log-slider float noise
     JSON.stringify(beats));
 
@@ -608,6 +619,7 @@ try {
       activeFreq: g.activeFreqHz(),
       carrier: g.waveSystem.frequency,
       switchW: g._switchingW,
+      budgetEngaged: document.getElementById('waveBudgetValue').textContent,
     };
     // Restore: disengage through the same slider path (the handler reverts the
     // carrier label), and settle the climber.
@@ -618,12 +630,17 @@ try {
     out.restoredOn = g.resonanceOn;
     out.restoredLabel = document.getElementById('frequencyValue').textContent;
     out.restoredModeLabel = document.getElementById('modeCellValue').textContent;
+    out.budgetRestored = document.getElementById('waveBudgetValue').textContent;
     return out;
   });
   record('resonance: 50 km retune fires (n 1 -> 2, transient paid, card queued), the cavity owns the active frequency, disengage restores',
     res.engaged.on === true && res.engaged.label.includes('node') &&
     res.engaged.freqLabel.includes('cavity') &&
     res.engaged.modeLabel.includes('standing') &&   // M4 (p.12/13): the one mode change, named
+    // M4 (slide 6): the budget readout rides the mode too: the anchor's injection
+    // (kW-scale, P = σ·v) while engaged, back to slide 6's transported MW plain.
+    /^\d+ kW · the anchor's injection, P = σ·v \(p\.10\)$/.test(res.budgetEngaged) &&
+    /^\d+\.\d+ MW · P = ρ·c·A·V² \(slide 6\)$/.test(res.budgetRestored) &&
     res.n === 2 && res.resets === 1 && res.transient > 0 &&
     res.retuneFired === true && res.availFired === true &&
     Math.abs(res.activeFreq - 0.417) < 0.01 && Math.abs(res.carrier - 92) < 1 &&
@@ -683,6 +700,7 @@ try {
       cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'sharing the wave with a second climber') || { lines: [] }).lines.join(' '),
       drawn: g._shareRiderDrawnTotal,
       budgetW: g._shareBudgetW, otherDrawW: g._shareOtherDrawW, capW: g._shareCapW,
+      budgetShared: document.getElementById('waveBudgetValue').textContent,
     };
     // Refuse again through the same slider path: the rider unboards and the label
     // restores. Settle the climber for the checks that follow.
@@ -693,6 +711,7 @@ try {
     out.refusedOn = g.powerShareOn;
     out.refusedAboard = g._shareRiderAboard;
     out.refusedLabel = document.getElementById('powerShareValue').textContent;
+    out.budgetRefused = document.getElementById('waveBudgetValue').textContent;
     return out;
   });
   record('multi-climber: 85 km refusal fires the request card with no rider; sharing boards the rider, live shared-budget numbers; refuse unboards',
@@ -703,6 +722,10 @@ try {
     share.engaged.on === true && share.engaged.label.includes('share') &&
     share.aboard === true && share.card === true &&
     /shared budget: your skim caps at \d+(\.\d+)? MW minus/.test(share.cardBody) &&
+    // M4 (slide 6): the Wave arriving readout IS that shared budget while the
+    // rider is aboard (suffixed so), and drops the suffix when refused again.
+    / · shared with the second climber \(p\.14\)$/.test(share.budgetShared) &&
+    /^1\d\d\.\d MW · P = ρ·c·A·V² \(slide 6\)$/.test(share.budgetRefused) &&
     share.drawn > share.refusal.drawn &&
     share.budgetW > 1e8 && share.otherDrawW > 1e4 && share.capW > share.budgetW / 2 &&
     share.capW < share.budgetW &&   // with the rider drawing, the cap sits strictly under the budget

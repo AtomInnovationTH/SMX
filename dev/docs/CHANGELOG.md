@@ -15,6 +15,30 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Added (slide-6 wave power budget display, August 2026)
+
+- **The slide-6 transported-power budget as a live Ground-station readout ("Wave
+  arriving"), the first backlog item: no helper, no slider, no physics.** The paper's
+  own formula (slide 6: P = vF = Z·V² = ρ·c·A·V² with the impedance Z = ρ·c·A),
+  computed fresh per frame by `updateWaveBudgetReadout` from `waveSharedBudgetW`
+  with the very arguments the coupling's share block passes, so the line cannot
+  disagree with the physics: the local film's transported power while plain (taper
+  holds A·V² constant, p.9; the p.7 drag tax saps a few percent over the column,
+  so the figure drifts down with altitude), and the anchor's resonant injection
+  (p.10's P = σ·v at the active cavity rate) while resonant. The unit adapts, MW
+  plain vs kW resonant, the same formatting the 85 km card and the HUD share line
+  use, and with the p.14 rider aboard the line IS the shared budget, suffixed so.
+  Smoke pins all three readings by riding the existing checks (12: the plain form,
+  drag-sapped between 11.5 and 69.5 km; 13b: the resonant injection form and the
+  plain restore; 13c: the shared suffix appears aboard and drops on refusal), so
+  no new checks (29 total). Section 0 verified against the deck PDF: slide 6
+  publishes exactly this formula (F = Z·v, Z = c·ρ·A, P/A = c·ρ·V² = σ²/(c·ρ) with
+  the velocity/stress limit annotations), so nothing the readout quotes had to be
+  marked absent. `updateContinuous` is byte-identical, the balance harness has
+  nothing to mirror, the snapshot was NOT regenerated, and the committed stills
+  were verified compositionally unchanged (256.3 m / 360.0 m, centres exact) and
+  restored. No em dashes in the new prose.
+
 #### Changed (the em-dash sweep of the shipped copy, August 2026)
 
 - **Every player-facing em dash is swept out of the shipped copy.** The social

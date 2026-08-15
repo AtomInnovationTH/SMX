@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-422 KB and must be served alongside the
+426 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -326,6 +326,16 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `waveDragColumnPowerW` (q = −dP/dy by construction), so the local rate and the
   column bill can never drift. No mechanic: `updateContinuous` is untouched, the
   balance harness has nothing new to mirror, and the default trace cannot move.
+- **The slide-6 power budget as a live readout (backlog)** (`updateWaveBudgetReadout`;
+  no new helper, no slider): the transported power arriving at the climber's altitude,
+  computed FRESH per frame via `waveSharedBudgetW` with the coupling's own share-block
+  arguments (the share shift's stale-cache lesson), so the Ground-station "Wave
+  arriving" row can never disagree with the physics. Plain mode reads the local film's
+  transported power (taper holds A·V² constant, p.9; the p.7 drag tax saps it with
+  altitude); resonant mode reads the anchor's injection (p.10's P = σ·v at the active
+  cavity rate). With the p.14 rider aboard the same figure IS the shared budget and
+  the row says so. Smoke pins all three readings by riding checks 12/13b/13c (29
+  checks total). No mechanic: `updateContinuous` is untouched.
 - **EPM energy loop** (`GameConfig.EPM`, pure `epmChargeStep`): engaging **drains** at
   `switchingPowerW = 4·N·E_switch·f` — two transitions per cycle per unit, two units per
   pair, **flat in duty cycle** — and **regenerates** from extracted mechanical power
@@ -486,7 +496,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   browser smoke suite.
 - **Current gate numbers** (keep these updated when they move): **140 unit tests**
   (pure 119, sliders 12, balance 9), **62 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **422 KB**.
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **426 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in
