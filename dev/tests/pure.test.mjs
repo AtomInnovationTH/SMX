@@ -967,30 +967,37 @@ test('waveDragColumnPowerW: the drag table\'s longitudinal row is a regression f
 // the ceiling is NOT modelled: no heat capacity or transfer coefficient is
 // published anywhere, so these tests pin the exact watts and the exact ceiling only.
 test('waveDragHeatingWM: the local drag-heating rate, the p.7 hook\'s own term', () => {
+  // The helper is the law's integrand ½·ρ·Cd·2t·V³ on the LOCAL film speed (the
+  // same vFilmPeakMps calculateContinuousCoupling integrates); the travelling
+  // wave's damped speed is the caller's to supply, exactly as the physics
+  // computes it.
+  const anchor = 1000 / 3.6;
+  const vAt = (h) => anchor * waveDragSpeedFactorAt(h, anchor, 45, 0.2);
   // Sea level, the paper's 1000 km/h, the 9 mm2 film: ½·ρ·Cd·2t·V³ ≈ 105 W/m.
-  const q0 = waveDragHeatingWM(0, 1000 / 3.6, 45, 0.2);
+  const q0 = waveDragHeatingWM(0, vAt(0), 0.2);
   assert.ok(q0 > 100 && q0 < 110, `sea-level rate ${q0.toFixed(1)} W/m at 1000 km/h (expected ~105)`);
   // A standing film heats nothing, at any altitude.
-  approx(waveDragHeatingWM(0, 0, 45, 0.2), 0, 1e-12);
-  approx(waveDragHeatingWM(50000, 0, 45, 0.2), 0, 1e-12);
+  approx(waveDragHeatingWM(0, 0, 0.2), 0, 1e-12);
+  approx(waveDragHeatingWM(50000, 0, 0.2), 0, 1e-12);
   // Cubic in film speed, linear in thickness (the same law's scalings).
-  approx(waveDragHeatingWM(0, 2000 / 3.6, 45, 0.2) / q0, 8, 1e-9, 'rate is cubic in film speed');
-  approx(waveDragHeatingWM(0, 1000 / 3.6, 45, 0.4) / q0, 2, 1e-9, 'rate is linear in thickness');
-  // The medium dies with altitude: at 30 km the rate is ~1.5% of its sea-level value
-  // (densityRatio's own ratio) even though the film there is barely damped.
-  const q30 = waveDragHeatingWM(30000, 1000 / 3.6, 45, 0.2);
+  approx(waveDragHeatingWM(0, 2 * vAt(0), 0.2) / q0, 8, 1e-9, 'rate is cubic in film speed');
+  approx(waveDragHeatingWM(0, vAt(0), 0.4) / q0, 2, 1e-9, 'rate is linear in thickness');
+  // The medium dies with altitude: at 30 km the rate is ~1.5% of its sea-level
+  // value (densityRatio's own ratio) even though the film there is barely damped.
+  const q30 = waveDragHeatingWM(30000, vAt(30000), 0.2);
   assert.ok(q30 < q0 * 0.02 && q30 > q0 * 0.01,
     `30 km rate ${q30.toFixed(2)} W/m should track the air, ~1.5% of sea level`);
-  // THE CROSS-READING FIXTURE: the local rate integrated over the whole column IS
-  // the column bill (q = −dP/dy by construction). Trapezoid quadrature of the local
-  // rate must reproduce waveDragColumnPowerW to quadrature error, so the two
-  // readings of the same law can never drift.
+  // THE CROSS-READING FIXTURE: the local rate integrated over the whole column
+  // IS the column bill (q = −dP/dy by construction). Trapezoid quadrature of the
+  // local rate on the travelling wave's damped speed must reproduce
+  // waveDragColumnPowerW to quadrature error, so the two readings of the same
+  // law can never drift.
   let quad = 0;
   const step = 10;
   for (let h = 0; h < 100000; h += step) {
-    quad += (waveDragHeatingWM(h, 1000 / 3.6, 45, 0.2) + waveDragHeatingWM(h + step, 1000 / 3.6, 45, 0.2)) / 2 * step;
+    quad += (waveDragHeatingWM(h, vAt(h), 0.2) + waveDragHeatingWM(h + step, vAt(h + step), 0.2)) / 2 * step;
   }
-  const bill = waveDragColumnPowerW(1000 / 3.6, 45, 0.2);
+  const bill = waveDragColumnPowerW(anchor, 45, 0.2);
   assert.ok(Math.abs(quad - bill) / bill < 2e-3,
     `quadrature ${(quad / 1e6).toFixed(3)} MW vs column bill ${(bill / 1e6).toFixed(3)} MW disagree`);
 });

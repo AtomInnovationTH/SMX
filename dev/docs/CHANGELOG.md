@@ -15,6 +15,22 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Fixed (review pass after the thermal shift, August 2026)
+
+- **The 30 km card's drag-heating figure now reads the film speed the physics runs.**
+  As shipped, the card computed it from amplitude x active omega, which under
+  resonance is the cavity rate x amplitude (a few m/s, not the stress-ceiling film)
+  and in plain mode dropped the taper factor. `waveDragHeatingWM` is now the bare
+  integrand 0.5*rho*Cd*2t*V^3 on the LOCAL film peak speed, and the card mirrors
+  `calculateContinuousCoupling`'s mode branch (taper x drag in plain mode,
+  `resonantFilmPeakMps` under resonance), so it quotes the same vFilmPeakMps the
+  coupling integrates; verified live (~17 W/m at 30 km with a built-up cavity, where
+  the old code read ~0). The quadrature fixture supplies the travelling wave's damped
+  speed itself; the cross-reading identity is unchanged. No physics:
+  `updateContinuous` byte-identical, snapshot not regenerated, stills unmoved. The 2
+  km card's travelling-wave bill keeps its pre-existing constant-section reading (its
+  resonance corner predates the thermal shift; left alone deliberately).
+
 #### Added (M4 physics, August 2026)
 
 - **The hot side of thermal (paper p.7 + FG40 datasheet), the sixth and last deferred

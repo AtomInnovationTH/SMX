@@ -1,10 +1,11 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the M4 hot-side-of-thermal shift: the
-last deferred simulation item shipped with the section-0 discipline (exact watts against
-the datasheet's published ceiling, the temperature marked absent, never faked), no
-physics, the balance trace untouched, and the paper's deferred list now empty.
+that have already cost time. Updated at the end of the review-and-fix pass that followed
+the M4 hot-side-of-thermal shift: one correctness bug in the new card found and fixed
+(the drag-heating figure now reads the film speed the physics actually runs, under
+resonance and taper), no physics, the balance trace untouched, and the paper's deferred
+list still empty.
 
 ## Where things stand
 
@@ -13,25 +14,49 @@ physics, the balance trace untouched, and the paper's deferred list now empty.
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
   Currently 140 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 421 KB. Only assets under 20 KB are inlined; the clouds,
+- **Payload**: `index.html` is 422 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
-  (p.12/13) and, as of this shift, the hot side of thermal (p.7's drag-heating note + the
-  FG40 ceiling). The paper's deferred simulation list is EMPTY. What remains unsimulated
-  is the paper's own unsolved problems, all marked in-game rather than faked: the
-  wave-boundary solve between riders (partial reflections p.3, the retune interplay
-  p.10), the mode-conversion mechanism (p.12 offers a table and a question, no
-  converter), and any temperature (no heat capacity, transfer coefficient or emissivity
-  is published anywhere).
+  (p.12/13) and the hot side of thermal (p.7's drag-heating note + the FG40 ceiling).
+  The paper's deferred simulation list is EMPTY. What remains unsimulated is the paper's
+  own unsolved problems, all marked in-game rather than faked: the wave-boundary solve
+  between riders (partial reflections p.3, the retune interplay p.10), the
+  mode-conversion mechanism (p.12 offers a table and a question, no converter), and any
+  temperature (no heat capacity, transfer coefficient or emissivity is published
+  anywhere).
 - **Default climb**: unchanged by the thermal shift (no physics at all: one helper, one
-  readout, one new card, one card extended, constants and docs), by the mode-conversion
-  shift before it (no physics either), by the sharing shift (the toggle defaults to
-  refuse) and by the resonance shift before that (off by default): 100 km in 350.7 s,
-  mean 1027 km/h, cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput
-  with 3 kg of cargo.
+  readout, one new card, one card extended, constants and docs), by the review pass
+  after it (display-only fix: the 30 km card's heating figure now mirrors the coupling's
+  film speed, nothing in the trace's path moved), by the mode-conversion shift (no
+  physics either), by the sharing shift (the toggle defaults to refuse) and by the
+  resonance shift before that (off by default): 100 km in 350.7 s, mean 1027 km/h,
+  cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **A review-and-fix pass on the thermal shift; no physics, no mechanics.** The review
+  found one correctness bug in the shift's new code: the 30 km card computed the
+  drag-heating figure from amplitude × active ω, which under resonance is the cavity
+  rate × amplitude (a few m/s) and in plain mode dropped the taper factor, so the card
+  could quote a film speed the film was not running (verified in-browser: ~0 W/m where
+  the built-up cavity runs ~607 m/s). The fix moves the drag damping OUT of
+  `waveDragHeatingWM` (it is now the bare integrand ½·ρ·Cd·2t·V³ on the LOCAL film
+  peak speed) and makes the card mirror `calculateContinuousCoupling`'s mode branch
+  (taper × drag on the anchor speed in plain mode, `resonantFilmPeakMps` under
+  resonance), so the card reads the same vFilmPeakMps the coupling integrates. The
+  quadrature fixture now supplies the travelling wave's damped speed itself; the
+  cross-reading identity is unchanged and passing. Verified live: with a built-up
+  cavity the card reads ~17 W/m at 30 km (v_max 625.5 m/s, vLocal ≈ 607 m/s), matching
+  the extracted pure helpers to rounding. The 2 km card's travelling-wave bill keeps
+  its pre-existing constant-section reading (the wave-drag model's documented
+  simplification; its resonance corner predates the thermal shift and was left alone
+  deliberately). Doc nits: "closing line" became "closing lines" (two lines were added
+  to the 2 km card). `updateContinuous` is still byte-identical to before the thermal
+  shift (md5-verified), the snapshot was NOT regenerated, the stills did not move, and
+  no em dashes entered anywhere.
+
+### From earlier shifts (the hot side of thermal, paper p.7 + FG40 datasheet)
 
 - **The hot side of thermal (paper p.7's drag-heating note + the FG40 ceiling) is live
   as the exact bookkeeping, with the temperature marked absent.** The section-0 verdict,
@@ -57,7 +82,7 @@ physics, the balance trace untouched, and the paper's deferred list now empty.
   dies with the air; aloft the stack can only radiate); ONE new beat card at 30 km
   ('stack-heat', booking the stack's live watts against the +73 °C ceiling with the
   temperature marked absent, computed FRESH at the crossing altitude per the
-  stale-cache lesson of the share shift); the 2 km wave-drag card's new closing line
+  stale-cache lesson of the share shift); the 2 km wave-drag card's new closing lines
   (the bill leaves the wave as heat, p.7's maybe, no film temperature); the Unsolved
   panel's new drag-heating bullet; and the datasheet ceiling constants in
   `GameConfig.FG40` (`MAX_INTERNAL_TEMP_C` 73, `MIN_AMBIENT_TEMP_C` -40), pinned by a

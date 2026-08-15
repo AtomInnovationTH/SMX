@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-421 KB and must be served alongside the
+422 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -313,12 +313,16 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   bookkeeping: a Ground-station readout (Stack heat; NO slider, the levers are the
   carrier and pairs the player already has) refreshed per frame with the live
   switching dissipation against the ISA air figure (convection dies with the air;
-  aloft the stack can only radiate); the 2 km wave-drag card's new closing line (the
+  aloft the stack can only radiate); the 2 km wave-drag card's new closing lines (the
   bill leaves the wave as heat, p.7's maybe, no film temperature); a new 30 km beat
   card booking stack watts against the ceiling with the temperature marked absent;
   and the Unsolved panel's drag-heating bullet. The helper is the p.7 hook's own
-  term, the local drag-heating rate ½·ρ(y)·Cd·2t·V(y)³ in W/m, and its fixture is a
-  cross-reading: trapezoid quadrature over the column must reproduce
+  term, the bare integrand ½·ρ(y)·Cd·2t·V(y)³ in W/m on the LOCAL film peak speed
+  (the same vFilmPeakMps `calculateContinuousCoupling` integrates: the 30 km card
+  mirrors that mode branch, taper × drag in plain mode and
+  `resonantFilmPeakMps` under resonance, so it can never quote a speed the film
+  is not running), and its fixture is a cross-reading: trapezoid quadrature over
+  the column on the travelling wave's damped speed must reproduce
   `waveDragColumnPowerW` (q = −dP/dy by construction), so the local rate and the
   column bill can never drift. No mechanic: `updateContinuous` is untouched, the
   balance harness has nothing new to mirror, and the default trace cannot move.
@@ -482,7 +486,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   browser smoke suite.
 - **Current gate numbers** (keep these updated when they move): **140 unit tests**
   (pure 119, sliders 12, balance 9), **62 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **421 KB**.
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **422 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

@@ -1248,21 +1248,26 @@
 
         // SIM (paper p.7 / M4): the LOCAL drag-heating rate, the same law's other
         // reading and the deck's only thermal hook. Per unit length the wave's drag
-        // dissipation is ½·ρ(y)·Cd·2t·V(y)³, with V(y) the drag-damped local film
-        // speed: this is the "possibly by drag heating" term itself, in watts per
-        // metre of film. Its column integral IS waveDragColumnPowerW (q = −dP/dy by
-        // construction), pinned as a quadrature fixture in tests/pure.test.mjs so the
-        // local rate and the column bill can never drift. What the paper does NOT
-        // publish is where the heat lands (the air vs the film) or any temperature:
-        // no film temperature is modelled, and the settings panel's Unsolved section
-        // says so. ρ(y) reads the same US Standard Atmosphere table densityRatio
-        // interpolates, so the rate dies with the air.
-        function waveDragHeatingWM(altitudeM, anchorSpeedMps, widthMm, thicknessMm) {
-            const vLocal = anchorSpeedMps
-                * waveDragSpeedFactorAt(altitudeM, anchorSpeedMps, widthMm, thicknessMm);
+        // dissipation is ½·ρ(y)·Cd·2t·V(y)³, with V(y) the LOCAL film peak speed:
+        // this is the "possibly by drag heating" term itself, in watts per metre of
+        // film. The speed argument is the same vFilmPeakMps
+        // calculateContinuousCoupling integrates (taper × drag on the anchor speed
+        // in plain mode, resonantFilmPeakMps under resonance), so callers mirror
+        // that branch and the card can never quote a speed the film is not running
+        // (the review pass after the thermal shift moved the damping out of the
+        // helper for exactly this reason). Integrating the rate over the column
+        // with the travelling wave's damped speed IS waveDragColumnPowerW
+        // (q = −dP/dy by construction), pinned as a quadrature fixture in
+        // tests/pure.test.mjs so the local rate and the column bill can never
+        // drift. What the paper does NOT publish is where the heat lands (the air
+        // vs the film) or any temperature: no film temperature is modelled, and the
+        // settings panel's Unsolved section says so. ρ(y) reads the same US
+        // Standard Atmosphere table densityRatio interpolates, so the rate dies
+        // with the air.
+        function waveDragHeatingWM(altitudeM, localFilmSpeedMps, thicknessMm) {
             const rho = densityRatio(altitudeM) * ATMO_DENSITY_KGM3[0][1];
             return 0.5 * rho * GameConfig.TETHER.DRAG_CD_LONGITUDINAL
-                * (2 * thicknessMm / 1000) * vLocal * vLocal * vLocal;
+                * (2 * thicknessMm / 1000) * localFilmSpeedMps * localFilmSpeedMps * localFilmSpeedMps;
         }
 
         // SIM (paper p.10 / M4): STANDING-WAVE RESONANCE — the anchor becomes a node.
@@ -4909,8 +4914,25 @@
                 // can be a frame stale).
                 if (upgradeCrossed(prev, alt, 30000, false)) {
                     const heatKw = (switchingPowerW(this.activeFreqHz(), this.nPairs, GameConfig.FG40.E_SWITCH_J) / 1000).toFixed(1);
-                    const qWm = waveDragHeatingWM(alt, this.waveSystem.amplitude * f * 2 * Math.PI,
-                        this.vineWidth * 10, this.filmThicknessMm);
+                    // The heating rate reads the SAME vFilmPeakMps the coupling
+                    // integrates: taper × drag on the anchor speed in plain mode,
+                    // resonantFilmPeakMps under resonance (cavity rate × amplitude
+                    // is NOT the film speed there). Mirrored branch, fresh at the
+                    // crossing, so the card can never quote a speed the film is
+                    // not running.
+                    const widthMm = this.vineWidth * 10;
+                    let vLocal;
+                    if (this.resonanceOn) {
+                        vLocal = resonantFilmPeakMps({ altitudeM: alt, taperRatio: this.taperRatio,
+                            spanM: GameConfig.MISSION.DELIVER_ALTITUDE_M, vMaxMps: this.vMaxMps(),
+                            widthMm, thicknessMm: this.filmThicknessMm, buildup: this._resBuildup() });
+                    } else {
+                        const omega = f * 2 * Math.PI;
+                        vLocal = this.waveSystem.amplitude * omega
+                            * taperVelocityFactorAt(alt, this.taperRatio, GameConfig.MISSION.DELIVER_ALTITUDE_M)
+                            * waveDragSpeedFactorAt(alt, this.waveSystem.amplitude * omega, widthMm, this.filmThicknessMm);
+                    }
+                    const qWm = waveDragHeatingWM(alt, vLocal, this.filmThicknessMm);
                     push('stack-heat', 'the air stops carrying your heat', [
                         `your stack dissipates ${heatKw} kW while you hold (the datasheet's own 4 J per transition); its`,
                         `published ceiling is +${GameConfig.FG40.MAX_INTERNAL_TEMP_C} °C internal. the air that convects it away is`,
