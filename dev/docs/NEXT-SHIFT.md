@@ -8,8 +8,11 @@ Kármán (best M)", the repo's own shift-9 same-facts-fewer-words pattern, so th
 longer runs off a 390 px screen; the delivered line fits as-is and stays one string at
 both widths; desktop lines byte-identical, proven on a cross-build staged-frame A/B).
 Smoke check 20 gained the narrow-full pins by resizing the main page mid-check (29
-checks, no new one); the gate is green at 142/29/98 and 432 KB. THREE new staged-frame
-traps were paid this fix, all recorded below: a freeze that lands before the loading
+checks, no new one); the gate is green at 142/29/98 and 432 KB. The review pass found
+exactly one omission (the default-climb bullet now names the fix), code and pins
+untouched. The fix is pushed, deployed and live-verified md5-identical, with every job
+green, smoke included. THREE new staged-frame traps were paid this fix, all recorded
+below: a freeze that lands before the loading
 overlay clears is cancelled-and-resurrected (the loop starts on loadingManager.onComplete
 after the fade), the thermometer and suit sprites are not counted by the loading manager
 (wait for every canvas-consumed image), and a second build served at /old/ resolves its
