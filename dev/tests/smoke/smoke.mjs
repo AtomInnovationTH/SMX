@@ -137,7 +137,15 @@ try {
 
   await page.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__smokeGame && window.__smokeGame.monkey, null, { timeout: 20000 });
-  await page.waitForTimeout(500);
+  // The overlay hides on a 500 ms fade AFTER the last asset reports loaded, so a fixed
+  // wall-clock wait races it on a busy runner (the one-off FAIL this suite kept
+  // paying: "boot: loading overlay cleared" on an under-load machine, twice locally
+  // and once in CI on the bootstrap-progress shift alone). Wait on the state, not the
+  // clock: the exact predicate check 1 asserts below (and check 8 waits on later).
+  await page.waitForFunction(() => {
+    const o = document.getElementById('loading-overlay');
+    return !o || getComputedStyle(o).display === 'none' || getComputedStyle(o).opacity === '0';
+  }, null, { timeout: 20000 });
 
   // 1) Boot: loading overlay cleared, no non-WebGL console/page errors.
   const loadingHidden = await page.evaluate(() => {
