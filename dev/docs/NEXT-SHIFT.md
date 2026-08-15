@@ -898,8 +898,9 @@ with a second climber'), plus the body fragments `/no converter/`,
 string, and keep matched fragments verbatim. New prose stays em-dash-free.
 
 The standing hygiene list is now empty, and with this shift the backlog below is too:
-all three items are done. The next shift sets its own priorities from the paper and the
-physics; nothing is queued.
+all three items are done. The candidates after it are the honest next steps seen from
+here; none is committed, and each must pass the same section-0 bar before code (name
+the paper hook, or stay presentation-only with numbers the game already owns).
 
 ### Backlog, any order
 
@@ -920,6 +921,34 @@ physics; nothing is queued.
   there is nothing to cite and nothing to invent. Best 0 prints exactly the shift-12
   lines, so every pinned string survives; pinned in smoke 20 and pure.test, A/B-verified
   on staged 500 m frames. See "What last shift changed" above.
+
+### Next steps (candidates, each needs its own section 0)
+
+No physics item can be queued honestly: the paper's deferred simulation list is empty,
+and its unsolved problems (the wave-boundary solve between riders, the mode-conversion
+mechanism, any temperature) are deliberately marked in-game rather than faked. What
+remains is presentation of state the game already owns:
+
+- **Bootstrap progress at minimal (the meter, not the pace).** The pacing axis shipped
+  this shift; the progress axis never shows at the default level. The cumulative meter
+  toward the 600 kg tether target appears only at full HUD ("Tether bootstrap: N.N%")
+  and on the game-over screen, so a player who never presses H never learns the
+  bootstrap exists, the same failure mode shift 12 fixed for the score. The minimal
+  delivered line is where the meter moves; it could carry it ("· tether 40/600 kg",
+  width-checked against the 362 px plate). Section 0: the 600 kg target is the game's
+  own design number (S16, `GameConfig.MISSION.BOOTSTRAP_TARGET_KG`), not a paper
+  figure, so this is presentation of owned state, not a citation. Traps: check 20's
+  delivered fragment and pure.test's whole delivered strings must keep matching (the
+  smoke regex is unanchored and survives a suffix; the pure pins are exact, so the
+  clause needs a guard, e.g. omit it when the cumulative kg is 0 or the field is
+  absent), and the smoke's written delivered state sets no bootstrapKg, so the clause
+  must read the game's live value.
+- **The full mission block on phones.** Recorded this shift: at full on a 390 px phone
+  the pace+best line reaches ~393 px in the extreme, and the goal sentence already
+  overflowed pre-existing. Options: wrap the block to two lines at narrow widths, or
+  accept it (the minimal plate is the phone surface; full is a desktop level). Section
+  0: pure presentation, no paper hook needed. The trap is the smoke check 20 full-level
+  pins, which match substrings and survive a wrap.
 
 ## Screenshot recipe, already paid for
 
