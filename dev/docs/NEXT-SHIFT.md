@@ -645,13 +645,23 @@ either. The paper's deferred simulation list is now EMPTY. Do not reopen any of 
 
 ### 1. One contained hygiene task nobody has claimed
 
-- **The em-dash ban is not enforced in the shipped copy.** Counted earlier: 41 quoted
-  strings in the source contain an em dash (HUD lines, toasts, beat cards, panel copy),
-  plus 6 `&mdash;` entities in the settings markup. New prose has been clean for several
-  shifts, but the backlog still ships to players. The sweep is mechanical and needs a
-  capture pass after it, because several of those strings are width-tuned to a plate.
-  (The second old hygiene task, marking `dev/docs/v1.0-roadmap.md` historical, was done
-  in the review-and-docs pass.)
+- **The em-dash ban is not enforced in the shipped copy.** Fresh reproducible count
+  (the review pass after the thermal shift): 42 script lines carry an em dash inside
+  player-facing strings (HUD lines, toasts, beat cards, panel copy), 31 markup lines
+  carry one too (that includes the 6 `&mdash;` entities in the settings markup, the
+  settings hints and labels, and the og:/twitter meta tags in the head, which are
+  player-facing on social cards), and 243 comment lines carry them (repo-facing; OUT
+  of this sweep's scope, the sweep is the shipped copy). New prose has been clean for
+  several shifts, but the backlog still ships to players. Two findings make the sweep
+  safer than it looks: NO test pins an expected string value containing an em dash
+  (verified: every assertion with an em dash is a test name or a failure message, and
+  the only em-dash-adjacent guard is `minimalScoreLine`'s "no em dash" test, which
+  the sweep cannot trip), and the smoke suite pins no toast text. The sweep itself is
+  mechanical (commas, colons, parentheses, full stops; keep each string's meaning and
+  roughly its width) and needs a capture pass after it, because several of those
+  strings are width-tuned to a plate: eyeball every text-carrying still that moves.
+  (The second old hygiene task, marking `dev/docs/v1.0-roadmap.md` historical, was
+  done in the review-and-docs pass.)
 
 ### Backlog, any order
 
