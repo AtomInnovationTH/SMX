@@ -20,10 +20,11 @@ fixed in place: two stale gate-number spots in DEVELOPERS.md (141/120/430 KB, no
 142/121/431 KB), a self-contradictory smoke aside in this record, and the boot-overlay
 smoke flake itself, fixed at the root after it showed twice locally and once in CI (the
 check 1 boot wait is now state-based, not a fixed 500 ms wall clock); the CI log also
-taught that the smoke job is advisory by design and never gates a deploy. No new trap
-was paid: the recorded staged-frame traps (the seeds, the frozen clock, the raster-path
-warmup) all held. Before that, the bootstrap-pacing shift: backlog item 3, the last
-one, shipped (the persisted best rides the minimal compact plate's goal and pace lines
+taught that the smoke job is advisory by design and never gates a deploy. The shift is
+pushed, deployed and live-verified md5-identical, with every job green, smoke included,
+on the redeploy run. No new trap was paid: the recorded staged-frame traps (the seeds,
+the frozen clock, the raster-path warmup) all held. Before that, the bootstrap-pacing
+shift: backlog item 3, the last one, shipped (the persisted best rides the minimal compact plate's goal and pace lines
 whenever one exists, and the full mission block's pace branch quotes it too, pinned in
 smoke 20 and pure.test, A/B-verified on staged 500 m frames), reviewed, pushed, deployed
 and live-verified md5-identical. Before that, the resonance-texture shift: backlog item 2
