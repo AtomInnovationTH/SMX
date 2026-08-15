@@ -19,7 +19,9 @@ the clip's fresh context never delivers). The review pass found four small thing
 fixed in place: two stale gate-number spots in DEVELOPERS.md (141/120/430 KB, now
 142/121/431 KB), a self-contradictory smoke aside in this record, and the boot-overlay
 smoke flake itself, fixed at the root after it showed twice locally and once in CI (the
-check 1 boot wait is now state-based, not a fixed 500 ms wall clock); the CI log also
+check 1 boot wait is now state-based, not a fixed 500 ms wall clock), plus the same
+wall-clock class in the 85 km crossing check, surfaced by the docs-push run and fixed
+the same way (both legs now climb until altitude proves the crossing); the CI log also
 taught that the smoke job is advisory by design and never gates a deploy. The shift is
 pushed, deployed and live-verified md5-identical, with every job green, smoke included,
 on the redeploy run. No new trap was paid: the recorded staged-frame traps (the seeds,
@@ -138,20 +140,26 @@ speed the physics runs).
   seeded, so `bootstrapKg` is 0) and never delivers (100 m to ~525 m), so the delivered
   line never appears. No re-shoot, and capture.mjs needed no seed change (no new beat,
   no new state).
-- **The staged-frame traps all held as documented; the boot-overlay smoke flake did not
-  survive the shift.** It showed twice locally (the first gate run's smoke phase and one
-  standalone re-run failed "boot: loading overlay cleared"), and then once in CI on the
-  deploy push itself, all 28 other checks green. The mechanism: check 1 waited a fixed
-  500 ms after boot, but the overlay hides only after every asset reports loaded PLUS a
-  500 ms fade, so on a busy runner the check caught the overlay mid-fade. The review-pass
-  fix is harness-only: wait on the exact predicate the check asserts (the same one check
-  8 already waits on) instead of the wall clock. Three clean local runs followed, then
-  the redeploy run's smoke job went green. No render surface, no pinned string, no game
-  code touched. While reading the log, one deploy fact worth recording accurately: the
-  smoke job is ADVISORY BY DESIGN (`continue-on-error`, and `deploy` lists only `build`
-  in `needs`, deploy.yml lines 77-95), so past shifts' "build, smoke and deploy jobs all
-  green" framing was imprecise: smoke never gates a deploy, it only signals. The tee
-  advice below stands for the remaining timing-sensitive checks.
+- **The staged-frame traps all held as documented; two wall-clock smoke flakes did not
+  survive the shift.** The boot-overlay flake showed twice locally (the first gate run's
+  smoke phase and one standalone re-run failed "boot: loading overlay cleared"), and then
+  once in CI on the deploy push itself, all 28 other checks green. Its mechanism: check 1
+  waited a fixed 500 ms after boot, but the overlay hides only after every asset reports
+  loaded PLUS a 500 ms fade, so on a busy runner the check caught the overlay mid-fade.
+  The fix waits on the exact predicate the check asserts (the same one check 8 already
+  waits on), wall clock gone. Then the docs-push run surfaced the same failure CLASS in
+  a second member: the multi-climber 85 km check climbed at 2 km/s for a fixed 400 ms of
+  wall time, and the dt clamp means a loaded runner simulates less per wall second, so
+  the share leg never reached the crossing (the CI detail showed refusal fired but
+  `aboard: false`). Both legs now climb until altitude proves the crossing (5 s of
+  patience), with explicit crossed flags in the detail so the next failure explains
+  itself. Both fixes are harness-only: no render surface, no pinned string, no game
+  code. Three clean local runs each, then every CI job green. While reading the log,
+  one deploy fact worth recording accurately: the smoke job is ADVISORY BY DESIGN
+  (`continue-on-error`, and `deploy` lists only `build` in `needs`, deploy.yml lines
+  77-95), so past shifts' "build, smoke and deploy jobs all green" framing was
+  imprecise: smoke never gates a deploy, it only signals. The tee advice below stands
+  for the remaining timing-sensitive checks.
 - **Em dashes in new prose: none.** The new clause, code comments, test comments and
   doc prose were written clean (the added diff lines were grepped for U+2014 before
   commit).
@@ -822,11 +830,10 @@ speed the physics runs).
   shift exited 1 and could not be reproduced in five re-runs; its log had been discarded,
   so the culprit is unknown. Run it as `node dev/tests/smoke/smoke.mjs | tee /tmp/smoke.log`
   when you are chasing a one-off, and suspect the timing-dependent checks first (brownout
-  recovery, the RAF ratio, the crest thresholds) before assuming a real regression. (The
-  boot-overlay leg of this note is retired: the bootstrap-progress shift found its exact
-  mechanism, a fixed 500 ms wall-clock wait racing the asset fade, and made the check-1
-  wait state-based. The CI smoke job is advisory only, continue-on-error, and never gates
-  a deploy.)
+  recovery, the RAF ratio, the crest thresholds) before assuming a real regression.   (The boot-overlay and 85 km crossing legs of this note are retired: the
+  bootstrap-progress shift found their exact mechanism, fixed wall-clock waits racing
+  sim time on a loaded runner, and made both waits state-based. The CI smoke job is
+  advisory only, continue-on-error, and never gates a deploy.)
 
 - **Slip is drawn, not numbered.** `renderVine` now overlays the crest train as chevrons
   straddling the film in a band (`CREST_BAND_HALF_PX` = 288 px) centred on the climber,

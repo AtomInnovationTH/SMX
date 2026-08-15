@@ -682,6 +682,19 @@ try {
     const g = window.__smokeGame;
     const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     g.paused = false; g.gameOver = false; g.running = true;
+    // Climb until the 85 km crossing has ACTUALLY happened (state, not clock): the dt
+    // clamp means a busy runner simulates less per wall second, and a fixed 400 ms made
+    // the share leg miss the crossing on a loaded CI machine while the refuse leg made
+    // it (seen on the bootstrap-progress shift's deploy run). 100 x 50 ms = 5 s of
+    // patience, far past healthy, far under the workflow's.
+    const cross = async () => {
+      g.monkey.velocityY = -20000;                        // 2 km/s once the frames run
+      for (let i = 0; i < 100 && g.monkey.altitude < 85400; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      g.monkey.velocityY = 0;
+      return g.monkey.altitude >= 85400;
+    };
     const slider = document.getElementById('powerShare');
     const titles = () => [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     // REFUSE: cross 85 km with the slider off. (At rest below the request first,
@@ -690,9 +703,7 @@ try {
     g.monkey.y = -845000; g.monkey.altitude = 84500; g.camera.y = g.monkey.y + 400;
     await wait();
     const before = { on: g.powerShareOn, aboard: g._shareRiderAboard, drawn: g._shareRiderDrawnTotal };
-    g.monkey.velocityY = -20000;                            // 2 km/s: deterministic crossing
-    await new Promise((r) => setTimeout(r, 400));           // crosses 85 km
-    g.monkey.velocityY = 0;
+    const crossedRefuse = await cross();                // crosses 85 km
     await wait();
     const refusal = { fired: g._beatsFired.has('second-climber'), aboard: g._shareRiderAboard,
                       drawn: g._shareRiderDrawnTotal, card: titles().some((t) => t === 'a second climber requests power'),
@@ -706,13 +717,12 @@ try {
     slider.dispatchEvent(new Event('input', { bubbles: true }));
     await wait();
     const engaged = { on: g.powerShareOn, label: document.getElementById('powerShareValue').textContent };
-    g.monkey.velocityY = -20000;
-    await new Promise((r) => setTimeout(r, 400));           // crosses 85 km again
+    const crossedShare = await cross();                 // crosses 85 km again
     // Climb-on velocity for the readout: the rider's draw is weight x climb speed.
     g.monkey.velocityY = -3000;
     await wait();
     const out = {
-      before, refusal, engaged,
+      before, refusal, engaged, crossedRefuse, crossedShare,
       aboard: g._shareRiderAboard,
       card: titles().some((t) => t === 'sharing the wave with a second climber'),
       // The shared card quotes the live budget: it must be computed FRESH at the
@@ -736,6 +746,7 @@ try {
     return out;
   });
   record('multi-climber: 85 km refusal fires the request card with no rider; sharing boards the rider, live shared-budget numbers; refuse unboards',
+    share.crossedRefuse === true && share.crossedShare === true &&
     share.before.on === false && share.before.aboard === false && share.before.drawn === 0 &&
     share.refusal.fired === true && share.refusal.aboard === false &&
     share.refusal.drawn === 0 && share.refusal.card === true &&
