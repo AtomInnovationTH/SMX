@@ -19,12 +19,11 @@ the clip's fresh context never delivers). No new trap was paid this shift: the r
 staged-frame traps (the seeds, the frozen clock, the raster-path warmup) all held, and the
 boot-overlay smoke flake showed twice (the first gate run's smoke phase and one standalone
 re-run) before passing on the next standalone re-run and the full gate re-run, exactly its
-documented pattern. Before that, the bootstrap-pacing shift: backlog item 3, the last one,
-shipped
-(the persisted best rides the minimal compact plate's goal and pace lines whenever one
-exists, and the full mission block's pace branch quotes it too, pinned in smoke 20 and
-pure.test, A/B-verified on staged 500 m frames), reviewed, pushed, deployed and
-live-verified md5-identical. Before that, the resonance-texture shift: backlog item 2
+documented pattern. Before that, the bootstrap-pacing shift: backlog item 3, the last
+one, shipped (the persisted best rides the minimal compact plate's goal and pace lines
+whenever one exists, and the full mission block's pace branch quotes it too, pinned in
+smoke 20 and pure.test, A/B-verified on staged 500 m frames), reviewed, pushed, deployed
+and live-verified md5-identical. Before that, the resonance-texture shift: backlog item 2
 shipped (the crest train breathes in place at the cavity rate while resonant, pinned in
 smoke 13b and A/B-verified on staged frames), reviewed, pushed, deployed and live-verified
 md5-identical. Before that, the wave-budget-display shift: backlog item 1 shipped (the
@@ -102,8 +101,9 @@ speed the physics runs).
   never fire (the 13 slider ids are unchanged).
 - **Smoke pins the new read by riding check 20 (29 total, no new check).** The written
   delivered state sets no `bootstrapKg`, so the existing capture reads the game's live
-  value (0 after the check-15 reload: no earlier check on the main page reaches 100 km,
-  and check 5's Kármán teleport is wiped by that reload) and the shift-12 delivered
+  value (0 after the check-15 reload: check 5's Kármán teleport does credit a delivery,
+  but the reload wipes it, and the checks between the reload and check 20 run on their
+  own contexts, never the main page), so the shift-12 delivered
   fragment keeps matching with the clause omitted. A new written-meter capture right
   after it (`g.bootstrapKg = 40`, restored to 0 before the teardown) pins the exact
   line "delivered 28 kg/h · best 31 kg/h · tether 40/600 kg". Pure.test gained the
