@@ -15,7 +15,11 @@ with the cavity rate live), smoke 13b pins the rate engaged and the dark channel
 disengage (no new checks, 29 total), the gate is green at 140/29/98 and 428 KB, and the
 stills re-shot compositionally identical (256.3 m / 360.0 m, centres exact) and were
 restored (HUD off, resonance off by default: the breath is in no committed capture; the
-clip was not re-shot, no captured screen text moved). Before that, the wave-budget-display
+clip was not re-shot, no captured screen text moved). The post-commit review pass found
+and fixed two doc nits (a stale 426 KB line in DEVELOPERS.md's build section, the
+backlog calling the wave-budget shift two shifts ago instead of last shift), code and
+smoke pins untouched, and the shift is pushed, deployed and live-verified md5-identical
+(build, smoke and deploy jobs all green). Before that, the wave-budget-display
 shift: backlog item 1 shipped (the slide-6 "Wave arriving" readout, computed per frame
 from the very `waveSharedBudgetW` the coupling reads), reviewed, pushed, deployed and
 live-verified md5-identical. Before that, the em-dash sweep of the shipped copy (no
