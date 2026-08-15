@@ -21,8 +21,9 @@ and deliberately left the full mission block's pace+best width: at full on a 390
 phone the extreme (50 kg, three-figure pace and best) reaches ~393 px, but the block is
 bare text whose goal sentence already overflows phones at full pre-existing, the
 width-constrained surface is the minimal plate (test-pinned, phone-verified), and
-trimming the full branch would break the no-level-hides-a-reference parity. Before that,
-the resonance-texture shift: backlog item 2 shipped (the
+trimming the full branch would break the no-level-hides-a-reference parity. The shift is
+pushed, deployed and live-verified md5-identical (build, smoke and deploy jobs all
+green). Before that, the resonance-texture shift: backlog item 2 shipped (the
 crest train breathes in place at the cavity rate while resonant, pinned in smoke 13b and
 A/B-verified on staged frames), reviewed, pushed, deployed and live-verified
 md5-identical. Before that, the wave-budget-display shift: backlog item 1 shipped (the
