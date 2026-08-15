@@ -1964,7 +1964,7 @@ test('minimalScoreLine: the goal before liftoff, the live pace while climbing', 
 
 test('minimalScoreLine: once a best exists it rides the goal and pace lines', () => {
   const base = { cargoKg: 3, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 };
-  // The bootstrap-pacing sharpen: a pace read only means something against a
+  // The bootstrap-pacing sharpening: a pace read only means something against a
   // reference, and the persisted record is the one pacing reference the game owns
   // (the paper publishes no pacing figure to cite). So a returning player sees the
   // best beside the goal (the cargo-choice moment) and beside the live pace (the

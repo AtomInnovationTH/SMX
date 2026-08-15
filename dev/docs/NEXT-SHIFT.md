@@ -15,7 +15,14 @@ plate keeps the suffix inside it; one new harness trap paid for: an interleaved
 full-frame getImageData flips the headless rasterization path once, settled by a
 render-and-readback warmup before measuring). The gate is green at 141/29/98 and 430 KB,
 and the committed captures did not move (the stills boot HUD off, the clip has no
-persisted best). Before that, the resonance-texture shift: backlog item 2 shipped (the
+persisted best). The post-commit review pass found exactly one nit (a test comment's
+"sharpen" noun), fixed in place; code, pins and gate numbers untouched. It also checked
+and deliberately left the full mission block's pace+best width: at full on a 390 px
+phone the extreme (50 kg, three-figure pace and best) reaches ~393 px, but the block is
+bare text whose goal sentence already overflows phones at full pre-existing, the
+width-constrained surface is the minimal plate (test-pinned, phone-verified), and
+trimming the full branch would break the no-level-hides-a-reference parity. Before that,
+the resonance-texture shift: backlog item 2 shipped (the
 crest train breathes in place at the cavity rate while resonant, pinned in smoke 13b and
 A/B-verified on staged frames), reviewed, pushed, deployed and live-verified
 md5-identical. Before that, the wave-budget-display shift: backlog item 1 shipped (the
