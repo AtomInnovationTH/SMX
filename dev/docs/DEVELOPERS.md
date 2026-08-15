@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-426 KB and must be served alongside the
+428 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 

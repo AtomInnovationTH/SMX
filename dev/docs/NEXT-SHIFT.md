@@ -823,7 +823,7 @@ The standing hygiene list is now empty; the backlog below is next.
 
 ### Backlog, any order
 
-- **(done) Wave power budget display (slide 6).** Shipped two shifts ago as the Ground-station
+- **(done) Wave power budget display (slide 6).** Shipped last shift as the Ground-station
   "Wave arriving" readout, computed per frame from `waveSharedBudgetW` itself, with the
   plain / resonant-injection / shared readings all pinned in smoke checks 12/13b/13c.
   See "From earlier shifts (the wave power budget display)" above.
