@@ -56,7 +56,12 @@ list still empty.
   (the expected out-of-sync trip on the first run, not a regression). The captures were
   re-shot and committed: the stills moved on shader noise only (256.3 m / 360.0 m,
   centres exact, no new text in frame), and the clip now shows the colon form of the
-  p.11 compact line. New prose rule unchanged: no em dashes anywhere new.
+  p.11 compact line. The post-push review pass read the full diff and re-classified the
+  built index.html by scanner: nothing to move, and the one stale verbatim quote the
+  sweep created (the roadmap's "EPM BROWNOUT" hint line) sits in the doc that is
+  banner-marked historical, so it was left alone deliberately. The live site was
+  verified md5-identical to the committed index.html after the deploy. New prose rule
+  unchanged: no em dashes anywhere new.
 
 - **A review-and-fix pass on the thermal shift; no physics, no mechanics.** The review
   found one correctness bug in the shift's new code: the 30 km card computed the
