@@ -1,30 +1,29 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the resonance-texture shift: backlog
-item 2 shipped (the crest train breathes in place at the cavity rate while resonant,
-riding the very `resonanceModeAt.periodS` the 45 km card quotes: an additive 1.0-1.28
-swell of the chevrons' V-depth and brightness, capped at the scroll's own 2.5 Hz
-slowed-schematic ceiling, frozen mid-pose under reduced motion, hidden at HUD off with
-the rest of the overlay; the load-bearing geometry, span 26-74 px at 96 px spacing with
-dark under-strokes, is untouched; no helper, no slider, no physics). The render change was
-verified on staged frames, never by reading the code (a single-page A/B at 30 km pairs
-each resonant frame with a plain frame at the same sim time: floor diffs 28 px, peak
-2709 px inside the band, 0 off it, and a reduced-motion page holds the swell constant
-with the cavity rate live), smoke 13b pins the rate engaged and the dark channel on
-disengage (no new checks, 29 total), the gate is green at 140/29/98 and 428 KB, and the
-stills re-shot compositionally identical (256.3 m / 360.0 m, centres exact) and were
-restored (HUD off, resonance off by default: the breath is in no committed capture; the
-clip was not re-shot, no captured screen text moved). The post-commit review pass found
-and fixed two doc nits (a stale 426 KB line in DEVELOPERS.md's build section, the
-backlog calling the wave-budget shift two shifts ago instead of last shift), code and
-smoke pins untouched, and the shift is pushed, deployed and live-verified md5-identical
-(build, smoke and deploy jobs all green). Before that, the wave-budget-display
-shift: backlog item 1 shipped (the slide-6 "Wave arriving" readout, computed per frame
-from the very `waveSharedBudgetW` the coupling reads), reviewed, pushed, deployed and
-live-verified md5-identical. Before that, the em-dash sweep of the shipped copy (no
-player-facing em dash remains), and before that the review-and-fix pass on the M4
-hot-side-of-thermal shift (the 30 km card reads the film speed the physics runs).
+that have already cost time. Updated at the end of the bootstrap-pacing shift: backlog
+item 3, the last one, shipped (the persisted best now rides the minimal compact plate's
+goal and pace lines whenever one exists, and the full mission block's pace branch quotes
+it too: the one pacing reference the game owns, section 0 having found the paper
+publishes no pacing figure at all). No physics, no helper, no slider; every pinned string
+survives verbatim (best 0 prints exactly the shift-12 lines); smoke pins the
+best-bearing lines by riding check 20 (29 total); pure.test gained the new pins (141
+unit); the render change was verified on staged frames, never by reading the code (a
+single-page A/B at 500 m: the pace diff 219 px and the goal diff 221 px, both strictly
+inside the compact plate's third-line band, both round trips exactly 0, the 390 px phone
+plate keeps the suffix inside it; one new harness trap paid for: an interleaved
+full-frame getImageData flips the headless rasterization path once, settled by a
+render-and-readback warmup before measuring). The gate is green at 141/29/98 and 430 KB,
+and the committed captures did not move (the stills boot HUD off, the clip has no
+persisted best). Before that, the resonance-texture shift: backlog item 2 shipped (the
+crest train breathes in place at the cavity rate while resonant, pinned in smoke 13b and
+A/B-verified on staged frames), reviewed, pushed, deployed and live-verified
+md5-identical. Before that, the wave-budget-display shift: backlog item 1 shipped (the
+slide-6 "Wave arriving" readout, computed per frame from the very `waveSharedBudgetW`
+the coupling reads), reviewed, pushed, deployed and live-verified md5-identical. Before
+that, the em-dash sweep of the shipped copy (no player-facing em dash remains), and
+before that the review-and-fix pass on the M4 hot-side-of-thermal shift (the 30 km card
+reads the film speed the physics runs).
 
 ## Where things stand
 
@@ -32,8 +31,8 @@ hot-side-of-thermal shift (the 30 km card reads the film speed the physics runs)
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 140 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 428 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 141 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 430 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
@@ -44,7 +43,9 @@ hot-side-of-thermal shift (the 30 km card reads the film speed the physics runs)
   mode-conversion mechanism (p.12 offers a table and a question, no converter), and any
   temperature (no heat capacity, transfer coefficient or emissivity is published
   anywhere).
-- **Default climb**: unchanged by the resonance-texture shift (render-only: the crest
+- **Default climb**: unchanged by the bootstrap-pacing shift (presentation-only strings
+  on the existing score lines; `updateContinuous` byte-identical), by the
+  resonance-texture shift (render-only: the crest
   overlay breathes while resonant, and resonance is off by default; `updateContinuous`
   byte-identical), by the thermal shift (no physics at all: one helper, one
   readout, one new card, one card extended, constants and docs), by the review pass
@@ -55,6 +56,71 @@ hot-side-of-thermal shift (the 30 km card reads the film speed the physics runs)
   cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **Bootstrap pacing (backlog item 3, the last one) is live as a reference paired with
+  the score lines, not a mechanic; no physics, no helper, no slider, and no committed
+  screen's text or layout moved.** Section 0, decided before any code and verified
+  against the deck's full text: the paper publishes NO pacing figure at all (its numbers
+  are power, frequency and tether mass; no kg/h, no delivery cadence, no mission time
+  anywhere in the 16 pages), so there is no paper hook to cite the way slide 6 (budget),
+  p.7 (drag) and p.10 (resonance) allowed, and any "the paper says your pace should be N"
+  display would invent a number. The kg/h score stays the game's own construct (M3.6,
+  decision 11). What a display CAN say without inventing: a pace read sharpens against a
+  reference, and the one pacing reference the game already owns is the persisted best,
+  which used to appear only after delivery, exactly when it stops being actionable. What
+  shipped: `minimalScoreLine` pairs the best with the goal and the live pace whenever a
+  best exists ("· best N kg/h"), and `renderMissionHud`'s pace branch quotes it in the
+  delivered branch's own "(best N)" style, so no level shows a reference another hides.
+  The pace projection and the best are the same figure at the same scale (cargo per hour
+  of climb at the current average), so side by side they are the honest "on track?"
+  read. A fresh player (best 0) sees exactly the shift-12 lines, which is why every
+  pinned string survives verbatim: check 20's three fragments and pure.test's whole
+  strings all run at best 0 outside the delivered state, and the delivered state (which
+  already paired figure and best) is untouched. Static text: no flash budget spent,
+  reduced motion satisfied by construction, state carried by the labelled number, never
+  colour.
+- **No physics changed, so the balance harness is untouched and the default trace did
+  NOT move (snapshot not regenerated).** `updateContinuous` is byte-identical: the
+  change lives in one helper's strings and one render branch, so the mirror rule has
+  nothing to attach to, exactly like the wave-budget, thermal, mode-conversion and
+  resonance-texture shifts. The pure-helper count stays 62 (no new helper) and the
+  slider rituals never fire (the 13 slider ids are unchanged).
+- **Smoke pins the new read by riding check 20 (29 total, no new check).** The climbing
+  state now carries a written 34 kg/h best: the minimal pace line pins "pace 54 kg/h to
+  Kármán · best 34 kg/h", the full mission block pins the "(best 34)" suffix, and a
+  restored-ground capture pins the goal pairing "score: kg/h to Kármán · cargo 3 kg ·
+  best 34 kg/h". The three shift-12 fragments stay (unanchored, still matching), and the
+  teardown still zeroes cargoBest for the checks after. Pure.test gained the
+  best-bearing goal/pace pins, the rounding rule and the non-finite guards, and the
+  width test gained the three-figure-best variants (141 unit tests, was 140).
+- **The render change was verified on staged frames, never by reading the code** (the
+  single-page A/B pattern from the resonance-texture shift, adapted to static text):
+  one page at 500 m, hand-driven off the synthetic clock with the documented seeds
+  (every km milestone, the altimeter landmark for the staged altitude, performance.now
+  frozen, `_couplingParticleTimer` high), toggling ONLY cargoBest (0 -> 34 -> 0) around
+  getImageData snapshots of the canvas. The pace diff is 219 px strictly inside the
+  compact plate's third-line band (bbox x 134-208, y 776-784 at 1280x800), the goal diff
+  221 px (x 204-278), both round trips exactly 0 px, and the strings read exact at
+  minimal, at full (the mission block's "(best 34)") and in the untouched delivered
+  state. The 390 px phone plate keeps the suffix inside it (diff right edge 208/278 px
+  against the 370 px inner edge), confirmed by eye on the shots.
+- **ONE NEW STAGED-FRAME TRAP, paid this shift: a full-frame getImageData interleaved
+  with renders flips the headless rasterization path ONCE.** The first A/C round trip
+  read 15,062 px of diffs across the whole canvas (AA edges of the film rungs, the
+  chevrons, the sprite, the gauge), reproducible at exactly the same frame pair, while
+  probes without interleaved full readbacks (1x1 reads, composite page.screenshot shots)
+  showed the frames perfectly stable. It is a harness artifact (SwiftShader switches
+  raster paths on a full readback), not a game one: settle the path BEFORE measuring
+  with a render+readback warmup loop (snap until two consecutive snapshots match), or
+  only ever diff frames that saw the same readback history.
+- **The committed stills and the clip did not move.** The stills boot ?clean at HUD off
+  (the plate is not drawn); the clip runs a fresh context (no localStorage seeded, so
+  cargoBest is 0 and the pace line is byte-identical). No re-shoot, and capture.mjs
+  needed no seed change (no new beat, no new state).
+- **Em dashes in new prose: none.** The new strings, code comments, smoke comments and
+  doc prose were written clean.
+
+### From earlier shifts (the resonance texture, paper p.10)
 
 - **The resonance texture (backlog item 2, p.10) is live as ONE render channel on the
   crest overlay, not a mechanic; no physics, no helper, no slider, and no committed
@@ -823,20 +889,29 @@ with a second climber'), plus the body fragments `/no converter/`,
 `dev/tests/smoke/smoke.mjs` for distinctive words before touching any player-facing
 string, and keep matched fragments verbatim. New prose stays em-dash-free.
 
-The standing hygiene list is now empty; the backlog below is next.
+The standing hygiene list is now empty, and with this shift the backlog below is too:
+all three items are done. The next shift sets its own priorities from the paper and the
+physics; nothing is queued.
 
 ### Backlog, any order
 
-- **(done) Wave power budget display (slide 6).** Shipped last shift as the Ground-station
+- **(done) Wave power budget display (slide 6).** Shipped two shifts ago as the
+  Ground-station
   "Wave arriving" readout, computed per frame from `waveSharedBudgetW` itself, with the
   plain / resonant-injection / shared readings all pinned in smoke checks 12/13b/13c.
   See "From earlier shifts (the wave power budget display)" above.
-- **(done) Resonance texture.** Shipped this shift as the crest train's in-place breath
+- **(done) Resonance texture.** Shipped last shift as the crest train's in-place breath
   at the cavity rate while resonant (the period the 45 km card quotes, made visible):
   additive-only swell of V-depth and brightness, capped at the scroll's 2.5 Hz ceiling,
   frozen mid-pose under reduced motion, pinned in smoke 13b, A/B-verified on staged
-  frames. See "What last shift changed" above.
-- **Bootstrap pacing**: `throughputKgPerHour` is pinned and shown at the minimal level.
+  frames. See "From earlier shifts (the resonance texture)" above.
+- **(done) Bootstrap pacing.** Shipped this shift as the persisted best riding the
+  minimal compact plate's goal and pace lines whenever one exists ("· best N kg/h"),
+  plus the full mission block's pace branch ("(best N)"): the one pacing reference the
+  game owns, section 0 having found the paper publishes no pacing figure at all, so
+  there is nothing to cite and nothing to invent. Best 0 prints exactly the shift-12
+  lines, so every pinned string survives; pinned in smoke 20 and pure.test, A/B-verified
+  on staged 500 m frames. See "What last shift changed" above.
 
 ## Screenshot recipe, already paid for
 

@@ -15,6 +15,39 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Added (bootstrap pacing, August 2026)
+
+- **The persisted best rides the goal and pace lines, the third and last backlog
+  item: no helper, no slider, no physics.** Section 0, verified against the deck's
+  full text before any code: the paper publishes no pacing figure at all (its
+  numbers are power, frequency and tether mass; no kg/h, no cadence, no mission
+  time), so there is nothing to cite and nothing to invent, and a pace read only
+  sharpens against a reference. The one pacing reference the game already owns is
+  the persisted best, which used to appear only after delivery, exactly when it
+  stops being actionable. Now `minimalScoreLine` pairs it with the goal and the
+  live pace whenever one exists ("· best N kg/h" on the minimal compact plate), and
+  the full mission block's pace branch quotes it in the delivered branch's own
+  "(best N)" style, so no level shows a reference another hides. A fresh player
+  (best 0) sees exactly the shift-12 lines: every pinned string survives verbatim,
+  and the delivered state (which already paired figure and best) is untouched.
+  Static text: no flash budget spent, reduced motion satisfied by construction, and
+  the state rides the labelled number, never colour. Smoke check 20 pins the
+  best-bearing pace line at minimal and at full plus the best-bearing goal line
+  (29 checks, no new one); pure.test pins the two new strings, the rounding and the
+  non-finite guards, and the width test gained the three-figure-best variants.
+  Verified on staged frames, never by reading the code: a single-page A/B at
+  500 m off the synthetic clock toggles only `cargoBest` (0, 34, 0) around
+  getImageData snapshots; the pace diff is 219 px strictly inside the compact
+  plate's third-line band, the goal diff 221 px, both round trips exactly 0, and
+  the 390 px phone plate keeps the suffix inside it. One harness trap found and
+  recorded in NEXT-SHIFT.md: an interleaved full-frame getImageData flips the
+  headless rasterization path once (~15k px of AA-edge noise), a harness artifact
+  settled by a render-and-readback warmup before measuring. `updateContinuous` is
+  byte-identical, the balance harness has nothing to mirror, the snapshot was NOT
+  regenerated, and the committed captures did not move: the stills boot HUD off
+  and the clip runs a fresh context with no persisted best. No em dashes in the
+  new prose.
+
 #### Added (resonance texture, August 2026)
 
 - **The crest train breathes at the cavity rate while resonant (p.10), the second

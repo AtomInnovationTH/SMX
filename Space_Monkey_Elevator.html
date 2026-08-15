@@ -1699,6 +1699,18 @@
         // recorded figure plus the persisted best. Short enough for the 390 px phone
         // plate; the words pace/delivered carry the state, so colour never has to.
         //
+        // Bootstrap-pacing shift: once a best exists it rides the goal and pace lines
+        // too ("· best N kg/h"), because a pace read only sharpens against a
+        // reference and the persisted record is the one pacing reference the game
+        // owns: the paper publishes no pacing figure at all (the deck's numbers are
+        // power, frequency and tether mass; no kg/h, no cadence, no mission time), so
+        // there is nothing to cite and nothing to invent. The pace projection and the
+        // best are the same figure at the same scale (cargo per hour of climb at the
+        // current average), so placing them side by side is the honest "on track?"
+        // read. A fresh player has no best, and best 0 prints exactly the lines shift
+        // 12 pinned. The delivered state already paired figure and best; it is
+        // unchanged.
+        //
         // The pace branch needs a POSITIVE elapsed, not just a started clock: on the
         // frame liftoff is detected the climb clock is exactly 0 s old, and a projection
         // over zero time is 0 kg/h, which would print a score of zero as though it were
@@ -1709,12 +1721,13 @@
                 const kgH = throughputKgPerHour(deliveredKg, deliveredInS || 0);
                 return `delivered ${kgH.toFixed(0)} kg/h · best ${Math.round(bestKgH || 0)} kg/h`;
             }
+            const best = bestKgH > 0 ? ` · best ${Math.round(bestKgH)} kg/h` : '';
             if (climbElapsedS > 0 && altitudeM > 0.5) {
                 const frac = altitudeM / GameConfig.MISSION.DELIVER_ALTITUDE_M;
                 const pace = throughputKgPerHour(cargoKg * frac, climbElapsedS);
-                return `pace ${pace.toFixed(0)} kg/h to Kármán`;
+                return `pace ${pace.toFixed(0)} kg/h to Kármán${best}`;
             }
-            return `score: kg/h to Kármán · cargo ${cargoKg.toFixed(0)} kg`;
+            return `score: kg/h to Kármán · cargo ${cargoKg.toFixed(0)} kg${best}`;
         }
 
         // Half-width, in screen px, of the film band renderVine draws (shift 10). The film
@@ -6156,8 +6169,9 @@
 
             // SIM (M3.6, decision 11): persistent mission HUD — the score is THROUGHPUT,
             // kg to Kármán per hour. Live it shows the pace projection (cargo × altitude
-            // fraction ÷ climb time — at this average speed, when do you deliver); after
-            // delivery it locks to the recorded figure and the persisted best. Bootstrap
+            // fraction ÷ climb time: at this average speed, when do you deliver) with the
+            // persisted best beside it once one exists; after delivery it locks to the
+            // recorded figure and the persisted best. Bootstrap
             // line unchanged. Band: top-left y 16/30 (claimed since M3).
             renderMissionHud(ctx, width) {
                 const cargoKg = this.cargoKg || 0;
@@ -6173,7 +6187,12 @@
                 } else if (this._climbStartS !== null && this.monkey.altitude > 0.5) {
                     const frac = this.monkey.altitude / GameConfig.MISSION.DELIVER_ALTITUDE_M;
                     const pace = throughputKgPerHour(cargoKg * frac, this._runTimeS - this._climbStartS);
-                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo · pace ${pace.toFixed(0)} kg/h to Kármán`;
+                    // The minimal plate pairs the pace with the persisted best (the one
+                    // pacing reference the game owns); the full block quotes it too, in
+                    // the delivered branch's own "(best N)" style, so no level shows a
+                    // reference another hides.
+                    const best = this.cargoBest > 0 ? ` (best ${Math.round(this.cargoBest)})` : '';
+                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo · pace ${pace.toFixed(0)} kg/h to Kármán${best}`;
                 } else {
                     scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo, deliver it to the Kármán line (100 km)`;
                 }

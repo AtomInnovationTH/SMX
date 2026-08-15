@@ -1962,6 +1962,27 @@ test('minimalScoreLine: the goal before liftoff, the live pace while climbing', 
     'pace 54 kg/h to Kármán');
 });
 
+test('minimalScoreLine: once a best exists it rides the goal and pace lines', () => {
+  const base = { cargoKg: 3, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 };
+  // The bootstrap-pacing sharpen: a pace read only means something against a
+  // reference, and the persisted record is the one pacing reference the game owns
+  // (the paper publishes no pacing figure to cite). So a returning player sees the
+  // best beside the goal (the cargo-choice moment) and beside the live pace (the
+  // pacing moment), while a fresh player (best 0) sees exactly the lines above.
+  assert.equal(minimalScoreLine({ ...base, altitudeM: 0, climbElapsedS: null, bestKgH: 31 }),
+    'score: kg/h to Kármán · cargo 3 kg · best 31 kg/h');
+  assert.equal(minimalScoreLine({ ...base, altitudeM: 50000, climbElapsedS: 100, bestKgH: 31 }),
+    'pace 54 kg/h to Kármán · best 31 kg/h');
+  // The best rounds the same way the delivered state's does (31.4 -> 31).
+  assert.equal(minimalScoreLine({ ...base, altitudeM: 50000, climbElapsedS: 100, bestKgH: 31.4 }),
+    'pace 54 kg/h to Kármán · best 31 kg/h');
+  // Non-finite or absent bests print no suffix, exactly like best 0.
+  for (const bestKgH of [NaN, undefined, null, -5]) {
+    assert.equal(minimalScoreLine({ ...base, altitudeM: 50000, climbElapsedS: 100, bestKgH }),
+      'pace 54 kg/h to Kármán', `best ${bestKgH} must not print a suffix`);
+  }
+});
+
 test('minimalScoreLine: after delivery it locks to the figure plus the best', () => {
   // 3 kg in 380.4 s = 28.4 kg/h; the best is the persisted one (28 kg/h -> "28").
   assert.equal(minimalScoreLine({
@@ -1981,6 +2002,9 @@ test('minimalScoreLine: one short line that fits the 390 px plate, no em dash', 
     { cargoKg: 3, altitudeM: 0, climbElapsedS: null, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 },
     { cargoKg: 3, altitudeM: 50000, climbElapsedS: 100, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 },
     { cargoKg: 50, altitudeM: 100000, climbElapsedS: 400, delivered: true, deliveredKg: 50, deliveredInS: 388, bestKgH: 464 },
+    // The widest best-bearing variants: a three-figure best beside the goal and the pace.
+    { cargoKg: 50, altitudeM: 0, climbElapsedS: null, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 464 },
+    { cargoKg: 50, altitudeM: 50000, climbElapsedS: 10, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 464 },
   ];
   for (const s of states) {
     const line = minimalScoreLine(s);

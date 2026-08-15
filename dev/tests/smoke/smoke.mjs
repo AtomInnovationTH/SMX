@@ -946,7 +946,10 @@ try {
   //     bar, not four lines of kilowatts and a slip ratio. Shift 12 adds the third pin: the
   //     throughput score rides the minimal compact plate as one line, in all three of its
   //     states (goal pre-climb, live pace while climbing, locked figure + best after
-  //     delivery), and never leaks into the full level's own mission block.
+  //     delivery), and never leaks into the full level's own mission block. The bootstrap-
+  //     pacing shift adds the fourth: once a best exists it rides the goal and pace lines
+  //     too (the one pacing reference the game owns; the paper publishes no pacing figure
+  //     to cite), at minimal and in the full block's pace branch alike.
   const drawn = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
@@ -977,11 +980,17 @@ try {
     // with 100 s on the climb clock is the climbing state (below the 100 km delivery
     // altitude, so cargoDeliveryCredit cannot fire); the delivered state is written
     // directly. Then restore the quiet ground state the crest check builds on.
+    // The climbing state carries a persisted best (34) so the bootstrap-pacing pin
+    // sees the pace paired with it, at minimal and in the full mission block alike.
     g.monkey.velocityY = 0;
     g.monkey.y = -500000; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
     g._runTimeS = 200; g._climbStartS = 100;
+    g.cargoBest = 34;
     await new Promise((r) => setTimeout(r, 80));
     out.climbing = await capture();
+    out.fullClimbingSet = await setLevel(1);
+    out.fullClimbing = await capture();
+    await setLevel(0);
     g.cargoDelivered = true; g.deliveredKg = 3; g._deliveredInS = 380.4; g.cargoBest = 31;
     out.delivered = await capture();
     g.cargoDelivered = false; g.deliveredKg = 0; g._deliveredInS = null; g.cargoBest = 0;
@@ -993,6 +1002,11 @@ try {
     g._actBreakTimer = 0; g._beatCardTimer = 0;
     await new Promise((r) => setTimeout(r, 80));
     await setLevel(0);
+    // One more state: back on the quiet ground with a best on record, the goal line
+    // carries it (the cargo-choice moment). Then zero it again for the checks after.
+    g.cargoBest = 34;
+    out.groundBest = await capture();
+    g.cargoBest = 0;
     g._beatCard = null;
     return out;
   });
@@ -1012,10 +1026,19 @@ try {
     has(drawn.minimal, /score: kg\/h to Kármán/) &&
     has(drawn.climbing, /pace \d+ kg\/h to Kármán/) &&
     has(drawn.delivered, /delivered 28 kg\/h · best 31 kg\/h/) &&
-    !has(drawn.full, /score: kg\/h to Kármán/),
+    !has(drawn.full, /score: kg\/h to Kármán/) &&
+    // Bootstrap pacing: with a best on record it rides the pace line at minimal, the
+    // full mission block's pace branch, and the ground goal line. This check wrote the
+    // 34 kg/h best and the 50 km / 100 s state, so the 54 kg/h pace is exact.
+    has(drawn.climbing, /pace 54 kg\/h to Kármán · best 34 kg\/h/) &&
+    drawn.fullClimbingSet &&
+    has(drawn.fullClimbing, /pace 54 kg\/h to Kármán \(best 34\)/) &&
+    has(drawn.groundBest, /score: kg\/h to Kármán · cargo 3 kg · best 34 kg\/h/),
     JSON.stringify({ minimalSet: drawn.minimalSet, fullSet: drawn.fullSet,
                      minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14),
-                     climbing: drawn.climbing.slice(0, 14), delivered: drawn.delivered.slice(0, 14) }));
+                     climbing: drawn.climbing.slice(0, 14), delivered: drawn.delivered.slice(0, 14),
+                     fullClimbing: (drawn.fullClimbing || []).slice(0, 14),
+                     groundBest: (drawn.groundBest || []).slice(0, 14) }));
 
   // 21) Shift 11, slip crests: the wave OVERTAKING the climber is drawn, not numbered.
   //     Held at u = 0 the chevron stream scrolls at the capped rate and the push factor

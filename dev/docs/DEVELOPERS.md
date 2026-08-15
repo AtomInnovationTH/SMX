@@ -31,7 +31,7 @@ and are **not** inlined. Neither are the clouds, the ground or the noise overlay
 inlining that 1.2 MB made `index.html` 1.8 MB and nobody could play until all of it
 downloaded, so anything over 20 KB now streams from `assets/` (see `MAX_INLINE_BYTES`
 and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
-428 KB and must be served alongside the
+430 KB and must be served alongside the
 `assets/` folder (as it is on GitHub Pages). It is not a standalone
 offline file.
 
@@ -450,8 +450,12 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   compact plate from the pure `minimalScoreLine`, which states the goal and cargo on the
   ground, the live pace projection while climbing, and the locked figure plus the persisted
   best after delivery. All three read the same `throughputKgPerHour`, so no level can quote
-  a figure another would not. A scoring system the default screen never mentions is the
-  failure mode that change fixed; do not fold it back behind `H`.
+  a figure another would not. Since the bootstrap-pacing shift the persisted best also rides
+  the goal and pace lines whenever one exists ("· best N kg/h" at minimal, "(best N)" in
+  the full block's pace branch): a pace read only sharpens against a reference, the best is
+  the one pacing reference the game owns, and the paper publishes no pacing figure to cite.
+  A fresh player (best 0) sees exactly the shift-12 lines. A scoring system the default
+  screen never mentions is the failure mode that change fixed; do not fold it back behind `H`.
 - **M3.5–M3.8, the rest of the current surface**:
   - **Descending climbers** replace the deleted arcade pickups (`_updateDescenders`,
     `renderDescenders`). Riders spawn 150 m above the 30 km and 60 km crossings and ride
@@ -498,9 +502,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
   and fails if the committed artifact was stale, checks asset references, and drives the
   browser smoke suite.
-- **Current gate numbers** (keep these updated when they move): **140 unit tests**
-  (pure 119, sliders 12, balance 9), **62 pure helpers** in the delimited block,
-  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **428 KB**.
+- **Current gate numbers** (keep these updated when they move): **141 unit tests**
+  (pure 120, sliders 12, balance 9), **62 pure helpers** in the delimited block,
+  **98 = 98** asset references, **29 browser smoke checks**, `index.html` **430 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in
