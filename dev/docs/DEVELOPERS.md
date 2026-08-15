@@ -454,8 +454,15 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   the goal and pace lines whenever one exists ("· best N kg/h" at minimal, "(best N)" in
   the full block's pace branch): a pace read only sharpens against a reference, the best is
   the one pacing reference the game owns, and the paper publishes no pacing figure to cite.
-  A fresh player (best 0) sees exactly the shift-12 lines. A scoring system the default
-  screen never mentions is the failure mode that change fixed; do not fold it back behind `H`.
+  A fresh player (best 0) sees exactly the shift-12 lines. Since the bootstrap-progress
+  shift the minimal delivered line also carries the cumulative meter ("· tether N/600 kg"),
+  the one moment the meter moves: the progress axis used to show only at full HUD and on
+  the game-over screen, so a player who never pressed H never learned the bootstrap
+  existed. The clause is guarded by `bootstrapKg > 0`, so the written states that pin the
+  shift-12 strings keep matching, while a real delivery always has one (the credit just
+  fired). The 600 kg target is the game's own S16 design number, not a paper figure.
+  A scoring system the default screen never mentions is the failure mode that change
+  fixed; do not fold it back behind `H`.
 - **M3.5–M3.8, the rest of the current surface**:
   - **Descending climbers** replace the deleted arcade pickups (`_updateDescenders`,
     `renderDescenders`). Riders spawn 150 m above the 30 km and 60 km crossings and ride

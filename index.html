@@ -1724,10 +1724,26 @@
         // over zero time is 0 kg/h, which would print a score of zero as though it were
         // one. A null, zero or non-finite elapsed all mean "no projection yet", so the
         // goal line stands until there is a real one.
-        function minimalScoreLine({ cargoKg, altitudeM, climbElapsedS, delivered, deliveredKg, deliveredInS, bestKgH }) {
+        //
+        // Bootstrap-progress shift: the delivered line also carries the cumulative
+        // meter ("· tether N/600 kg"), the one moment the meter moves
+        // (cargoDeliveryCredit fires once per run, at Kármán). The progress axis used
+        // to show only at full HUD ("Tether bootstrap: N.N%") and on the game-over
+        // screen, so a player who never presses H never learned the bootstrap exists:
+        // the same failure mode shift 12 fixed for the score. Section 0: the 600 kg
+        // target is the game's own design number (S16, BOOTSTRAP_TARGET_KG) and the
+        // cumulative kg is the game's own persisted state, so this is presentation of
+        // owned state, not a citation (the paper publishes no progress figure; its
+        // numbers are power, frequency and tether mass). The clause is guarded by
+        // bootstrapKg > 0, the same shape as the best's guard: the exact-string pins
+        // that pass no bootstrapKg keep matching, and in real play the delivered state
+        // always has one (the credit just fired), so the meter shows exactly when it
+        // moves. The goal and pace lines are untouched: the meter does not move there.
+        function minimalScoreLine({ cargoKg, altitudeM, climbElapsedS, delivered, deliveredKg, deliveredInS, bestKgH, bootstrapKg }) {
             if (delivered) {
                 const kgH = throughputKgPerHour(deliveredKg, deliveredInS || 0);
-                return `delivered ${kgH.toFixed(0)} kg/h · best ${Math.round(bestKgH || 0)} kg/h`;
+                const tether = bootstrapKg > 0 ? ` · tether ${Math.round(bootstrapKg)}/${GameConfig.MISSION.BOOTSTRAP_TARGET_KG} kg` : '';
+                return `delivered ${kgH.toFixed(0)} kg/h · best ${Math.round(bestKgH || 0)} kg/h${tether}`;
             }
             const best = bestKgH > 0 ? ` · best ${Math.round(bestKgH)} kg/h` : '';
             if (climbElapsedS > 0 && altitudeM > 0.5) {
@@ -6076,6 +6092,7 @@
                     deliveredKg: this.deliveredKg || 0,
                     deliveredInS: this._deliveredInS || 0,
                     bestKgH: this.cargoBest || 0,
+                    bootstrapKg: this.bootstrapKg || 0,
                 }) : null;
                 const plateX = 6, plateW = width - 12, plateH = scoreLine ? 52 : 38, plateY = height - plateH - 8;
                 ctx.save();

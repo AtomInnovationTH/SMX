@@ -1997,6 +1997,43 @@ test('minimalScoreLine: after delivery it locks to the figure plus the best', ()
   assert.equal(locked, 'delivered 28 kg/h · best 0 kg/h');
 });
 
+test('minimalScoreLine: the delivered line carries the bootstrap meter when one exists', () => {
+  // The bootstrap-progress clause: the progress axis (the cumulative kg toward the
+  // 600 kg tether target, the game's own S16 design number) used to show only at full
+  // HUD and on the game-over screen, so a player who never presses H never learned the
+  // bootstrap exists. The delivered line is the one moment the meter moves, so it
+  // carries the figure, in the game-over screen's own kg/kg style.
+  assert.equal(minimalScoreLine({
+    cargoKg: 3, altitudeM: 100000, climbElapsedS: 400,
+    delivered: true, deliveredKg: 3, deliveredInS: 380.4, bestKgH: 31, bootstrapKg: 40,
+  }), 'delivered 28 kg/h · best 31 kg/h · tether 40/600 kg');
+  // The clause rounds the way the best does, and the kg is not capped at the target
+  // (bootstrapPct caps the percent; the meter books what climbers actually carried).
+  assert.equal(minimalScoreLine({
+    cargoKg: 3, altitudeM: 100000, climbElapsedS: 400,
+    delivered: true, deliveredKg: 3, deliveredInS: 380.4, bestKgH: 31, bootstrapKg: 640.4,
+  }), 'delivered 28 kg/h · best 31 kg/h · tether 640/600 kg');
+  // Absent, zero, negative or non-finite prints no clause, so the exact-string pins
+  // above (which pass no bootstrapKg) keep matching, and a fresh written state shows
+  // no meter. In real play the delivered state always has one: the credit just fired.
+  for (const bootstrapKg of [undefined, null, 0, NaN, -5]) {
+    assert.equal(minimalScoreLine({
+      cargoKg: 3, altitudeM: 100000, climbElapsedS: 400,
+      delivered: true, deliveredKg: 3, deliveredInS: 380.4, bestKgH: 31, bootstrapKg,
+    }), 'delivered 28 kg/h · best 31 kg/h', `bootstrapKg ${bootstrapKg} must not print a clause`);
+  }
+  // The clause rides the delivered line only: the meter does not move on the goal or
+  // pace lines, so they never carry it even when a cumulative total exists.
+  assert.equal(minimalScoreLine({
+    cargoKg: 3, altitudeM: 0, climbElapsedS: null,
+    delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 31, bootstrapKg: 40,
+  }), 'score: kg/h to Kármán · cargo 3 kg · best 31 kg/h');
+  assert.equal(minimalScoreLine({
+    cargoKg: 3, altitudeM: 50000, climbElapsedS: 100,
+    delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 31, bootstrapKg: 40,
+  }), 'pace 54 kg/h to Kármán · best 31 kg/h');
+});
+
 test('minimalScoreLine: one short line that fits the 390 px plate, no em dash', () => {
   const states = [
     { cargoKg: 3, altitudeM: 0, climbElapsedS: null, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 0 },
@@ -2005,6 +2042,8 @@ test('minimalScoreLine: one short line that fits the 390 px plate, no em dash', 
     // The widest best-bearing variants: a three-figure best beside the goal and the pace.
     { cargoKg: 50, altitudeM: 0, climbElapsedS: null, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 464 },
     { cargoKg: 50, altitudeM: 50000, climbElapsedS: 10, delivered: false, deliveredKg: 0, deliveredInS: 0, bestKgH: 464 },
+    // The widest tether-bearing variant: three-figure figures plus a meter past target.
+    { cargoKg: 50, altitudeM: 100000, climbElapsedS: 400, delivered: true, deliveredKg: 50, deliveredInS: 388, bestKgH: 464, bootstrapKg: 640 },
   ];
   for (const s of states) {
     const line = minimalScoreLine(s);

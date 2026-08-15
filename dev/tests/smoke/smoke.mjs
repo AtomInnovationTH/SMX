@@ -949,7 +949,9 @@ try {
   //     delivery), and never leaks into the full level's own mission block. The bootstrap-
   //     pacing shift adds the fourth: once a best exists it rides the goal and pace lines
   //     too (the one pacing reference the game owns; the paper publishes no pacing figure
-  //     to cite), at minimal and in the full block's pace branch alike.
+  //     to cite), at minimal and in the full block's pace branch alike. The bootstrap-
+  //     progress shift adds the fifth: the delivered line carries the cumulative tether
+  //     meter the one moment it moves, read live from the game's own bootstrapKg.
   const drawn = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
@@ -993,6 +995,13 @@ try {
     await setLevel(0);
     g.cargoDelivered = true; g.deliveredKg = 3; g._deliveredInS = 380.4; g.cargoBest = 31;
     out.delivered = await capture();
+    // Bootstrap progress: the delivered line carries the cumulative meter when one
+    // exists. This written state set no bootstrapKg, so the capture above read the
+    // game's live value (0 after the check-15 reload: no clause, the shift-12 pin
+    // survives); write one and the same line carries it, read live each frame.
+    g.bootstrapKg = 40;
+    out.deliveredBoot = await capture();
+    g.bootstrapKg = 0;
     g.cargoDelivered = false; g.deliveredKg = 0; g._deliveredInS = null; g.cargoBest = 0;
     g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
     g._runTimeS = 0; g._climbStartS = null; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
@@ -1033,10 +1042,14 @@ try {
     has(drawn.climbing, /pace 54 kg\/h to Kármán · best 34 kg\/h/) &&
     drawn.fullClimbingSet &&
     has(drawn.fullClimbing, /pace 54 kg\/h to Kármán \(best 34\)/) &&
-    has(drawn.groundBest, /score: kg\/h to Kármán · cargo 3 kg · best 34 kg\/h/),
+    has(drawn.groundBest, /score: kg\/h to Kármán · cargo 3 kg · best 34 kg\/h/) &&
+    // Bootstrap progress: the delivered line carries the cumulative meter the moment
+    // it moves, reading the game's live bootstrapKg (40 written above, exact figures).
+    has(drawn.deliveredBoot, /delivered 28 kg\/h · best 31 kg\/h · tether 40\/600 kg/),
     JSON.stringify({ minimalSet: drawn.minimalSet, fullSet: drawn.fullSet,
                      minimal: drawn.minimal.slice(0, 12), full: drawn.full.slice(0, 14),
                      climbing: drawn.climbing.slice(0, 14), delivered: drawn.delivered.slice(0, 14),
+                     deliveredBoot: (drawn.deliveredBoot || []).slice(0, 14),
                      fullClimbing: (drawn.fullClimbing || []).slice(0, 14),
                      groundBest: (drawn.groundBest || []).slice(0, 14) }));
 

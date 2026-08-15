@@ -15,6 +15,46 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Added (bootstrap progress, August 2026)
+
+- **The cumulative bootstrap meter rides the minimal delivered line, the first
+  post-backlog candidate: no helper, no slider, no physics.** The pacing axis shipped
+  last shift; the progress axis never showed at the default level: the meter toward
+  the 600 kg tether target appeared only at full HUD ("Tether bootstrap: N.N%") and
+  on the game-over screen, so a player who never pressed H never learned the
+  bootstrap existed, the same failure mode shift 12 fixed for the score. Section 0,
+  decided before any code: the 600 kg target is the game's own design number (S16,
+  `GameConfig.MISSION.BOOTSTRAP_TARGET_KG`) and the cumulative kg is the game's own
+  persisted state, so this is presentation of owned state, not a citation (the paper
+  publishes no progress figure; its numbers are power, frequency and tether mass).
+  What shipped: `minimalScoreLine`'s delivered branch appends "· tether N/600 kg"
+  (the game-over screen's own figure style) whenever a cumulative total exists,
+  guarded by `bootstrapKg > 0`, the same shape as the best's guard. The delivered
+  line is the one moment the meter moves (`cargoDeliveryCredit` fires once per run,
+  at Kármán); the goal and pace lines never carry it, and in real play the delivered
+  state always has a total (the credit just fired), so the meter shows exactly when
+  it moves. Every pinned string survives verbatim: pure.test's exact delivered pins
+  pass no `bootstrapKg`, and smoke check 20's written delivered state reads the
+  game's live value (0 after the check-15 reload), so the shift-12 fragments match
+  with the clause omitted; the check gained a written-meter capture pinning
+  "· tether 40/600 kg" (29 checks, no new one), and pure.test gained the clause, the
+  rounding, the non-finite guards and the widest width variant (142 unit tests, was
+  141). Static text on the existing third line: no new band, no plate growth, no
+  flash budget spent, reduced motion satisfied by construction, state carried by the
+  labelled kg figures, never colour. Verified on staged frames, never by reading the
+  code: a single-page A/B at 500 m off the synthetic clock toggles only
+  `bootstrapKg` (0, 40, 0) around getImageData snapshots after a render-and-readback
+  warmup settled the raster path; the clause diff is 295 px strictly inside the
+  compact plate's third-line band (bbox x 194-289, y 776-784 at 1280x800), the round
+  trip exactly 0, the goal and pace lines confirmed meter-free with a total on
+  record, the full mission block reads the same live meter (6.7%), and the 390 px
+  phone plate keeps the widest realistic line inside it (55 chars, diff right edge
+  305 px against the 370 px inner edge). `updateContinuous` is byte-identical, the
+  balance harness has nothing to mirror, the snapshot was NOT regenerated, and the
+  committed captures did not move: the stills boot HUD off (re-shot at 256.3 m /
+  360.0 m, centres exact, restored) and the clip's fresh context never delivers.
+  No em dashes in the new prose.
+
 #### Added (bootstrap pacing, August 2026)
 
 - **The persisted best rides the goal and pace lines, the third and last backlog
