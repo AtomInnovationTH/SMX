@@ -68,7 +68,9 @@ film speed the physics runs).
   mode-conversion mechanism (p.12 offers a table and a question, no converter), and any
   temperature (no heat capacity, transfer coefficient or emissivity is published
   anywhere).
-- **Default climb**: unchanged by the bootstrap-progress shift (presentation-only: one
+- **Default climb**: unchanged by the phone-forms fix (render-only short forms at the
+  full level; `updateContinuous` byte-identical), by the bootstrap-progress shift
+  (presentation-only: one
   guarded clause on the existing delivered line; `updateContinuous` byte-identical), by
   the bootstrap-pacing shift (presentation-only strings
   on the existing score lines; `updateContinuous` byte-identical), by the
