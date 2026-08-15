@@ -18,12 +18,12 @@
     <meta name="theme-color" content="#0b1f3a">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://atominnovationth.github.io/SMX/">
-    <meta property="og:title" content="Space Monkey Elevator — powering climbers with mechanical waves">
-    <meta property="og:description" content="A playable illustration of Blaise Gassend's ISDC 2025 paper: pulse your EPMs to couple to the ribbon's waves — nothing ever touches — and ride them to the Kármán Line.">
+    <meta property="og:title" content="Space Monkey Elevator: powering climbers with mechanical waves">
+    <meta property="og:description" content="A playable illustration of Blaise Gassend's ISDC 2025 paper: pulse your EPMs to couple to the ribbon's waves, nothing ever touches, and ride them to the Kármán Line.">
     <meta property="og:image" content="https://atominnovationth.github.io/SMX/social.png">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Space Monkey Elevator — powering climbers with mechanical waves">
-    <meta name="twitter:description" content="A playable illustration of Blaise Gassend's ISDC 2025 paper: pulse your EPMs to couple to the ribbon's waves — nothing ever touches — and ride them to the Kármán Line.">
+    <meta name="twitter:title" content="Space Monkey Elevator: powering climbers with mechanical waves">
+    <meta name="twitter:description" content="A playable illustration of Blaise Gassend's ISDC 2025 paper: pulse your EPMs to couple to the ribbon's waves, nothing ever touches, and ride them to the Kármán Line.">
     <meta name="twitter:image" content="https://atominnovationth.github.io/SMX/social.png">
 
     <!-- Favicon: the monkey character (3.3) -->
@@ -273,13 +273,13 @@
 <body>
     <noscript>
         <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b1f3a;color:#cfe6f5;font-family:monospace;text-align:center;padding:24px;z-index:9999;">
-            Space Monkey Elevator needs JavaScript enabled. It's a contactless space-elevator-climber simulation that runs entirely in your browser — please enable JavaScript and reload.
+            Space Monkey Elevator needs JavaScript enabled. It's a contactless space-elevator-climber simulation that runs entirely in your browser. Please enable JavaScript and reload.
         </div>
     </noscript>
     <canvas id="bgCanvas"></canvas>
     <div id="clouds-container"></div>
     <div id="landmarks-container"></div>
-    <canvas id="gameCanvas" aria-label="Space Monkey Elevator — contactless space-elevator climber" role="img"></canvas>
+    <canvas id="gameCanvas" aria-label="Space Monkey Elevator: contactless space-elevator climber" role="img"></canvas>
     
     <!-- Visual Enhancement Overlays -->
     <div class="grid-overlay"></div>
@@ -289,7 +289,7 @@
     <!-- Loading Overlay -->
     <div id="loading-overlay">
         <div class="loading-title">Space Monkey Elevator</div>
-        <div class="loading-credit">Based on Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>, ISDC 2025 — <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a></div>
+        <div class="loading-credit">Based on Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>, ISDC 2025 · <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a></div>
         <div class="loading-spinner">🐵</div>
         <div id="loading-progress">Loading... 0%</div>
     </div>
@@ -312,18 +312,18 @@
             <div class="go-bootstrap" id="go-bootstrap" style="display:none;"></div>
             <div class="go-report" id="go-report" style="display:none;"></div>
             <div class="go-geo" id="go-geo" style="display:none;">
-                <b>You reached the Kármán Line (100 km) — but that's only the start.</b><br>
+                <b>You reached the Kármán Line (100 km), but that's only the start.</b><br>
                 A real space-elevator seed tether continues to <b>geostationary orbit (35,786 km)</b>,
-                where gravity and centrifugal force balance, and on to a <b>counterweight</b> beyond — above
+                where gravity and centrifugal force balance, and on to a <b>counterweight</b> beyond: above
                 GEO the effective gravity <b>flips outward</b>. This game stops at Kármán; the rest is the
                 concept it points to.<br><br>
                 You flew the <b>up-climber</b>: carry cargo up, ride the beamed waves, manage EPM charge.
                 You also met two <b>descenders</b> on the way, and their energy went into the ribbon as
                 vibration (Lofstrom). Powering climbers <b>from the top</b>, with space solar or with
-                descending climbers, is one of the paper's own open ideas (p.14) &mdash; and flying one
+                descending climbers, is one of the paper's own open ideas (p.14), and flying one
                 is not in this game yet.<br><br>
                 The physics you just rode: Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>,
-                ISDC 2025 — <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
+                ISDC 2025 · <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
                 (author's page: <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">gassend.net/spaceelevator/isdc2025</a>).
             </div>
             <div class="go-new-best" id="go-new-best" style="display:none;">🎉 NEW BEST! 🎉</div>
@@ -359,23 +359,23 @@
             traveling waves up a conductive graphene seed film; <b id="grab-input-word">hold SPACE</b> to engage the
             stack and induce eddy currents in the moving film. The onboard controller does the
             timing: it pulls only while the film is outrunning you, so you never time a pulse
-            yourself. What you watch is the trade &mdash; thrust fades as your speed closes on the
+            yourself. What you watch is the trade: thrust fades as your speed closes on the
             wave, while the switching cost stays flat, so the skim eventually stops covering it and
             it is time to let go.<br><br>
             <b>Nothing ever touches.</b> Momentum crosses an air gap by pulsed eddy-current
             traction. That is the whole point: no wheel, no clamp, no friction to wear out.<br><br>
             <b>Why an EPM and nothing else.</b> An electromagnet burns power continuously just to
             hold a field. A permanent magnet can never switch off. An EPM is the only device that
-            is <b>on for free and off for free</b> &mdash; it pays only a few joules per switch.
+            is <b>on for free and off for free</b>: it pays only a few joules per switch.
             <b>Zero static power is the enabling technology</b>; without it the climber would
             spend more energy holding on than climbing.<br><br>
-            Above ~40 km there is effectively no air &mdash; let go and you keep your speed.
+            Above ~40 km there is effectively no air: let go and you keep your speed.
             Your magnets latch off at zero power, so coasting costs nothing.<br><br>
             Based on Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>, ISDC 2025
-            &mdash; <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
+            · <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
             (author&rsquo;s page: <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">gassend.net/spaceelevator/isdc2025</a>).<br>
             Coupling hardware modelled on <a href="https://fluxgrip.zubax.com/" target="_blank" rel="noopener">Zubax FluxGrip FG40</a>
-            electro-permanent magnets &mdash; no affiliation or endorsement implied.
+            electro-permanent magnets; no affiliation or endorsement implied.
         </div>
 
         <div class="preset-row">
@@ -385,14 +385,14 @@
             <button data-preset="lofstrom">Lofstrom 1000 Hz</button>
             <button data-preset="maxspeed">Max speed</button>
             <button data-preset="maxpayload">Max payload</button>
-            <small class="setting-hint">Entry points, all applied through the sliders below. <b>Lofstrom 1000 Hz is the wall demo</b>: at 1000 Hz the same 8-pair stack draws 128 kW of switching, which empties the climber's own 0.19 MJ buffer in about a second and a half — it browns out no matter how much thrust it has. That wall is Gassend's p.11 story. Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed; his 40 m wavelength implies a slower tether than this film (c = 3.7 vs 20.9 km/s), so λ comes out 227 m here.</small>
+            <small class="setting-hint">Entry points, all applied through the sliders below. <b>Lofstrom 1000 Hz is the wall demo</b>: at 1000 Hz the same 8-pair stack draws 128 kW of switching, which empties the climber's own 0.19 MJ buffer in about a second and a half: it browns out no matter how much thrust it has. That wall is Gassend's p.11 story. Wessels keeps his 92 Hz / 60 cm / 350 m/s ribbon speed; his 40 m wavelength implies a slower tether than this film (c = 3.7 vs 20.9 km/s), so λ comes out 227 m here.</small>
         </div>
 
         <h4>Ground station</h4>
         <div class="slider-container">
             <label>Carrier: <span id="frequencyValue">92.0 Hz</span></label>
             <input type="range" id="frequency" min="0" max="100" step="1" value="0">
-            <small class="setting-hint">How fast the ground station drives the wave, 92-1000 Hz (Wessels to Lofstrom). Carrier sets the wavelength (λ = c/f) and the stroke cap — and the SWITCHING cost: with this film class the energy loop stalls above ~200 Hz. Find the wall; that's the paper's story.</small>
+            <small class="setting-hint">How fast the ground station drives the wave, 92-1000 Hz (Wessels to Lofstrom). Carrier sets the wavelength (λ = c/f) and the stroke cap, and the SWITCHING cost: with this film class the energy loop stalls above ~200 Hz. Find the wall; that's the paper's story.</small>
         </div>
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">1.00 m</span></label>
@@ -402,15 +402,15 @@
         <div class="slider-container">
             <label>Tether stress budget: <span id="stressBudgetValue">30% of stress (9.0% of power)</span></label>
             <input type="range" id="stressBudget" min="5" max="60" step="1" value="30">
-            <small class="setting-hint">Fraction of the film's working stress the wave may use: v_max = budget × strength ÷ √(Eρ). The paper's "10% of tether strength at 1000 km/h" is a share of stress-limited POWER (P ∝ σ²) — at 30% stress you use 9% of it, which is why both numbers are shown.</small>
+            <small class="setting-hint">Fraction of the film's working stress the wave may use: v_max = budget × strength ÷ √(Eρ). The paper's "10% of tether strength at 1000 km/h" is a share of stress-limited POWER (P ∝ σ²): at 30% stress you use 9% of it, which is why both numbers are shown.</small>
         </div>
         <div class="slider-container">
-            <label>v_max: <span id="vmaxValue">— km/h</span> · stroke cap: <span id="strokeCapValue">— m</span></label>
-            <small class="setting-hint" id="waveStressValue">Wave now: —</small>
+            <label>v_max: <span id="vmaxValue">… km/h</span> · stroke cap: <span id="strokeCapValue">… m</span></label>
+            <small class="setting-hint" id="waveStressValue">Wave now: …</small>
         </div>
         <div class="slider-container">
-            <label>Switching: <span id="switchingValue">—</span></label>
-            <small class="setting-hint">4·N·E_switch·f — flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
+            <label>Switching: <span id="switchingValue">…</span></label>
+            <small class="setting-hint">4·N·E_switch·f: flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
         </div>
         <div class="slider-container">
             <label>Stack heat: <span id="stackHeatValue">11.8 kW while engaged · air 100.0% of sea level</span></label>
@@ -432,7 +432,7 @@
         </div>
         <div class="wave-explainer">
             <b>Wave shape (1 / 2 / 3):</b> a symmetric <b>sine</b> needs you to pulse in rhythm (forgiving, wide window).
-            An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor — it gives a net upward push
+            An asymmetric <b>sawtooth</b> behaves like a traveling-wave / ratchet motor: it gives a net upward push
             even with steady pulsing (efficient). A <b>square</b> wave only couples at its sharp edges (extreme skill).
         </div>
 
@@ -446,7 +446,7 @@
                 <option value="3">150 GPa CNT (speculative)</option>
                 <option value="4">300 GPa CC-CNT (speculative)</option>
             </select>
-            <small class="setting-hint">Carbon films by working STRENGTH — stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
+            <small class="setting-hint">Carbon films by working STRENGTH: stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
         </div>
         <div class="slider-container">
             <label>Film width: <span id="widthValue">45 mm</span></label>
@@ -473,24 +473,24 @@
             <small class="setting-hint">Pretension keeps the film taut and flat as it runs through the gap between the opposed magnet pairs. A slack film flutters, and flutter eats the clearance the coupling needs.</small>
         </div>
         <div class="slider-container">
-            <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">— m/s</span></label>
-            <small class="setting-hint">Longitudinal (compression) wave speed, set by the material's stiffness and density — this is what your pulses couple to.</small>
+            <label>Wave speed (v=√(E/ρ)): <span id="waveSpeedValue">… m/s</span></label>
+            <small class="setting-hint">Longitudinal (compression) wave speed, set by the material's stiffness and density: this is what your pulses couple to.</small>
         </div>
 
         <h4>Climber</h4>
         <div class="slider-container">
             <label>FG40 pairs: <span id="nPairsValue">8 pairs</span></label>
             <input type="range" id="nPairs" min="2" max="64" step="1" value="8">
-            <small class="setting-hint">Opposed pairs in the climber's FG40 sandwich — the REAL scaling axis (not a magnet-material ladder: Alnico + NdFeB co-exist in every unit). More pairs: more thrust, but more stack mass and more switching watts. The demo default is 8 pairs (16 units, 33 cm, 1.4 kg) carrying 3 kg at about 3:1 thrust-to-weight; the same ratio at Gassend's §2.5 anchor is ~64 pairs for 25 kg, and 64 is the top of this slider.</small>
+            <small class="setting-hint">Opposed pairs in the climber's FG40 sandwich, the REAL scaling axis (not a magnet-material ladder: Alnico + NdFeB co-exist in every unit). More pairs: more thrust, but more stack mass and more switching watts. The demo default is 8 pairs (16 units, 33 cm, 1.4 kg) carrying 3 kg at about 3:1 thrust-to-weight; the same ratio at Gassend's §2.5 anchor is ~64 pairs for 25 kg, and 64 is the top of this slider.</small>
         </div>
         <div class="slider-container">
             <label>Air gap: <span id="airGapValue">0.15 mm</span></label>
             <input type="range" id="airGap" min="0.1" max="5" step="0.05" value="0.15">
-            <small class="setting-hint">The working gap between the opposed FG40 pairs and the film — nothing ever touches. Tighter couples MUCH harder (FG40's published force-vs-airgap curve: 100% at 0.1 mm, ~16% at 0.5 mm) but leaves less centering margin for film flutter. M1.5's field-strength multiplier was an interim label; the gap is the real control.</small>
+            <small class="setting-hint">The working gap between the opposed FG40 pairs and the film: nothing ever touches. Tighter couples MUCH harder (FG40's published force-vs-airgap curve: 100% at 0.1 mm, ~16% at 0.5 mm) but leaves less centering margin for film flutter. M1.5's field-strength multiplier was an interim label; the gap is the real control.</small>
         </div>
         <div class="slider-container">
             <label>Centering: <span id="centeringMarginValue">automatic · margin 0.05 mm of ±0.15 mm/side (flutter ±0.10 mm)</span></label>
-            <small class="setting-hint">The onboard controller holds the film centred between the opposed poles — automatic, not your job. What you own is the MARGIN: gap per side minus film flutter (±0.1 mm at 100 kgf pretension, shrinking as √tension). Margin ≤ 0 and the controller unloads the stack rather than scrape the film — the stack label says so on canvas too.</small>
+            <small class="setting-hint">The onboard controller holds the film centred between the opposed poles: automatic, not your job. What you own is the MARGIN: gap per side minus film flutter (±0.1 mm at 100 kgf pretension, shrinking as √tension). Margin ≤ 0 and the controller unloads the stack rather than scrape the film; the stack label says so on canvas too.</small>
         </div>
         <div class="slider-container">
             <label>Stack: <span id="stackValue">256 units · 5.2 m · dry 23.0 kg</span></label>
@@ -520,7 +520,7 @@
         <div class="wave-explainer">
             <b>This is live research, not settled engineering.</b> The playable climb stops at
             100 km; the real seed tether continues to geostationary orbit, 358&times; further. But
-            the harder questions are not about distance — they are the ones the paper this game
+            the harder questions are not about distance: they are the ones the paper this game
             illustrates <i>ends on</i>, still open, and asked of its audience:
         </div>
         <div class="wave-explainer">
@@ -538,7 +538,7 @@
             published, so no stack temperature is modelled either.<br>
             &bull; How unreasonable is <b>1000 km/h machinery</b>, really?<br>
             &bull; What are the ways for a climber to <b>extract</b> the power? This game commits
-            to one answer — pulsed eddy-current traction across an air gap — but that is a
+            to one answer, pulsed eddy-current traction across an air gap, but that is a
             guess of ours, not a finding of the paper's.<br>
             &bull; How do you power <b>more than one climber</b>? The budget answer is
             playable now: share the wave above 85 km (Settings, Ground station) and each
@@ -1675,8 +1675,8 @@
         // reveals the rest, or the instruments look deleted rather than folded away.
         function hudLevelToast(level) {
             return level === HUD_FULL ? 'Instruments: all readouts'
-                 : level === HUD_OFF  ? 'HUD hidden — H to bring it back'
-                                      : 'Instruments: minimal — H for all readouts';
+                 : level === HUD_OFF  ? 'HUD hidden · H to bring it back'
+                                      : 'Instruments: minimal · H for all readouts';
         }
 
         // The minimal HUD's ONE score line (shift 12, priority 1): the score is
@@ -2205,7 +2205,7 @@
                 // older 'experimental-webgl' alias).
                 this.gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
                 if (!this.gl) {
-                    console.error('WebGL not supported — falling back to a static sky.');
+                    console.error('WebGL not supported. Falling back to a static sky.');
                     this._applyFallback();
                     return;
                 }
@@ -2216,10 +2216,10 @@
                 canvas.addEventListener('webglcontextlost', (e) => {
                     e.preventDefault(); // required so the context can be restored
                     this.lost = true;
-                    console.warn('WebGL context lost — pausing background until restored.');
+                    console.warn('WebGL context lost. Pausing background until restored.');
                 }, false);
                 canvas.addEventListener('webglcontextrestored', () => {
-                    console.info('WebGL context restored — rebuilding background.');
+                    console.info('WebGL context restored. Rebuilding background.');
                     try {
                         // setupShaders() returns false (rather than throwing) on a
                         // compile/link failure, so check the result explicitly and fall
@@ -2815,7 +2815,7 @@
             static THERMAL = {
                 SUITS: [
                     { sprite: 'space-suit-1.svg', altitude: 8000,  shiveringAt: -20,  label: 'Flight suit' },
-                    { sprite: 'space-suit-2.svg', altitude: 19000, shiveringAt: -60,  label: 'Pressure suit — past the Armstrong Limit' },
+                    { sprite: 'space-suit-2.svg', altitude: 19000, shiveringAt: -60,  label: 'Pressure suit, past the Armstrong Limit' },
                     { sprite: 'space-suit-3.svg', altitude: 50000, shiveringAt: -273, label: 'Full space suit' }
                 ],
                 BARE_SHIVERING_AT: 10,   // °C below which the unsuited climber starts to shiver
@@ -4324,7 +4324,7 @@
                     const margin = this.airGapMm - flut;
                     cmEl.textContent = margin > 0
                         ? `automatic · margin ${margin.toFixed(2)} mm of ±${this.airGapMm.toFixed(2)} mm/side (flutter ±${flut.toFixed(2)} mm)`
-                        : `UNLOADED — flutter ±${flut.toFixed(2)} mm overruns the ±${this.airGapMm.toFixed(2)} mm/side gap`;
+                        : `UNLOADED: flutter ±${flut.toFixed(2)} mm overruns the ±${this.airGapMm.toFixed(2)} mm/side gap`;
                 }
                 // Live wave stress: what the CURRENT (clamped) A·ω actually uses of the
                 // film — as % of working stress AND % of stress-limited power (P ∝ σ²),
@@ -4484,8 +4484,8 @@
                 if (cargoEl) {
                     cargoEl.style.display = 'block';
                     cargoEl.textContent = this.cargoDelivered
-                        ? `Throughput: ${Math.round(score)} kg/h to Kármán — ${this.deliveredKg.toFixed(0)} kg in ${this._fmtTime(this._deliveredInS || 0)}  (best ${Math.round(this.cargoBest)})`
-                        : 'Throughput: 0 kg/h — no delivery. A stall costs time, never the run.';
+                        ? `Throughput: ${Math.round(score)} kg/h to Kármán, ${this.deliveredKg.toFixed(0)} kg in ${this._fmtTime(this._deliveredInS || 0)}  (best ${Math.round(this.cargoBest)})`
+                        : 'Throughput: 0 kg/h, no delivery. A stall costs time, never the run.';
                 }
                 if (bootEl) {
                     const pct = bootstrapPct(this.bootstrapKg);
@@ -4513,14 +4513,14 @@
                     const rows = [];
                     if (this.cargoDelivered) {
                         const meanKmh = Math.round(GameConfig.MISSION.DELIVER_ALTITUDE_M / (this._deliveredInS || 1) * 3.6);
-                        rows.push(['speed', `mean ${meanKmh} km/h, top ${Math.round(this._topSpeedKmh)} km/h — the paper's operating band is 200–1000 km/h (p.6)`]);
+                        rows.push(['speed', `mean ${meanKmh} km/h, top ${Math.round(this._topSpeedKmh)} km/h. The paper's operating band is 200–1000 km/h (p.6)`]);
                     } else {
-                        rows.push(['altitude', `reached ${(this.maxAltitude / 1000).toFixed(1)} km of 100 km — top speed ${Math.round(this._topSpeedKmh)} km/h (paper's band: 200–1000 km/h, p.6)`]);
+                        rows.push(['altitude', `reached ${(this.maxAltitude / 1000).toFixed(1)} km of 100 km, top speed ${Math.round(this._topSpeedKmh)} km/h (paper's band: 200–1000 km/h, p.6)`]);
                     }
-                    rows.push(['switching', `${swKw.toFixed(0)} kW = ${swPct.toFixed(1)}% of the paper's 4 MW delivery budget (p.2) — the EPM skim`]);
-                    rows.push(['stroke', `ground stroke ${this.waveSystem.amplitude.toFixed(2)} m — Wessels' 92 Hz design: 60 cm; Lofstrom: 1.2–18 cm at 100–1000 Hz (p.4)`]);
-                    rows.push(['carrier', `${f.toFixed(0)} Hz sits in p.11's ${FREQ_TABLE.columns[col].label} column — ${cells.join(' · ') || 'between cells (spans carry ±½ decade)'}`]);
-                    reportEl.innerHTML = '<b>report card — you vs the paper</b><br>' +
+                    rows.push(['switching', `${swKw.toFixed(0)} kW = ${swPct.toFixed(1)}% of the paper's 4 MW delivery budget (p.2): the EPM skim`]);
+                    rows.push(['stroke', `ground stroke ${this.waveSystem.amplitude.toFixed(2)} m. Wessels' 92 Hz design: 60 cm; Lofstrom: 1.2–18 cm at 100–1000 Hz (p.4)`]);
+                    rows.push(['carrier', `${f.toFixed(0)} Hz sits in p.11's ${FREQ_TABLE.columns[col].label} column: ${cells.join(' · ') || 'between cells (spans carry ±½ decade)'}`]);
+                    reportEl.innerHTML = '<b>report card: you vs the paper</b><br>' +
                         rows.map(([k, v]) => `<span class="go-report-key">${k}</span> ${v}`).join('<br>');
                     reportEl.style.display = 'block';
                 }
@@ -4747,14 +4747,14 @@
             brownoutReason() {
                 const swKw = ((this._switchingW || 0) / 1000).toFixed(0);
                 if (this._gapMarginMm <= 0) {
-                    return `why: flutter ±${this._flutterMm.toFixed(2)} mm fills the ±${this.airGapMm.toFixed(2)} mm gap — stack unloaded, switching ${swKw} kW buys no thrust`;
+                    return `why: flutter ±${this._flutterMm.toFixed(2)} mm fills the ±${this.airGapMm.toFixed(2)} mm gap. Stack unloaded, switching ${swKw} kW buys no thrust`;
                 }
                 const u = this.slipU();
                 const exKw = ((this._extractionW || 0) / 1000).toFixed(0);
                 if (u >= 0.8) {
-                    return `why: slip closed (u = ${u.toFixed(2)} — thrust → 0) — skim ${exKw} kW collapsed under the flat ${swKw} kW switching draw`;
+                    return `why: slip closed (u = ${u.toFixed(2)}, thrust → 0). Skim ${exKw} kW collapsed under the flat ${swKw} kW switching draw`;
                 }
-                return `why: skim ${exKw} kW < switching ${swKw} kW — extraction grows with speed; switching is flat`;
+                return `why: skim ${exKw} kW < switching ${swKw} kW. Extraction grows with speed; switching is flat`;
             }
 
             // M3.5 (decision 19): descending climbers replace the arcade pickups. One
@@ -4788,14 +4788,14 @@
                                                      + DESCENDER_SPEED_MPS) * 3.6);
                         const card = d.targetAlt === 30000
                             ? { title: 'a descending climber blurs past', lines: [
-                                `closing speed ≈ ${closeKmh} km/h — two climbers passing at cruise.`,
-                                'the paper sketches this rider (p.5: the Descender) — the same machinery',
+                                `closing speed ≈ ${closeKmh} km/h, two climbers passing at cruise.`,
+                                'the paper sketches this rider (p.5: the Descender), the same machinery',
                                 'as yours, riding the wave down. lofstrom: descenders dissipate energy',
-                                'into ribbon vibrations — the ripple on the film is that energy, schematic.'] }
+                                'into ribbon vibrations: the ripple on the film is that energy, schematic.'] }
                             : { title: 'power from the top', lines: [
                                 `another descender, closing ≈ ${closeKmh} km/h. The paper's own answer to`,
                                 '"how to power more than one climber" (p.14): mode conversion in space, or',
-                                'power FROM THE TOP — space solar, or descenders dumping energy back into',
+                                'power FROM THE TOP: space solar, or descenders dumping energy back into',
                                 'the ribbon. Your FG40 stack can only skim; it cannot share.'] };
                         this._beatQueue.push(card);
                     }
@@ -4883,7 +4883,7 @@
                     const billMw = (waveDragColumnPowerW(this.waveSystem.amplitude * f * 2 * Math.PI,
                         this.vineWidth * 10, this.filmThicknessMm) / 1e6).toFixed(1);
                     push('transverse', 'a transverse wave would be dead here', [
-                        'quadratic drag caps a transverse wave at 45 km/h — 20 kW total (paper p.7).',
+                        'quadratic drag caps a transverse wave at 45 km/h, 20 kW total (paper p.7).',
                         `you are doing ${kmh} km/h on a LONGITUDINAL wave: its drag bill is ${billMw} MW.`,
                         'same equation, different mode. paper p.7 (drag table) · p.12 (longitudinal vs transverse)',
                     ]);
@@ -4894,7 +4894,7 @@
                 if (upgradeCrossed(prev, alt, 20000, false)) {
                     const localVMax = this.vMaxMps() / Math.sqrt(taperSectionRatioAt(alt, this.taperRatio, GameConfig.MISSION.DELIVER_ALTITUDE_M));
                     push('thinning', 'the air is thinning', [
-                        `air ${airDensityReadout(alt)} of sea level and falling — drag is letting go.`,
+                        `air ${airDensityReadout(alt)} of sea level and falling: drag is letting go.`,
                         `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(localVMax * 3.6)} km/h here.`,
                         'if you left margin in the stress budget, this is where it pays. (paper p.7)',
                     ]);
@@ -5140,7 +5140,7 @@
                     if (act === 2 && !this._actBreakFired) {
                         this._actBreakFired = true;
                         this._actBreakTimer = 4.5;   // banner seconds (sim time: pauses with the game)
-                        this.triggerMilestone('ACT II — VACUUM');
+                        this.triggerMilestone('ACT II: VACUUM');
                         this.audio.actBreak();
                     }
                     this._act = act;
@@ -5210,7 +5210,7 @@
                     }
                     if (this.altimeterLabel) {
                         const altStr = lm.altitude >= 1000 ? (lm.altitude / 1000).toFixed(0) + ' km' : lm.altitude + ' m';
-                        this.altimeterLabel.textContent = '\u{1F4CD} ' + lm.name + ' \u2014 ' + altStr;
+                        this.altimeterLabel.textContent = '\u{1F4CD} ' + lm.name + ': ' + altStr;
                         this.altimeterLabel.classList.add('visible');
                     }
                 }
@@ -5606,7 +5606,7 @@
                 if (_uxHudLevel === HUD_FULL) {
                     lines.push({ text: literal
                             ? `FG40 ×${this.nPairs} pr · ${(stackLenM * 100).toFixed(0)} cm · dry ${this.dryMassKg().toFixed(1)} kg`
-                            : `FG40 ×${this.nPairs} pr · ${stackLenM.toFixed(1)} m — ${drawnPairs} drawn (schematic)`,
+                            : `FG40 ×${this.nPairs} pr · ${stackLenM.toFixed(1)} m · ${drawnPairs} drawn (schematic)`,
                         col: 'rgba(159, 212, 160, 0.95)' });
                 }
                 lines.push(margin > 0
@@ -5615,8 +5615,8 @@
                             : `centering auto · gap ±${this.airGapMm.toFixed(2)} mm · margin ${margin.toFixed(2)} mm`,
                         col: 'rgba(190, 240, 255, 0.85)' }
                     : { text: narrow
-                            ? `UNLOADED — flutter ±${this._flutterMm.toFixed(2)} mm ≥ gap: tension up`
-                            : `UNLOADED — flutter ±${this._flutterMm.toFixed(2)} mm ≥ gap ${this.airGapMm.toFixed(2)} mm: widen gap or tension up`,
+                            ? `UNLOADED: flutter ±${this._flutterMm.toFixed(2)} mm ≥ gap: tension up`
+                            : `UNLOADED: flutter ±${this._flutterMm.toFixed(2)} mm ≥ gap ${this.airGapMm.toFixed(2)} mm: widen gap or tension up`,
                         col: couplingColor(0) });
                 // M3.6 (decision 18): a stall costs time and says WHY, in words, here —
                 // it never ends the run. Two physical causes: slip collapsed near u → 1
@@ -5627,12 +5627,12 @@
                     const u = this.slipU();
                     lines.push(u >= 0.5
                         ? { text: narrow
-                                ? `STALLED — slip collapsed (u = ${u.toFixed(2)}): the asymptote`
-                                : `STALLED — thrust < weight: slip collapsed (u = ${u.toFixed(2)}) · this is the asymptote for this config`,
+                                ? `STALLED: slip collapsed (u = ${u.toFixed(2)}): the asymptote`
+                                : `STALLED: thrust < weight: slip collapsed (u = ${u.toFixed(2)}) · this is the asymptote for this config`,
                             col: couplingColor(0) }
                         : { text: narrow
-                                ? `STALLED — thrust < weight (u = ${u.toFixed(2)}): lighten cargo`
-                                : `STALLED — thrust < weight at open slip (u = ${u.toFixed(2)}) · lighten cargo / add pairs (S)`,
+                                ? `STALLED: thrust < weight (u = ${u.toFixed(2)}): lighten cargo`
+                                : `STALLED: thrust < weight at open slip (u = ${u.toFixed(2)}) · lighten cargo / add pairs (S)`,
                             col: couplingColor(0) });
                 }
                 if (engaged && !narrow && _uxHudLevel === HUD_FULL) {
@@ -6011,7 +6011,7 @@
                 // In the 0.01-1 Hz band the table's own verdict is the reflection warning,
                 // not a power cell — say that instead of leaving the line blank.
                 const consequence = power ? power.cell.text : FREQ_TABLE.reflectBand.label;
-                ctx.fillText(`p.11: carrier ${carrier.toFixed(1)} Hz → the ${FREQ_TABLE.columns[col].label} column — ${consequence}`,
+                ctx.fillText(`p.11: carrier ${carrier.toFixed(1)} Hz → the ${FREQ_TABLE.columns[col].label} column: ${consequence}`,
                              plateX + 8, plateY + 29);
                 if (scoreLine) {
                     // Same state colours as the mission block (bright once delivered), but
@@ -6109,13 +6109,13 @@
                 let scoreLabel;
                 if (this.cargoDelivered) {
                     const kgH = throughputKgPerHour(this.deliveredKg, this._deliveredInS || 0);
-                    scoreLabel = `Delivered ${this.deliveredKg.toFixed(0)} kg in ${this._fmtTime(this._deliveredInS || 0)} — ${kgH.toFixed(0)} kg/h (best ${Math.round(this.cargoBest)})`;
+                    scoreLabel = `Delivered ${this.deliveredKg.toFixed(0)} kg in ${this._fmtTime(this._deliveredInS || 0)}, ${kgH.toFixed(0)} kg/h (best ${Math.round(this.cargoBest)})`;
                 } else if (this._climbStartS !== null && this.monkey.altitude > 0.5) {
                     const frac = this.monkey.altitude / GameConfig.MISSION.DELIVER_ALTITUDE_M;
                     const pace = throughputKgPerHour(cargoKg * frac, this._runTimeS - this._climbStartS);
                     scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo · pace ${pace.toFixed(0)} kg/h to Kármán`;
                 } else {
-                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo — deliver it to the Kármán line (100 km)`;
+                    scoreLabel = `Mission: ${cargoKg.toFixed(0)} kg cargo, deliver it to the Kármán line (100 km)`;
                 }
                 ctx.fillText(scoreLabel, 10, 16);
                 ctx.fillStyle = 'rgba(159, 212, 160, 0.9)';
@@ -6138,7 +6138,7 @@
                 this.roundRect(ctx, 6, 86, 218, 32, 4);
                 ctx.font = 'bold 11px monospace';
                 ctx.fillStyle = act === 2 ? 'rgba(190, 240, 255, 0.95)' : 'rgba(255, 214, 150, 0.9)';
-                ctx.fillText(act === 2 ? 'ACT II — vacuum' : 'ACT I — atmosphere', 12, 99);
+                ctx.fillText(act === 2 ? 'ACT II: vacuum' : 'ACT I: atmosphere', 12, 99);
                 ctx.font = '10px monospace';
                 ctx.fillStyle = 'rgba(210, 225, 235, 0.8)';
                 ctx.fillText(`air ${airDensityReadout(this.monkey.altitude)} of sea level`, 12, 112);
@@ -6154,8 +6154,8 @@
                 const alpha = _uxReducedMotion ? 0.95
                     : Math.max(0, Math.min(0.95, (4.5 - t) / 0.4, t / 1.2));
                 const lines = [
-                    { text: 'ACT II — VACUUM', font: 'bold 34px monospace', col: '#bef0ff', dy: -130 },
-                    { text: 'the atmosphere lets go — drag ~0', font: '13px monospace', col: 'rgba(235, 242, 248, 0.95)', dy: -106 },
+                    { text: 'ACT II: VACUUM', font: 'bold 34px monospace', col: '#bef0ff', dy: -130 },
+                    { text: 'the atmosphere lets go, drag ~0', font: '13px monospace', col: 'rgba(235, 242, 248, 0.95)', dy: -106 },
                     { text: 'your limits now: film stress (v_max) · switching watts · slip u', font: '13px monospace', col: 'rgba(235, 242, 248, 0.95)', dy: -88 },
                     { text: 'paper p.7 (drag caps) · p.11 (frequency trade table)', font: '10px monospace', col: 'rgba(190, 240, 255, 0.75)', dy: -70 },
                 ];
@@ -6211,7 +6211,7 @@
                 ctx.textAlign = 'left';
                 ctx.font = '9px monospace';
                 ctx.fillStyle = 'rgba(190, 240, 255, 0.7)';
-                ctx.fillText('paper p.11 — Frequency Considerations', plateX + 10, plateY + 14);
+                ctx.fillText('paper p.11: Frequency Considerations', plateX + 10, plateY + 14);
                 ctx.textAlign = 'right';
                 ctx.fillStyle = COLOR_PALETTE.GRAB_GOLD;
                 ctx.fillText(`carrier ${carrier.toFixed(1)} Hz → the ${T.columns[col].label} Hz column`, plateX + plateW - 12, plateY + 14);
@@ -6281,7 +6281,7 @@
                 ctx.font = '8px monospace';
                 ctx.fillStyle = 'rgba(190, 240, 255, 0.45)';
                 ctx.fillText('Cell spans read off the paper\u2019s layout (\u00B1\u00BD decade). p.3 says climbers reflect \u03BB << 1000 km, yet this table', plateX + 10, plateY + 117);
-                ctx.fillText('gives \u201Cuse all power\u201D at 10-1000 Hz — the more specific claim is implemented; the tension is the paper\u2019s own.', plateX + 10, plateY + 127);
+                ctx.fillText('gives \u201Cuse all power\u201D at 10-1000 Hz. The more specific claim is implemented; the tension is the paper\u2019s own.', plateX + 10, plateY + 127);
                 ctx.restore();
             }
 
@@ -6425,7 +6425,7 @@
                 // read against the bright low-altitude sky; the plate is sized for the
                 // UNBLINKEN text so it does not breathe with the blink.
                 if (this.epmBrownout) {
-                    const head = 'EPM BROWNOUT — coast to recharge';
+                    const head = 'EPM BROWNOUT: coast to recharge';
                     ctx.font = 'bold 14px monospace';
                     const headW = ctx.measureText(head).width;
                     ctx.font = '10px monospace';

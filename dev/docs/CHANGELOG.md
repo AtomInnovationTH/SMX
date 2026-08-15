@@ -15,6 +15,28 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Changed (the em-dash sweep of the shipped copy, August 2026)
+
+- **Every player-facing em dash is swept out of the shipped copy.** The social
+  og:/twitter meta tags, the settings hints and labels (the old em-dash
+  pending-value placeholders are now the ellipsis), the settings-concept and
+  Still Unsolved prose, the noscript/loading/game-over overlays, the HUD-level
+  toasts, the game-over throughput and report card, the brownout headline and
+  why-lines, the FG40 stack and UNLOADED/STALLED labels, the act HUD line and
+  vacuum banner, the p.11 dashboard title, compact line and footnote, the
+  altimeter pill, the suit label, the 12/20 km beat bodies and both descender
+  card bodies, plus the three WebGL console diagnostics. Replacements are
+  mechanical (commas, colons, parentheses, full stops); each string keeps its
+  meaning and roughly its plate width. Comments were left alone deliberately.
+  The smoke-pinned card titles and body fragments (`no converter`,
+  `no temperature is modelled`, `+73 `, the share-card budget quotes) were
+  checked against `dev/tests/smoke/smoke.mjs` first and kept verbatim. No
+  physics: `updateContinuous` byte-identical, snapshot not regenerated. Gate
+  passed (140 unit, 29 smoke, 98 = 98 refs) after staging the regenerated
+  index.html; captures re-shot and committed (stills moved on shader noise only,
+  composition exact; the clip's minimal plate shows the new colon form of the
+  p.11 line).
+
 #### Fixed (review pass after the thermal shift, August 2026)
 
 - **The 30 km card's drag-heating figure now reads the film speed the physics runs.**

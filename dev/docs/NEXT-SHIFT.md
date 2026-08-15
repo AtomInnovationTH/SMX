@@ -1,8 +1,11 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the review-and-fix pass that followed
-the M4 hot-side-of-thermal shift: one correctness bug in the new card found and fixed
+that have already cost time. Updated at the end of the em-dash sweep shift: priority 1's
+sweep of the shipped copy landed (no em dash remains in any player-facing string or
+markup; comments untouched by design), gate green at 140/29/98, captures re-shot and
+committed, no physics and no layout changes. Before that, the review-and-fix pass on the
+M4 hot-side-of-thermal shift: one correctness bug in the new card found and fixed
 (the drag-heating figure now reads the film speed the physics actually runs, under
 resonance and taper), no physics, the balance trace untouched, and the paper's deferred
 list still empty.
@@ -34,6 +37,26 @@ list still empty.
   cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
 ## What last shift changed, so you do not undo it
+
+- **The em-dash sweep of the shipped copy (old priority 1); no physics, no mechanics,
+  no layout.** Every player-facing em dash in `Space_Monkey_Elevator.html` was replaced
+  mechanically (commas, colons, parentheses, full stops; meaning and plate width kept):
+  the og:/twitter meta tags, settings hints/labels (the old em-dash pending-value
+  placeholders are now the ellipsis), the settings-concept and Still Unsolved prose,
+  the noscript/loading/game-over overlays, HUD-level toasts, the game-over throughput
+  and report card, the brownout headline and why-lines, the stack and UNLOADED/STALLED
+  labels, the act line and vacuum banner, the p.11 title/compact line/footnote, the
+  altimeter pill (the one escaped `\u2014`), the suit label, the 12/20 km and both
+  descender card bodies, plus the three WebGL console diagnostics. `updateContinuous`
+  is byte-identical (md5-verified), the snapshot was NOT regenerated, and the only
+  em dashes left in the file are in comments (CSS, HTML, JS and the two SVG-artwork
+  notes inside the sprite templates), all out of scope by design. The smoke-pinned
+  titles and body fragments were grepped first and kept verbatim; the gate passed
+  (140 unit, 29 smoke, 98 = 98, 422 KB) after staging the regenerated index.html
+  (the expected out-of-sync trip on the first run, not a regression). The captures were
+  re-shot and committed: the stills moved on shader noise only (256.3 m / 360.0 m,
+  centres exact, no new text in frame), and the clip now shows the colon form of the
+  p.11 compact line. New prose rule unchanged: no em dashes anywhere new.
 
 - **A review-and-fix pass on the thermal shift; no physics, no mechanics.** The review
   found one correctness bug in the shift's new code: the 30 km card computed the
@@ -643,32 +666,27 @@ wave-drag, resonance, power-sharing and mode-conversion shifts before it shipped
 same way, and the review-and-docs pass after mode conversion changed no behaviour
 either. The paper's deferred simulation list is now EMPTY. Do not reopen any of them.
 
-### 1. One contained hygiene task nobody has claimed
+### 1. (done) The em-dash sweep of the shipped copy
 
-- **The em-dash ban is not enforced in the shipped copy.** Fresh reproducible count
-  (the review pass after the thermal shift): 42 script lines carry an em dash inside
-  player-facing strings (HUD lines, toasts, beat cards, panel copy), 31 markup lines
-  carry one too (that includes the 6 `&mdash;` entities in the settings markup, the
-  settings hints and labels, and the og:/twitter meta tags in the head, which are
-  player-facing on social cards), and 243 comment lines carry them (repo-facing; OUT
-  of this sweep's scope, the sweep is the shipped copy). New prose has been clean for
-  several shifts, but the backlog still ships to players. Two findings make the sweep
-  safer than it looks: NO test pins an expected string value containing an em dash
-  (verified: every assertion with an em dash is a test name or a failure message, and
-  the only em-dash-adjacent guard is `minimalScoreLine`'s "no em dash" test, which
-  the sweep cannot trip), and the smoke suite pins no toast text. The other side of
-  that coin: smoke DOES match card titles by `includes()` ('transverse', 'convert
-  modes', 'stops carrying your heat', 'descending climber', 'power from the top')
-  and two by exact equality ('a second climber requests power', 'sharing the wave
-  with a second climber'), plus the body fragments `/no converter/`,
-  `/no temperature is modelled/` and `/\+73 /`: before rewriting any player-facing
-  string, grep `dev/tests/smoke/smoke.mjs` for its distinctive words and keep any
-  matched fragment verbatim. The sweep itself is
-  mechanical (commas, colons, parentheses, full stops; keep each string's meaning and
-  roughly its width) and needs a capture pass after it, because several of those
-  strings are width-tuned to a plate: eyeball every text-carrying still that moves.
-  (The second old hygiene task, marking `dev/docs/v1.0-roadmap.md` historical, was
-  done in the review-and-docs pass.)
+**Done this shift.** No em dash remains in any player-facing string or markup line;
+the only em dashes left in the source are in comments (out of scope by design). The
+sweep was mechanical (commas, colons, parentheses, full stops; width kept), the
+smoke-pinned titles and body fragments were grepped first and kept verbatim, the
+gate tripped the expected out-of-sync step on the first run (staged the regenerated
+index.html, not a regression) and then passed 140 unit / 29 smoke / 98 = 98 refs,
+and the capture pass re-shot and committed
+the stills (shader noise only; centres exact) and the clip. The traps recorded for
+the sweep stay on record for any future text edit: no test pins an expected string
+value containing an em dash (the only em-dash-adjacent guard is `minimalScoreLine`'s
+"no em dash" test), and smoke DOES match card titles by `includes()` ('transverse',
+'convert modes', 'stops carrying your heat', 'descending climber', 'power from the
+top'), two by exact equality ('a second climber requests power', 'sharing the wave
+with a second climber'), plus the body fragments `/no converter/`,
+`/no temperature is modelled/`, `/\+73 /` and the share-card budget regexes. Check
+`dev/tests/smoke/smoke.mjs` for distinctive words before touching any player-facing
+string, and keep matched fragments verbatim. New prose stays em-dash-free.
+
+The standing hygiene list is now empty; the backlog below is next.
 
 ### Backlog, any order
 
