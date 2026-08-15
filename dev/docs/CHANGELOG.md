@@ -15,6 +15,14 @@ hardware. Physics landed first (M1-M2); the illustration layer landed next (M3),
 M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
+#### Fixed (review pass after the wave-budget display, August 2026)
+
+- **The Wave arriving hint no longer names dev-side machinery.** The single-source
+  sentence read "the coupling, the balance harness and the 85 km beat card", two
+  repo concepts no other player-facing string uses; it now reads "your stack's
+  coupling ... and the 85 km share-or-refuse card". No physics, no smoke-pinned
+  string moved (the pins quote the label's value, not the hint), stills unaffected.
+
 #### Added (slide-6 wave power budget display, August 2026)
 
 - **The slide-6 transported-power budget as a live Ground-station readout ("Wave

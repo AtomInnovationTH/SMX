@@ -41,9 +41,7 @@ list still empty.
   resonance shift before that (off by default): 100 km in 350.7 s, mean 1027 km/h,
   cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
 
-## What the shift before changed, so you do not undo it
-
-(This section reads newest-first: the em-dash sweep entry below is now the second-most-recent shift.)
+## What last shift changed, so you do not undo it
 
 - **The wave power budget display (backlog item 1, slide 6) is live as a readout,
   not a mechanic; no physics, and no committed screen's text or layout moved.**
@@ -90,9 +88,12 @@ list still empty.
   staged (140 unit, 29 smoke, 98 = 98, 426 KB).
 - **Em dashes in new prose: none.** The new label, hint, smoke comments and doc
   prose were written clean; one slipped into a smoke comment during drafting and
-  was fixed before commit.
+  was fixed before commit. The post-commit review pass found two nits, both fixed:
+  the hint's single-source sentence named dev-side machinery (the balance harness,
+  the beat card) no other player-facing string uses, and this file's heading chain
+  had broken the "From earlier shifts" demotion convention.
 
-## What the em-dash sweep changed (the shift before), so you do not undo it
+### From earlier shifts (the em-dash sweep of the shipped copy)
 
 - **The em-dash sweep of the shipped copy (old priority 1); no physics, no mechanics,
   no layout.** Every player-facing em dash in `Space_Monkey_Elevator.html` was replaced
@@ -753,8 +754,8 @@ The standing hygiene list is now empty; the backlog below is next.
 
 - **(done) Wave power budget display (slide 6).** Shipped this shift as the Ground-station
   "Wave arriving" readout, computed per frame from `waveSharedBudgetW` itself, with the
-  plain / resonant-injection / shared readings all mined in smoke checks 12/13b/13c.
-  See "What the shift before changed" above.
+  plain / resonant-injection / shared readings all pinned in smoke checks 12/13b/13c.
+  See "What last shift changed" above.
 - **Resonance texture**: `resonanceModeAt.periodS` is on the readout; a visible crest
   scale could ride it.
 - **Bootstrap pacing**: `throughputKgPerHour` is pinned and shown at the minimal level.
