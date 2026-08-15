@@ -6,7 +6,10 @@ item 1 shipped (the slide-6 transported-power budget as a live "Wave arriving" r
 the Ground-station group, computed per frame from the very `waveSharedBudgetW` the
 coupling reads, so it cannot disagree with the physics; no helper, no slider, no
 physics), gate green at 140/29/98 and 426 KB, stills verified compositionally unchanged
-and restored. Before that, the em-dash sweep of the shipped copy: priority 1's sweep of
+and restored. The post-commit review pass found and fixed two nits (the hint now speaks
+in-world, this file's heading chain restored), and the shift is pushed, deployed and
+live-verified md5-identical. Before that, the em-dash sweep of the shipped copy: priority
+1's sweep of
 the shipped copy landed (no em dash remains in any player-facing string or
 markup; comments untouched by design), gate green at 140/29/98, captures re-shot and
 committed, no physics and no layout changes. Before that, the review-and-fix pass on the
