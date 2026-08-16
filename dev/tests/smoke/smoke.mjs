@@ -277,10 +277,15 @@ try {
       // State, not clock: monkey.altitude is derived from monkey.y each frame in
       // updatePosition, and the landmark DOM transforms refresh from it in the same
       // frame, so the placement is consumed exactly when the altitude says so. The
-      // 10 s bound is only the escape hatch on a loaded runner.
+      // tolerance is wide on purpose: gravity is integrated BEFORE the derive, so a
+      // stalled first frame (dt clamp) lands ~1 m low and then falls monotonically, so
+      // a tight tolerance would never match and would burn the whole bound (a review
+      // catch on the hardening shift). 100 m can never false-pass on a pre-placement
+      // frame (the two placements are thousands of metres apart, from the ground).
+      // The 10 s bound is only the escape hatch on a loaded runner.
       let placed = false;
       const t0 = Date.now();
-      while (!(placed = Math.abs(g.monkey.altitude - altM) < 0.5)) { if (Date.now() - t0 > 10000) break; await new Promise((r) => setTimeout(r, 25)); }
+      while (!(placed = Math.abs(g.monkey.altitude - altM) < 100)) { if (Date.now() - t0 > 10000) break; await new Promise((r) => setTimeout(r, 25)); }
       // The drift guard: during the poll above gravity may have tugged the climber a
       // few centimetres off the mark; re-place and give the render one rAF frame to
       // draw the sprites at the exact altitude before reading their boxes.

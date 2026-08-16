@@ -922,7 +922,15 @@ film speed the physics runs).
   `frozen.frames >= 24`, `repeatedT === 0 && framesAfter >= 2`), never weakened. What
   stays time-based on purpose: the multi-touch 40 ms wrongful-release beat (a negative
   assertion: nothing may happen in it). Gate green plus five consecutive standalone
-  runs green. The tee advice stands for any NEW one-off:
+  runs green. The post-commit review pass found exactly one defect, fixed in place:
+  the landmark placement poll had a 0.5 m altitude tolerance, but updatePosition
+  integrates gravity BEFORE re-deriving altitude, so a stalled first frame (dt clamp)
+  lands ~1 m low and then falls monotonically: the tight poll would never reconverge
+  and would burn the whole 10 s bound, a new flake introduced by the conversion itself.
+  The poll's job is only to prove a frame consumed the placement (the re-place plus
+  double-RAF after it owns the exactness), so the tolerance is now 100 m, thousands of
+  metres clear of any pre-placement altitude. Gate and five more standalone runs green
+  after the fix. The tee advice stands for any NEW one-off:
   `node dev/tests/smoke/smoke.mjs | tee /tmp/smoke.log`. (The boot-overlay and 85 km
   crossing legs of this note were retired by the bootstrap-progress shift: fixed
   wall-clock waits racing sim time on a loaded runner, made state-based. The CI smoke
