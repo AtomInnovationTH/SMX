@@ -194,7 +194,19 @@ async function boot(query) {
   page.on('pageerror', (e) => failures.push('pageerror: ' + e.message));
   await page.goto(`${BASE}/index.html?debug${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__smokeGame && window.__smokeGame.monkey, null, { timeout: 20000 });
-  await page.waitForTimeout(800); // let the loading overlay clear and sprites decode
+  // State, not clock: the loop starts on loadingManager.onComplete AFTER the overlay's
+  // fade, and a freeze that lands before the overlay clears is cancelled-and-resurrected
+  // by _startLoop() (a recorded trap). The thermometer and suit sprites are NOT counted
+  // by the loading manager (the other recorded trap), so also wait for every
+  // canvas-consumed image to decode.
+  await page.waitForFunction(() => {
+    const o = document.getElementById('loading-overlay');
+    const cleared = !o || getComputedStyle(o).display === 'none' || getComputedStyle(o).opacity === '0';
+    const g = window.__smokeGame;
+    if (!cleared || !g || g._rafId === null) return false;
+    const imgs = [g.monkeyGrabbingImage, g.monkeyFallingImage, g.thermometerImage, ...(g.suitImages || [])];
+    return imgs.every((im) => !im || im.complete);
+  }, null, { timeout: 20000 });
   await page.evaluate(() => {
     const g = window.__smokeGame;
     if (g._rafId !== null) { cancelAnimationFrame(g._rafId); g._rafId = null; }

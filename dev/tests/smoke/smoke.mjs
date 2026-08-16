@@ -166,16 +166,28 @@ try {
     JSON.stringify(grip));
 
   //    ...and dragging it re-labels in millimetres within the published curve's domain.
+  //    State, not clock: the input handler runs synchronously down the eventBus (slider
+  //    listener -> settings:airGap -> updateDerivedReadouts), so the polls pass on the
+  //    first tick; the 5 s bound is only the escape hatch on a loaded runner.
   const gripDrag = await page.evaluate(async () => {
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
     const el = document.getElementById('airGap');
     const before = el.value;
     el.value = '5';
     el.dispatchEvent(new Event('input', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 40));
-    const out = { lbl: document.getElementById('airGapValue').textContent, gap: window.__smokeGame.airGapMm };
+    const out = {};
+    await until(() => {
+      out.lbl = document.getElementById('airGapValue').textContent;
+      out.gap = window.__smokeGame.airGapMm;
+      return out.lbl === '5.00 mm' && Math.abs(out.gap - 5) < 1e-9;
+    });
     el.value = before;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 40));
+    await until(() => Math.abs(window.__smokeGame.airGapMm - 0.15) < 1e-9);
     return { ...out, restored: window.__smokeGame.airGapMm };
   });
   record('air gap slider max reads 5.00 mm (edge of the published curve)',
@@ -200,12 +212,23 @@ try {
     return { origAmp, c: g.epmCharge };
   });
   await page.keyboard.down(' ');
-  await page.waitForTimeout(350);
-  const during = await page.evaluate(() => ({
-    c: window.__smokeGame.epmCharge,
-    n: window.__smokeGame.epmNetPerSec,
-    grab: window.__smokeGame.monkey.isGrabbing,
-  }));
+  // State, not clock: at quality 0 the charge drains every frame and the net readout
+  // is computed per frame, so the predicate is exactly what the record asserts; the
+  // 5 s bound is only the escape hatch on a runner too loaded to render one frame.
+  const during = await page.evaluate(async (c0) => {
+    const g = window.__smokeGame;
+    const s = {};
+    const t0 = Date.now();
+    let ok = false;
+    while (!ok) {
+      s.c = g.epmCharge;
+      s.n = g.epmNetPerSec;
+      s.grab = g.monkey.isGrabbing;
+      ok = s.grab === true && s.c < c0 && s.n < 0;
+      if (!ok) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    }
+    return s;
+  }, epmSetup.c);
   await page.keyboard.up(' ');
   await page.evaluate((amp) => { window.__smokeGame.waveSystem.amplitude = amp; }, epmSetup.origAmp);
   record('EPM: pulsing engages + drains charge (net < 0 at quality 0)',
@@ -224,26 +247,46 @@ try {
     // instead of a large tier — 0.2 / (6.2 - TRICKLE 3.0) ≈ 63 ms to brownout.
     g.waveSystem.amplitude = 0;               // no film velocity -> no thrust -> pure drain
     g.epmCharge = 0.2; g.epmBrownout = false; g.monkey.isGrabbing = true;
-    await new Promise((r) => setTimeout(r, 400));
-    const latched = g.epmBrownout, cueAtLatch = window.__cue;
-    await new Promise((r) => setTimeout(r, 300));
+    // State, not clock: the latch trips on SIM charge (the drain is dt-scaled, and the
+    // dt clamp means a loaded runner simulates less per wall second), so wait on the
+    // latch itself. 200 x 25 ms = 5 s of wall patience, far past the healthy ~63 ms,
+    // and the detail tells the next failure which side it died on.
+    let latched = false;
+    for (let i = 0; i < 200 && !(latched = g.epmBrownout === true); i++) { await new Promise((r) => setTimeout(r, 25)); }
+    const cueAtLatch = window.__cue;
+    // The single-fire proof is a negative assertion: the cue must NOT refire while the
+    // latch stays down. That is inherently a soak, so soak in STATE: 18 frames is the
+    // old 300 ms at 60fps, and a buggy per-frame refire shows in one.
+    let cueFrames = 0; const origUpdate = g._boundUpdate;
+    g._boundUpdate = (t) => { cueFrames++; return origUpdate(t); };
+    for (let i = 0; i < 200 && cueFrames < 18; i++) { await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = origUpdate;
     const cueHeld = window.__cue;
     g.monkey.isGrabbing = false;              // coast -> trickle recovery
     let recovered = false;
     for (let i = 0; i < 30 && !recovered; i++) { await new Promise((r) => setTimeout(r, 500)); recovered = g.epmBrownout === false; }
-    return { latched, cueAtLatch, cueHeld, recovered, charge: g.epmCharge };
+    return { latched, cueAtLatch, cueHeld, cueFrames, recovered, charge: g.epmCharge };
   });
-  record('EPM: brownout latch + single-fire cue + recovery', brownout.latched && brownout.cueAtLatch === 1 && brownout.cueHeld === 1 && brownout.recovered, JSON.stringify(brownout));
+  record('EPM: brownout latch + single-fire cue + recovery', brownout.latched && brownout.cueAtLatch === 1 && brownout.cueHeld === 1 && brownout.cueFrames >= 18 && brownout.recovered, JSON.stringify(brownout));
 
   // 5) Landmark transform anchors: Everest spans the viewport; Kármán is centered.
   const anchors = await page.evaluate(async () => {
     const g = window.__smokeGame;
     const at = async (altM) => {
       g.monkey.y = -altM * 10; g.monkey.velocityY = 0; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
-      await new Promise((r) => setTimeout(r, 120));
+      // State, not clock: monkey.altitude is derived from monkey.y each frame in
+      // updatePosition, and the landmark DOM transforms refresh from it in the same
+      // frame, so the placement is consumed exactly when the altitude says so. The
+      // 10 s bound is only the escape hatch on a loaded runner.
+      let placed = false;
+      const t0 = Date.now();
+      while (!(placed = Math.abs(g.monkey.altitude - altM) < 0.5)) { if (Date.now() - t0 > 10000) break; await new Promise((r) => setTimeout(r, 25)); }
+      // The drift guard: during the poll above gravity may have tugged the climber a
+      // few centimetres off the mark; re-place and give the render one rAF frame to
+      // draw the sprites at the exact altitude before reading their boxes.
       g.monkey.y = -altM * 10; g.monkey.velocityY = 0;
-      await new Promise((r) => setTimeout(r, 80));
-      const out = {};
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const out = { placed };
       g.landmarkSystem.landmarks.forEach((l) => {
         if (l.element.style.display === 'none') return;
         const r = l.element.getBoundingClientRect();
@@ -256,23 +299,39 @@ try {
   });
   const everestOk = anchors.e.everest && Math.abs(anchors.e.everest.w - anchors.e.everest.vw) < 2 && Math.abs(anchors.e.everest.left) < 2;
   const karmanOk = anchors.k.karman && Math.abs(anchors.k.karman.cx - anchors.k.karman.half) < 40;
-  record('anchors: Everest full-width + Kármán centered', everestOk && karmanOk, JSON.stringify(anchors));
+  record('anchors: Everest full-width + Kármán centered', everestOk && karmanOk && anchors.e.placed === true && anchors.k.placed === true, JSON.stringify(anchors));
 
-  // 6) Single RAF loop: a fast pause/unpause burst must not leave a second chain (rate-independent).
+  // 6) Single RAF loop: a fast pause/unpause burst must not leave a second chain
+  //    (rate-independent AND now clock-independent). The old version sampled calls over
+  //    two fixed 500 ms windows and asserted a ratio < 1.4; a loaded CI runner frames
+  //    unevenly inside a fixed window, which is the flake this suite kept paying.
+  //    Structural instead: every callback in one rAF batch receives the SAME timestamp,
+  //    so a doubled chain must call update twice with the same t. Count calls per t and
+  //    assert no t repeats, then count frames over a bounded state wait.
   const raf = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
-    let calls = 0; const orig = g._boundUpdate; g._boundUpdate = (t) => { calls++; return orig(t); };
-    const win = async () => { const s = calls; await new Promise((r) => setTimeout(r, 500)); return calls - s; };
-    await new Promise((r) => setTimeout(r, 200));
-    const baseline = await win();
+    let calls = 0; const perT = new Map(); let repeatedT = 0;
+    const orig = g._boundUpdate;
+    g._boundUpdate = (t) => {
+      calls++;
+      const n = (perT.get(t) || 0) + 1; perT.set(t, n);
+      if (n === 2) repeatedT++;          // count a doubled t once, not per extra call
+      return orig(t);
+    };
+    // Settle until a couple of frames have definitely run THROUGH the wrapped callback
+    // (state, not clock): the burst that follows must be measured on a live chain.
+    for (let i = 0; i < 200 && calls < 2; i++) await new Promise((r) => setTimeout(r, 25));
+    perT.clear();
     for (let i = 0; i < 30; i++) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     if (g.paused) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    const burst = await win();
+    const after = calls;
+    for (let i = 0; i < 200 && calls - after < 2; i++) await new Promise((r) => setTimeout(r, 25));
+    const framesAfter = calls - after;
     g._boundUpdate = orig;
-    return { baseline, burst, ratio: burst / baseline, paused: g.paused };
+    return { repeatedT, framesAfter, paused: g.paused };
   });
-  record('loop: single RAF chain after pause/unpause burst', raf.paused === false && raf.ratio < 1.4, JSON.stringify(raf));
+  record('loop: single RAF chain after pause/unpause burst', raf.paused === false && raf.repeatedT === 0 && raf.framesAfter >= 2, JSON.stringify(raf));
 
   // 7) Focus loss releases the engage latch and clears held keys. SPACE is the only
   //    gameplay key now that the lateral axis is gone, so this presses SPACE plus an inert
@@ -280,17 +339,25 @@ try {
   //    suppressed keyup would leave the stack engaged forever.
   const blur = await page.evaluate(async () => {
     const g = window.__smokeGame;
+    // State, not clock: every latch below is set inside a synchronous keydown/blur
+    // handler, so each poll passes on its first tick when the handler ran; the 5 s
+    // bound only absorbs a loaded runner's task-queue latency.
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
     g.paused = false; g.gameOver = false; g.running = true;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' })); // inert: no handler
-    await new Promise((r) => setTimeout(r, 60));
+    await until(() => g.monkey.isGrabbing === true && g.inputManager.isKeyPressed(' ') && g.inputManager.isKeyPressed('x'));
     const before = {
       grab: g.monkey.isGrabbing,
       space: g.inputManager.isKeyPressed(' '),
       inert: g.inputManager.isKeyPressed('x'),
     };
     window.dispatchEvent(new Event('blur'));
-    await new Promise((r) => setTimeout(r, 60));
+    await until(() => g.monkey.isGrabbing === false && Object.keys(g.inputManager.keys).length === 0);
     const after = {
       grab: g.monkey.isGrabbing,
       space: g.inputManager.isKeyPressed(' '),
@@ -322,31 +389,40 @@ try {
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   });
   await page.mouse.click(gearBox.x, gearBox.y);
-  await page.waitForTimeout(80);
+  // State, not clock: the panel and the focus drop are driven by the click handler;
+  // wait until that has actually happened rather than for a fixed 80 ms.
+  await page.waitForFunction(
+    () => document.getElementById('settingsPanel').classList.contains('visible'),
+    null, { timeout: 5000, polling: 100 });
   const gearState = await page.evaluate(() => ({
     panelVisible: document.getElementById('settingsPanel').classList.contains('visible'),
     activeTag: document.activeElement && document.activeElement.tagName,
   }));
   // Gameplay keys must still reach the game after clicking the gear (focus was dropped).
   await page.keyboard.down(' ');
-  await page.waitForTimeout(120);
+  await page.waitForFunction(() => window.__smokeGame.monkey.isGrabbing === true, null, { timeout: 5000, polling: 100 });
   const pulseAfterGear = await page.evaluate(() => window.__smokeGame.monkey.isGrabbing);
   await page.keyboard.up(' ');
   // A second, non-SPACE gameplay key must also reach the game. Arrows used to serve here;
   // with the lateral axis gone, the wave-type keys are the surviving observable input.
   await page.evaluate(() => window.__smokeGame.waveSystem.setType('sine'));
   await page.keyboard.press('2');
-  await page.waitForTimeout(80);
+  await page.waitForFunction(() => window.__smokeGame.waveSystem.getType() === 'square', null, { timeout: 5000, polling: 100 });
   const waveAfterGear = await page.evaluate(() => window.__smokeGame.waveSystem.getType());
   await page.evaluate(() => window.__smokeGame.waveSystem.setType('sine'));
   const labels = await page.evaluate(async () => {
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
     const btn = document.getElementById('colorblindToggle');
     const initial = btn.textContent;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' })); // C key route
-    await new Promise((r) => setTimeout(r, 30));
+    await until(() => btn.textContent !== initial);
     const afterC = btn.textContent;
     btn.click(); // button route
-    await new Promise((r) => setTimeout(r, 30));
+    await until(() => btn.textContent !== afterC);
     return { initial, afterC, afterBtn: btn.textContent };
   });
   record('gear opens Settings (real click), drops focus, colorblind label in sync',
@@ -362,25 +438,32 @@ try {
   //    fresh confirm instead of a single stray R restarting immediately.
   const latch = await page.evaluate(async () => {
     const g = window.__smokeGame;
+    // State, not clock: arm/confirm run inside the synchronous keydown handler, so these
+    // polls pass on the first tick; the 5 s bound only absorbs a loaded runner.
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
     g.paused = false; g.gameOver = false; g.running = true;
     g.restartArmedAt = 0;
     let initCalls = 0;
     const origInit = g.initGame.bind(g);
     g.initGame = (...a) => { initCalls++; return origInit(...a); };
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' })); // arm
-    await new Promise((r) => setTimeout(r, 30));
+    const armTook = await until(() => g.restartArmedAt > 0);
     const armed = g.restartArmedAt > 0;
     const callsAfterArm = initCalls;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' })); // confirm
-    await new Promise((r) => setTimeout(r, 50));
+    const confirmTook = await until(() => initCalls === callsAfterArm + 1 && g.restartArmedAt === 0);
     const callsAfterConfirm = initCalls;
     const armedAtCleared = g.restartArmedAt === 0;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' })); // fresh run, single R
-    await new Promise((r) => setTimeout(r, 30));
+    const d1Took = await until(() => g.restartArmedAt > 0);
     const d1Armed = g.restartArmedAt > 0; // armed again, not an instant restart
     const callsAfterD1 = initCalls;
     g.initGame = origInit;
-    return { armed, callsAfterArm, callsAfterConfirm, armedAtCleared, d1Armed, callsAfterD1 };
+    return { armed, armTook, callsAfterArm, confirmTook, callsAfterConfirm, armedAtCleared, d1Armed, d1Took, callsAfterD1 };
   });
   record('restart: arm then confirm restarts; fresh run needs a fresh confirm',
     latch.armed === true && latch.callsAfterArm === 0 &&
@@ -394,12 +477,20 @@ try {
   //     is in the model. Reads the live render handles on window.__smokeGame.
   const stack = await page.evaluate(async () => {
     const g = window.__smokeGame;
+    // State, not clock: the drawn-pair count and the sweep position are render-path
+    // values, so each poll is exactly "a frame drew with this state", however late the
+    // runner renders it.
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
     g.paused = false; g.gameOver = false; g.running = true;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
-    await new Promise((r) => setTimeout(r, 150));
+    await until(() => g.monkey.isGrabbing === true && g._stackDrawnPairs === 8);
     const out = { grab: g.monkey.isGrabbing, pairs: g._stackDrawnPairs, literal: g._stackDrawnLiteral,
                   nPairs: g.nPairs, sweepA: g._stackSweepPos };
-    await new Promise((r) => setTimeout(r, 300));
+    await until(() => g._stackSweepPos !== out.sweepA);
     out.sweepB = g._stackSweepPos;
     window.dispatchEvent(new KeyboardEvent('keyup', { key: ' ' }));
     return out;
@@ -500,12 +591,19 @@ try {
   const frozen = await rmPage.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
+    // The frozen proof is a negative assertion: the sweep must NOT move while frames
+    // keep running. Soak in STATE, not clock: 24 frames is the old 400 ms at 60fps,
+    // and the frame count proves the soak was real even on a runner that idled.
+    let frames = 0; const orig = g._boundUpdate;
+    g._boundUpdate = (t) => { frames++; return orig(t); };
+    const t0 = Date.now();
     const a = g._stackSweepPos;
-    await new Promise((r) => setTimeout(r, 400));
-    return { a, b: g._stackSweepPos, flag: g._stackSweepFrozen, pairs: g._stackDrawnPairs };
+    while (frames < 24) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = orig;
+    return { a, b: g._stackSweepPos, flag: g._stackSweepFrozen, pairs: g._stackDrawnPairs, frames };
   });
   record('firing sweep freezes to a static lit state under reduced motion',
-    frozen.flag === true && frozen.a === frozen.b && frozen.pairs === 8, JSON.stringify(frozen));
+    frozen.flag === true && frozen.a === frozen.b && frozen.pairs === 8 && frozen.frames >= 24, JSON.stringify(frozen));
   await rmContext.close();
 
   // 12) M3.4: the event schedule — the 12 km transverse reveal fires on the crossing
@@ -529,22 +627,34 @@ try {
   const beats = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
-    g.monkey.velocityY = -20000;                       // 2 km/s: fast, deterministic crossings
+    // Climb until each crossing has ACTUALLY happened (state, not clock), the same
+    // discipline the 85 km legs taught: the dt clamp means a loaded runner simulates
+    // less per wall second, so a fixed 400 ms can end short of the crossing and the
+    // whole card/queue cascade fails on a race with the frame loop. 100 x 50 ms = 5 s
+    // of patience, far past healthy, far under the workflow's.
+    const cross = async (altM) => {
+      g.monkey.velocityY = -20000;                        // 2 km/s once the frames run
+      for (let i = 0; i < 100 && g.monkey.altitude < altM; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      g.monkey.velocityY = 0;
+      return g.monkey.altitude >= altM;
+    };
     g.monkey.y = -115000; g.camera.y = g.monkey.y + 400;   // 11.5 km, climbing
-    await new Promise((r) => setTimeout(r, 400));           // crosses 12 km
+    const crossed12 = await cross(12400);                     // crosses 1/2/12 km
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const t12 = { fired: g._beatsFired.has('transverse'), taperFired: g._beatsFired.has('taper'),
                   dragFired: g._beatsFired.has('wave-drag'), titles,
                   heatLabelLow: document.getElementById('stackHeatValue').textContent,
                   budgetLabelLow: document.getElementById('waveBudgetValue').textContent };
     g.monkey.y = -695000; g.camera.y = g.monkey.y + 400;   // 69.5 km (teleport also crosses 20/30/42/45 km)
-    await new Promise((r) => setTimeout(r, 400));           // crosses 70 km at 92 Hz
+    const crossed70 = await cross(70400);                     // crosses 70 km at 92 Hz
     const titles2 = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const modeCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
       .find((c) => c.title === 'above the atmosphere: convert modes? the paper asks');
     const heatCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
       .find((c) => c.title === 'the air stops carrying your heat');
-    const out = { t12, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
+    const out = { t12, crossed12, crossed70, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
                   queueLen: g._beatQueue.length,
                   modeFired: g._beatsFired.has('mode-conversion'),
                   modeTitle: titles2.some((t) => t.includes('convert modes')),
@@ -558,6 +668,7 @@ try {
     return out;
   });
   record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal + 30 km stack-heat + 42 km mode question fire; 70 km fatigue beat silent at 92 Hz',
+    beats.crossed12 === true && beats.crossed70 === true &&
     beats.t12.fired === true && beats.t12.taperFired === true && beats.t12.dragFired === true &&
     beats.t12.titles.some((t) => t.includes('transverse')) &&
     beats.modeFired === true && beats.modeTitle === true && /no converter/.test(beats.modeBody) &&
@@ -616,10 +727,19 @@ try {
     const engaged = { on: g.resonanceOn, label: document.getElementById('resonanceValue').textContent,
                     freqLabel: document.getElementById('frequencyValue').textContent,
                     modeLabel: document.getElementById('modeCellValue').textContent };
-    g.monkey.velocityY = -20000;                            // 2 km/s: fast, deterministic crossing
-    await new Promise((r) => setTimeout(r, 400));           // crosses 50 km
+    g.monkey.velocityY = -20000;                            // 2 km/s once the frames run
+    // State, not clock: climb until altitude proves the 50 km crossing (the dt clamp
+    // means a loaded runner simulates less per wall second, the same race the 85 km
+    // legs taught). 100 x 50 ms = 5 s of patience. The transient counts DOWN from the
+    // crossing, so stop as soon as altitude proves it: polling past it only shrinks it.
+    for (let i = 0; i < 100 && g.monkey.altitude < 50400; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const crossed50 = g.monkey.altitude >= 50400;
+    g.monkey.velocityY = 0;
     const titles = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const out = {
+      crossed50,
       engaged,
       n: g._resMode && g._resMode.n,
       resets: g._resonanceResets,
@@ -649,6 +769,7 @@ try {
     return out;
   });
   record('resonance: 50 km retune fires (n 1 -> 2, transient paid, card queued), the cavity owns the active frequency, disengage restores',
+    res.crossed50 === true &&
     res.engaged.on === true && res.engaged.label.includes('node') &&
     res.engaged.freqLabel.includes('cavity') &&
     res.engaged.modeLabel.includes('standing') &&   // M4 (p.12/13): the one mode change, named
@@ -855,28 +976,37 @@ try {
   });
   await tPage.mouse.move(195, 520);
   await tPage.mouse.down();
-  await tPage.waitForTimeout(120);
+  // State, not clock: the pointer handler latches the grab; wait until the latch
+  // shows rather than for a fixed 120 ms.
+  await tPage.waitForFunction(() => window.__smokeGame.monkey.isGrabbing === true, null, { timeout: 5000, polling: 100 });
   const holdOn = await tPage.evaluate(() => window.__smokeGame.monkey.isGrabbing);
   await tPage.mouse.up();
-  await tPage.waitForTimeout(120);
+  await tPage.waitForFunction(() => window.__smokeGame.monkey.isGrabbing === false, null, { timeout: 5000, polling: 100 });
   const holdOff = await tPage.evaluate(() => window.__smokeGame.monkey.isGrabbing);
   //     ...and a second finger must not be able to release the first: the handler tracks
   //     pointer ids in a Set precisely because a boolean would drop the hold here.
   const multi = await tPage.evaluate(async () => {
     const g = window.__smokeGame;
+    // State, not clock: the pointer handlers run synchronously on dispatch, so these
+    // polls pass on the first tick; the 5 s bound only absorbs a loaded runner.
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
     g.monkey.isGrabbing = false;
     const fire = (type, pointerId) => window.dispatchEvent(new PointerEvent(type, {
       pointerId, pointerType: 'touch', bubbles: true, cancelable: true, isPrimary: pointerId === 1,
     }));
     fire('pointerdown', 1);
     fire('pointerdown', 2);
-    await new Promise((r) => setTimeout(r, 40));
+    await until(() => g.monkey.isGrabbing === true);
     const both = g.monkey.isGrabbing;
     fire('pointerup', 1);
-    await new Promise((r) => setTimeout(r, 40));
+    await new Promise((r) => setTimeout(r, 40)); // a beat for a wrongful release to land
     const afterOneLift = g.monkey.isGrabbing;
     fire('pointerup', 2);
-    await new Promise((r) => setTimeout(r, 40));
+    await until(() => g.monkey.isGrabbing === false);
     return { both, afterOneLift, afterBothLift: g.monkey.isGrabbing };
   });
   record('touch: hold anywhere engages, lift releases, second finger cannot steal the release',
@@ -899,7 +1029,10 @@ try {
     return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
   });
   await tPage.touchscreen.tap(gearRect.x, gearRect.y);
-  await tPage.waitForTimeout(120);
+  // State, not clock: the tap handler toggles the panel; wait until it has.
+  await tPage.waitForFunction(
+    () => document.getElementById('settingsPanel').classList.contains('visible'),
+    null, { timeout: 5000, polling: 100 });
   const afterGearTap = await tPage.evaluate(() => ({
     visible: document.getElementById('settingsPanel').classList.contains('visible'),
     grab: window.__smokeGame.monkey.isGrabbing,
@@ -909,7 +1042,9 @@ try {
   await tPage.touchscreen.tap(
     (await tPage.evaluate(() => { const r = document.getElementById('settings-close').getBoundingClientRect(); return r.x + r.width / 2; })),
     (await tPage.evaluate(() => { const r = document.getElementById('settings-close').getBoundingClientRect(); return r.y + r.height / 2; })));
-  await tPage.waitForTimeout(120);
+  await tPage.waitForFunction(
+    () => !document.getElementById('settingsPanel').classList.contains('visible'),
+    null, { timeout: 5000, polling: 100 });
   const afterClose = await tPage.evaluate(() => ({
     visible: document.getElementById('settingsPanel').classList.contains('visible'),
     grab: window.__smokeGame.monkey.isGrabbing,
@@ -937,12 +1072,19 @@ try {
   const clean = await cPage.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
+    // State, not clock: the H keydown flips the level synchronously, but the DRAWN
+    // handle only follows on the next rendered frame. Wait for the handle to consume
+    // THIS press before pressing again, or a loaded runner batches presses and lands
+    // on the wrong level.
     const press = async () => {
+      const prev = g._hudLevelDrawn;
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
-      await new Promise((r) => setTimeout(r, 120));
+      const t0 = Date.now();
+      while (g._hudLevelDrawn === prev) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
       return g._hudLevelDrawn;
     };
-    await new Promise((r) => setTimeout(r, 120));
+    // The waitForFunction above already gates on the first render having drawn a level,
+    // so onLoad needs no wait at all.
     const onLoad = g._hudLevelDrawn;                 // ?clean -> off (2)
     const gearHidden = getComputedStyle(document.getElementById('ux-settings-btn')).display;
     const after1 = await press();                    // -> minimal (0)
@@ -977,10 +1119,20 @@ try {
   const drawn = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
+    // State, not clock, in both helpers:
+    // - the H keydown flips the level synchronously, but the DRAWN handle follows on
+    //   the next rendered frame, so each press waits until the handle consumed THIS
+    //   press (a loaded runner would otherwise batch presses and land on the wrong
+    //   level: the old fixed 100 ms x 4 loop had exactly that race);
+    // - the capture unwraps only after the wrapped fillText has seen two whole frames
+    //   (counted through the live _boundUpdate property, the same wrap check 6 uses),
+    //   so a slow runner waits its frames out instead of sampling an empty frame.
     const setLevel = async (want) => {
       for (let i = 0; i < 4 && g._hudLevelDrawn !== want; i++) {
+        const prev = g._hudLevelDrawn;
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
-        await new Promise((r) => setTimeout(r, 100));
+        const t0 = Date.now();
+        while (g._hudLevelDrawn === prev) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
       }
       return g._hudLevelDrawn === want;
     };
@@ -991,8 +1143,12 @@ try {
       const seen = [];
       const orig = g.ctx.fillText.bind(g.ctx);
       g.ctx.fillText = (s, x, y) => { seen.push(String(s)); return orig(s, x, y); };
-      await new Promise((r) => setTimeout(r, 220));
+      let frames = 0; const origUpdate = g._boundUpdate;
+      g._boundUpdate = (t) => { frames++; return origUpdate(t); };
+      const t0 = Date.now();
+      while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
       delete g.ctx.fillText;
+      g._boundUpdate = origUpdate;
       return seen;
     };
     const out = {};
@@ -1006,11 +1162,12 @@ try {
     // directly. Then restore the quiet ground state the crest check builds on.
     // The climbing state carries a persisted best (34) so the bootstrap-pacing pin
     // sees the pace paired with it, at minimal and in the full mission block alike.
+    // (The old fixed 80 ms settle before each capture is gone: the capture's own
+    // two-frame gate is exactly that wait, state-based.)
     g.monkey.velocityY = 0;
     g.monkey.y = -500000; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
     g._runTimeS = 200; g._climbStartS = 100;
     g.cargoBest = 34;
-    await new Promise((r) => setTimeout(r, 80));
     out.climbing = await capture();
     out.fullClimbingSet = await setLevel(1);
     out.fullClimbing = await capture();
@@ -1031,7 +1188,6 @@ try {
     // Both draw over mid-screen for seconds of sim time; clear them or they bleed into
     // whatever check runs next.
     g._actBreakTimer = 0; g._beatCardTimer = 0;
-    await new Promise((r) => setTimeout(r, 80));
     await setLevel(0);
     // One more state: back on the quiet ground with a best on record, the goal line
     // carries it (the cargo-choice moment). Then zero it again for the checks after.
@@ -1048,10 +1204,13 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   const drawnNarrow = await page.evaluate(async () => {
     const g = window.__smokeGame;
+    // Same state-not-clock helpers as the desktop half above.
     const setLevel = async (want) => {
       for (let i = 0; i < 4 && g._hudLevelDrawn !== want; i++) {
+        const prev = g._hudLevelDrawn;
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
-        await new Promise((r) => setTimeout(r, 100));
+        const t0 = Date.now();
+        while (g._hudLevelDrawn === prev) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
       }
       return g._hudLevelDrawn === want;
     };
@@ -1059,8 +1218,12 @@ try {
       const seen = [];
       const orig = g.ctx.fillText.bind(g.ctx);
       g.ctx.fillText = (s, x, y) => { seen.push(String(s)); return orig(s, x, y); };
-      await new Promise((r) => setTimeout(r, 220));
+      let frames = 0; const origUpdate = g._boundUpdate;
+      g._boundUpdate = (t) => { frames++; return origUpdate(t); };
+      const t0 = Date.now();
+      while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
       delete g.ctx.fillText;
+      g._boundUpdate = origUpdate;
       return seen;
     };
     const out = {};
@@ -1071,7 +1234,6 @@ try {
     g.monkey.y = -500000; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
     g._runTimeS = 200; g._climbStartS = 100;
     g.cargoBest = 34;
-    await new Promise((r) => setTimeout(r, 80));
     out.fullClimb = await capture();
     // Teardown: the quiet ground state the crest check builds on, minimal level, and
     // the 40 km crossing's banner and beat card cleared (same discipline as above).
@@ -1079,7 +1241,6 @@ try {
     g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
     g._runTimeS = 0; g._climbStartS = null; g.camera.y = g.monkey.y + g.canvas.height * 0.5;
     g._actBreakTimer = 0; g._beatCardTimer = 0; g._beatCard = null;
-    await new Promise((r) => setTimeout(r, 80));
     await setLevel(0);
     return out;
   });
@@ -1141,33 +1302,57 @@ try {
   const crests = await page.evaluate(async () => {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
-    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    // State, not clock: the overlay re-derives the gate from u every frame, so each
+    // wait below polls the render handles themselves with a 5 s wall escape bound; a
+    // loaded runner just polls longer (the fixed 150/300 ms pair raced the frame
+    // loop's first recomputation at the new state).
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
+    // A soak in frames, not wall time: n frames counted through the same live
+    // _boundUpdate property check 6 wraps. 18 frames is the old 300 ms at 60fps, and
+    // the count proves the soak was real even on a runner that idled.
+    const framesAfter = async (n, maxMs = 5000) => {
+      let c = 0; const orig = g._boundUpdate;
+      g._boundUpdate = (t) => { c++; return orig(t); };
+      const t0 = Date.now();
+      while (c < n) { if (Date.now() - t0 > maxMs) break; await new Promise((r) => setTimeout(r, 25)); }
+      g._boundUpdate = orig;
+      return c;
+    };
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
     g.monkey.velocityY = 0;
-    await wait(150);
+    await until(() => g._crestDrawn === true && g._crestPush > 0.95 && g._crestScrollPxS > 100);
     const open = { drawn: g._crestDrawn, push: g._crestPush, speed: g._crestScrollPxS,
                    capHz: g._crestPassHzMax, hud: g._hudLevelDrawn, a: g._crestScrollPx };
-    await wait(300);
+    // The accumulation pin IS the predicate now (the boot-overlay discipline: wait on
+    // what the check asserts). Its minimum-rate half already lives in speed > 100.
+    await until(() => g._crestScrollPx - open.a > 10);
     open.advanced = g._crestScrollPx - open.a;
-    // u = 3: outrunning the crest, the gate never opens. Gravity over 300 ms adds only
-    // ~3 m/s (GRAVITY = 98.1 px/s² at 10 px/m), so u cannot fall back under 1 here.
+    // u = 3: outrunning the crest, the gate never opens. Gravity over the soak adds
+    // only ~3 m/s (GRAVITY = 98.1 px/s² at 10 px/m), so u cannot fall back under 1 here.
     g.monkey.velocityY = -3 * g.waveSystem.amplitude * g.waveSystem.frequency * 2 * Math.PI
         * 10;   // px/s (ALTITUDE_CONVERSION = 10 px/m)
-    await wait(150);
+    await until(() => g._crestPush === 0 && g._crestScrollPxS === 0);
     const closed = { push: g._crestPush, speed: g._crestScrollPxS, a: g._crestScrollPx };
-    await wait(300);
+    closed.frames = await framesAfter(18);
     closed.advanced = g._crestScrollPx - closed.a;
     // Back to a quiet parked state on the ground (no game-over left behind).
     g.monkey.velocityY = 0; g.monkey.y = 0; g.monkey.altitude = 0; g.maxAltitude = 0;
     window.dispatchEvent(new KeyboardEvent('keyup', { key: ' ' }));
-    // HUD off must hide the overlay: it is an instrument, not the vehicle.
+    // HUD off must hide the overlay: it is an instrument, not the vehicle. Each press
+    // waits until the DRAWN handle consumed it, or a loaded runner batches presses.
     for (let i = 0; i < 4 && g._hudLevelDrawn !== 2; i++) {
+      const prev = g._hudLevelDrawn;
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
-      await wait(100);
+      await until(() => g._hudLevelDrawn !== prev);
     }
     const hiddenAtOff = g._hudLevelDrawn === 2 && g._crestDrawn === false;
+    const prevHud = g._hudLevelDrawn;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));   // back to minimal
-    await wait(100);
+    await until(() => g._hudLevelDrawn !== prevHud);
     return { open, closed, hiddenAtOff, restored: g._hudLevelDrawn };
   });
   //     ...and the reduced-motion boot, on its own page like check 11's.
@@ -1181,11 +1366,18 @@ try {
     const g = window.__smokeGame;
     g.paused = false; g.gameOver = false; g.running = true;
     g.monkey.velocityY = 0;
-    await new Promise((r) => setTimeout(r, 150));
+    // State, not clock: two frames settle the first sample, then an 18-frame soak
+    // (the old 300 ms at 60fps) proves the frozen scroll never moves while frames run.
+    let frames = 0; const orig = g._boundUpdate;
+    g._boundUpdate = (t) => { frames++; return orig(t); };
+    const t0 = Date.now();
+    while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
     const a = g._crestScrollPx;
-    await new Promise((r) => setTimeout(r, 300));
+    const framesAtA = frames;
+    while (frames - framesAtA < 18) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = orig;
     return { frozen: g._crestScrollFrozen, a, b: g._crestScrollPx,
-             push: g._crestPush, speed: g._crestScrollPxS };
+             push: g._crestPush, speed: g._crestScrollPxS, frames: frames - framesAtA };
   });
   await crestRmCtx.close();
   record('slip crests: overtaking drawn (scroll + push), fades to exactly 0 past the gate, frozen under reduced motion, hidden at HUD off',
@@ -1193,8 +1385,10 @@ try {
     Math.abs(crests.open.push - 1) < 0.05 && crests.open.speed > 100 &&
     crests.open.capHz <= 3 && crests.open.advanced > 10 &&
     crests.closed.push === 0 && crests.closed.speed === 0 && crests.closed.advanced === 0 &&
+    crests.closed.frames >= 18 &&
     crests.hiddenAtOff === true && crests.restored === 0 &&
     crestRm.frozen === true && crestRm.speed === 0 && crestRm.a === crestRm.b &&
+    crestRm.frames >= 18 &&
     Math.abs(crestRm.push - 1) < 0.05,
     JSON.stringify({ ...crests, crestRm }));
 

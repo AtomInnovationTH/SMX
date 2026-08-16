@@ -899,14 +899,34 @@ film speed the physics runs).
   Neither doc had recorded touch play, the instrument levels, the film band or the crest
   overlay; the changelog now carries all four. Keep them current in the same commit as
   the change, or the next shift inherits numbers it cannot trust.
-- **The smoke suite has timing-sensitive checks.** One standalone run out of six this
-  shift exited 1 and could not be reproduced in five re-runs; its log had been discarded,
-  so the culprit is unknown. Run it as `node dev/tests/smoke/smoke.mjs | tee /tmp/smoke.log`
-  when you are chasing a one-off, and suspect the timing-dependent checks first (brownout
-  recovery, the RAF ratio, the crest thresholds) before assuming a real regression.   (The boot-overlay and 85 km crossing legs of this note are retired: the
-  bootstrap-progress shift found their exact mechanism, fixed wall-clock waits racing
-  sim time on a loaded runner, and made both waits state-based. The CI smoke job is
-  advisory only, continue-on-error, and never gates a deploy.)
+- **The smoke suite's wall-clock flake class is closed; the timing-flake note's three
+  named suspects are all retired.** The hardening shift swept `smoke.mjs` (and
+  `dev/tools/`) for fixed wall-clock waits gating on state transitions and converted
+  every one to a state-based wait with a bounded timeout, following the boot-overlay
+  and 85 km examples. Brownout recovery now waits on the latch itself (the latch trips
+  on SIM charge, and the dt clamp means a loaded runner simulates less per wall
+  second), and its single-fire cue proof is an 18-frame soak counted through the live
+  `_boundUpdate` property, not 300 ms of wall. The RAF ratio is gone: a doubled chain
+  must call update twice with the SAME rAF timestamp, so the check counts calls per
+  timestamp and asserts none repeats (structural, true at any pacing, where the old
+  ratio < 1.4 could whipsaw on uneven framing). The crest thresholds now poll the
+  render handles (the open-gate sample waits on drawn/push/speed themselves; the
+  accumulation pin IS the predicate, its minimum-rate half already pinned by
+  `speed > 100`), and the closed/frozen soaks are 18-frame counts. Both 12/70 km
+  teleport legs and the 50 km resonance leg climb until altitude proves the crossing,
+  with explicit crossed flags in the detail. `capture.mjs`'s boot waits on the overlay
+  predicate plus every canvas-consumed image decoded (the two recorded staged-frame
+  traps), not 800 ms. Assertions only ever tightened: crossed/placed flags and frame
+  counts were ADDED to records (`crossed12/70/50`, `anchors.e/k.placed`,
+  `cueFrames >= 18`, `closed.frames >= 18`, `crestRm.frames >= 18`,
+  `frozen.frames >= 24`, `repeatedT === 0 && framesAfter >= 2`), never weakened. What
+  stays time-based on purpose: the multi-touch 40 ms wrongful-release beat (a negative
+  assertion: nothing may happen in it). Gate green plus five consecutive standalone
+  runs green. The tee advice stands for any NEW one-off:
+  `node dev/tests/smoke/smoke.mjs | tee /tmp/smoke.log`. (The boot-overlay and 85 km
+  crossing legs of this note were retired by the bootstrap-progress shift: fixed
+  wall-clock waits racing sim time on a loaded runner, made state-based. The CI smoke
+  job is advisory only, continue-on-error, and never gates a deploy.)
 
 - **Slip is drawn, not numbered.** `renderVine` now overlays the crest train as chevrons
   straddling the film in a band (`CREST_BAND_HALF_PX` = 288 px) centred on the climber,
