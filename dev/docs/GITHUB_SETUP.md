@@ -212,7 +212,7 @@ Capture gameplay at different altitudes and add to README:
 ### Game not running?
 - Make sure `index.html` is in root directory
 - Check browser supports HTML5/Canvas
-- Test locally first with `python3 -m http.server 8000`
+- Test locally first with `./start.sh` (or by hand: `python3 -m http.server 8001`)
 
 ---
 

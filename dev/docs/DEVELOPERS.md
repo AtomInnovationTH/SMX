@@ -36,12 +36,12 @@ and the `ASSET_BASE_PATH`-survives branch in the build script). `index.html` is
 offline file.
 
 Run locally with `./start.sh`: it rebuilds `index.html` if its inputs moved (the
-source, `embed_assets.py` or anything under `assets/`), serves the repo on `:8000`
+source, `embed_assets.py` or anything under `assets/`), serves the repo on `:8001`
 in the foreground and opens the game. If the port already serves this exact build it
 reuses it; if it serves something else it refuses instead of playing the wrong page.
 Handy knobs: `PORT=8765 ./start.sh`, `NO_OPEN=1 ./start.sh` (headless shells), and a
 query-string argument (`./start.sh '?debug'`). The same by hand:
-`python3 -m http.server 8000`, then open `http://localhost:8000/index.html`.
+`python3 -m http.server 8001`, then open `http://localhost:8001/index.html`.
 CI (`.github/workflows/`) runs the unit tests, re-runs the build on push and fails if
 the committed `index.html` is out of sync, then deploys to GitHub Pages.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-command dev launcher for Space Monkey Elevator.
-#   ./start.sh              rebuild index.html if stale, serve on :8000, open the game
+#   ./start.sh              rebuild index.html if stale, serve on :8001, open the game
 #   ./start.sh '?debug'     open with a query string (the debug boot, '?debug&clean', ...)
 #   PORT=8765 ./start.sh    serve on another port
 #   NO_OPEN=1 ./start.sh    serve without opening a browser (headless shells, SSH)
@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-PORT="${PORT:-8000}"
+PORT="${PORT:-8001}"
 QUERY="${1:-}"
 URL="http://localhost:${PORT}/index.html${QUERY}"
 
