@@ -101,9 +101,12 @@ at 200 km/h, 12.5 MW/mm² at 1000 km/h).
 
 Simplified on purpose, and labelled on screen: the reflection band, the stack's firing animation
 (slowed down, and frozen if you prefer reduced motion), the monkey and the drawn magnet stack (not
-to scale), the ripple a passing descender leaves in the film, the resonant buildup after a
-retune (one cavity round trip, not a boundary-value solve), and the second rider, who is a twin
-in formation cruise (drawing weight x climb speed), not a solved body.
+to scale), the ripple a passing descender leaves in the film, the resonant buildup after a retune
+(one cavity round trip, not a boundary-value solve), the second rider, who is a twin in formation
+cruise (drawing weight x climb speed), not a solved body, and the climber's own aerodynamic drag
+(the paper books drag on the film only, so the climber feels the air as a damped film, never
+directly — at 1000 km/h in dense air a real pod would need to be very clean, and heat is a non-issue:
+stagnation temperature at cruise is ~60 °C, Concorde territory, not reentry).
 
 Missing rather than faked: the wave physics between riders (partial reflections, paper p.3, and
 the standing-pattern perturbation that makes retuning with two aboard tricky, p.10), the
@@ -153,7 +156,7 @@ paper leaves unsolved at the wave level.
 ## Run and build
 
 ```bash
-node --test dev/tests/*.test.mjs   # 140 tests, no dependencies
+node --test dev/tests/*.test.mjs   # 142 tests, no dependencies
 bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```

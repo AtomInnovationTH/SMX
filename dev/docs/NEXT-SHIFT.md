@@ -1,7 +1,33 @@
 # Next shift
 
 Read this first. It is the current state, the next tasks in priority order, and the traps
-that have already cost time. Updated at the end of the phone-forms fix: the last
+that have already cost time. Updated at the end of the climber-art shift: a player review
+of the shipped game surfaced two presentation bugs and one honesty gap, all fixed.
+(1) The thermal suit overlays drew their own arms hanging at the sides with mitts while
+the climber's bare arms reach up to the clamps, so a suited monkey read as two pairs of
+hands — the four-armed monkey the grabbing pose's paint order had already fixed WITHIN
+the sprite, reintroduced by the overlay ACROSS sprites. All three suit SVGs are now
+sleeveless by design (the torso shoulder humps read as armholes; the climber's own arms
+stay the only pair of hands, in both poses), verified composited in the live game at
+9/30/55 km. (2) The face was baked per pose: the smile showed while sliding back down in
+a stall and the surprised mouth showed standing on the pad. renderMonkey now picks the
+face from the MOTION (engaged smile / grimace past MONKEY.DESCENT_GRIMACE_PX_S = 50 px/s
+of descent / coasting surprised only once airborne / calm on the pad), the two pose SVGs
+became expression-parameterized builders, the loading gate went expect(2) -> expect(4),
+and the pick is exposed as _faceState (the _stackDrawnPairs render-path pattern) and
+pinned in smoke 30. (3) The one physics simplification missing from the README's
+labelled list — climber aerodynamic drag (the paper books drag on the film only; the
+climber feels the air as a damped film, never directly) — is now listed, with the numbers
+that make it safe: at the 1085 km/h cruise the stagnation temperature is ~60 °C (Concorde
+territory, not reentry; heat flux scales ½ρv³, burn-up needs km/s class). The physics
+itself is untouched: adding pod drag would break the paper-fidelity pins and the verified
+preset times for zero player decision. Also swept: the README's stale "140 tests" (142
+since the bootstrap-pacing shift). The gate is green at 142/30/98 and 435 KB, the new
+smoke check green on its first run. No new trap was paid: the recorded staged-frame traps
+all held, and the freeze-before-overlay-clear resurrection made the face-verification
+freeze-frames trivial (cancelAnimationFrame(g._rafId) holds the last canvas for the shot).
+Pushed, deployed and live-verified md5-identical, with every job green, smoke included.
+Before that, the phone-forms fix: the last
 post-backlog candidate shipped (at compact width the full mission block's goal and pace
 branches now carry short forms, "Mission: N kg to Kármán (100 km)" and "pace N kg/h to
 Kármán (best M)", the repo's own shift-9 same-facts-fewer-words pattern, so the block no
@@ -59,8 +85,8 @@ film speed the physics runs).
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 142 unit tests, 29 smoke checks, 98 = 98 asset references, all green.
-- **Payload**: `index.html` is 432 KB. Only assets under 20 KB are inlined; the clouds,
+  Currently 142 unit tests, 30 smoke checks, 98 = 98 asset references, all green.
+- **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion

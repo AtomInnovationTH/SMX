@@ -1397,6 +1397,32 @@ try {
     Math.abs(crestRm.push - 1) < 0.05,
     JSON.stringify({ ...crests, crestRm }));
 
+  // 30) Climber face follows the MOTION, not the input latch (renderMonkey/_faceState):
+  //     calm on the pad, smiled while climbing, gritted while sliding back down engaged
+  //     (a stall), surprised only once coasting airborne. State-based: renderMonkey writes
+  //     _faceState every frame, so three frames after each placement is a certain settle.
+  const faces = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const frames = (n) => new Promise((res) => { let i = 0; const step = () => (++i >= n ? res() : requestAnimationFrame(step)); requestAnimationFrame(step); });
+    const out = {};
+    const set = async (grabbing, vy, altM, key) => {
+      g.monkey.isGrabbing = grabbing;
+      g.monkey.y = -altM * 10; g.monkey.velocityY = vy;
+      g.camera.y = g.monkey.y + g.canvas.height * 0.5;
+      await frames(3);
+      out[key] = g._faceState;
+    };
+    await set(false, 0, 0, 'pad');            // standing on the grass
+    await set(true, -3000, 12000, 'climb');   // engaged, climbing ~1080 km/h
+    await set(true, 3000, 12000, 'slide');    // engaged, sliding back down (stall)
+    await set(false, 1500, 12000, 'coast');   // released, airborne
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.isGrabbing = false;
+    return out;
+  });
+  record('face states: calm on the pad, smile climbing, grimace on a stall slide, surprised coasting airborne',
+    faces.pad === 'idle' && faces.climb === 'smile' && faces.slide === 'grimace' && faces.coast === 'surprised',
+    JSON.stringify(faces));
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));
