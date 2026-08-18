@@ -65,10 +65,11 @@ and the capture pass re-shot and committed
 the stills (shader noise only; centres exact) and the clip. The traps recorded for
 the sweep stay on record for any future text edit: no test pins an expected string
 value containing an em dash (the only em-dash-adjacent guard is `minimalScoreLine`'s
-"no em dash" test), and smoke DOES match card titles by `includes()` ('transverse',
-'convert modes', 'stops carrying your heat', 'descending climber', 'power from the
-top'), two by exact equality ('a second climber requests power', 'sharing the wave
-with a second climber'), plus the body fragments `/no converter/`,
+"no em dash" test), and smoke DOES match card titles by `includes()` ('jets',
+'change shape', 'nothing cools your magnets', 'zooms past', 'ride down'), four by
+exact equality ('another monkey asks to share your wave', 'sharing your wave with
+another monkey', 'can the wave change shape? nobody knows', 'up here, nothing
+cools your magnets'), plus the body fragments `/no converter/`,
 `/no temperature is modelled/`, `/\+73 /` and the share-card budget regexes. Check
 `dev/tests/smoke/smoke.mjs` for distinctive words before touching any player-facing
 string, and keep matched fragments verbatim. New prose stays em-dash-free.

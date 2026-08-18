@@ -189,7 +189,11 @@ Instrument detail is a level, not a toggle: `_uxHudLevel` is minimal (the defaul
 full / off, cycled by `H`, with `?clean` booting straight to off for captures. Every
 instrument is drawn on the canvas, so nothing can be hidden with CSS: anything new must
 read `_uxHudLevel` itself. Minimal is the badge, the energy bar, the compact plate (one
-instruction, the p.11 carrier line and the throughput score) and a beat's title; full
+instruction, the p.11 carrier line and the throughput score) and a beat's title,
+except trivia beats flagged `minimalQuiet` (stack heat, the mode question, the
+resonance offer, gigacycle fatigue): those draw only at full, and the pump skips
+them outright at minimal so an
+encouragement or a hint is never delayed behind a card the level hides. Full
 adds the mission and act blocks, the thermal readout, the p.11 dashboard, the stack
 legend and the switching/skim/slip lines. Failures (UNLOADED, STALLED, brownout) are
 never gated at any level, because a failure has to explain itself.

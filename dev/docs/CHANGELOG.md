@@ -16,6 +16,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gitignored in `.kilo/plans/` with only the local `handoff.md` pointing at it (both
   retired now). `DEVELOPERS.md` links it as the record not to re-litigate.
 
+### Changed
+
+- **The five longest settings hints read like a person now.** The wave-budget,
+  stack-heat, resonance, power-share and taper explanations were each a single
+  150-220-word paragraph; the facts, formulas and page citations are unchanged, the
+  sentences are short and the meaning comes before the mechanism. No string the
+  smoke suite pins was touched (30/30 green).
+- **Beat cards encourage and celebrate now, and trivia waits for the curious.** The
+  teaching cards that interrupt a climb were titled for insiders ("the anchor is
+  the brutal part", "gigacycle fatigue", "a descending climber blurs past"), and
+  at the default minimal HUD the title is the whole message. The cards a normal
+  player sees are now celebration and reassurance ("climbing gets easier as you
+  go", "you made it through the thickest air!", "as high as the jets fly", "the
+  hard part is behind you"), and the other riders are monkeys, the way the game
+  looks ("another monkey zooms past, going down", "another monkey asks to share
+  your wave"). Four trivia beats (stack heat, the mode question, the resonance
+  offer, gigacycle fatigue) stay silent at minimal and draw only at full HUD, one
+  keypress away, with their physics intact, and the card pump skips them outright
+  at minimal so an encouragement is never delayed behind a hidden card. Every
+  title's plate fits a 390 px phone, measured on the real font (the mode card's
+  460 px plate overflowed before). Smoke pins moved in lockstep, plus new checks
+  that quiet cards hide at minimal, draw at full, and never dwell in the pump
+  (30/30 green).
+
 ## [1.1.0] - 2026-08-18
 
 ### Simulation-fidelity rework

@@ -656,16 +656,16 @@ try {
     const crossed70 = await cross(70400);                     // crosses 70 km at 92 Hz
     const titles2 = [g._beatCard, ...g._beatQueue].filter(Boolean).map((c) => c.title);
     const modeCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
-      .find((c) => c.title === 'above the atmosphere: convert modes? the paper asks');
+      .find((c) => c.title === 'can the wave change shape? nobody knows');
     const heatCard = [g._beatCard, ...g._beatQueue].filter(Boolean)
-      .find((c) => c.title === 'the air stops carrying your heat');
+      .find((c) => c.title === 'up here, nothing cools your magnets');
     const out = { t12, crossed12, crossed70, fatigueFired: g._beatsFired.has('fatigue'), freq: g.waveSystem.frequency,
                   queueLen: g._beatQueue.length,
                   modeFired: g._beatsFired.has('mode-conversion'),
-                  modeTitle: titles2.some((t) => t.includes('convert modes')),
+                  modeTitle: titles2.some((t) => t.includes('change shape')),
                   modeBody: (modeCard || { lines: [] }).lines.join(' '),
                   heatFired: g._beatsFired.has('stack-heat'),
-                  heatTitle: titles2.some((t) => t.includes('stops carrying your heat')),
+                  heatTitle: titles2.some((t) => t.includes('nothing cools your magnets')),
                   heatBody: (heatCard || { lines: [] }).lines.join(' '),
                   heatLabelHigh: document.getElementById('stackHeatValue').textContent,
                   budgetLabelHigh: document.getElementById('waveBudgetValue').textContent };
@@ -675,7 +675,7 @@ try {
   record('event schedule: 1 km taper + 2 km wave-drag + 12 km reveal + 30 km stack-heat + 42 km mode question fire; 70 km fatigue beat silent at 92 Hz',
     beats.crossed12 === true && beats.crossed70 === true &&
     beats.t12.fired === true && beats.t12.taperFired === true && beats.t12.dragFired === true &&
-    beats.t12.titles.some((t) => t.includes('transverse')) &&
+    beats.t12.titles.some((t) => t.includes('jets')) &&
     beats.modeFired === true && beats.modeTitle === true && /no converter/.test(beats.modeBody) &&
     beats.heatFired === true && beats.heatTitle === true &&
     /no temperature is modelled/.test(beats.heatBody) && /\+73 /.test(beats.heatBody) &&
@@ -700,8 +700,8 @@ try {
     return { fired: [...g._descendersFired],
              ripple: !!g._filmRipple,
              drawn: g._descenderDrawnTotal || 0,
-             hasDescCard: titles.some((t) => t.includes('descending climber')),
-             hasTopCard: titles.some((t) => t.includes('power from the top')) };
+             hasDescCard: titles.some((t) => t.includes('zooms past')),
+             hasTopCard: titles.some((t) => t.includes('ride down')) };
   });
   record('descenders: 30/60 km riders spawn, render, pass — ripple + beat cards queued',
     desc.fired.includes('desc-30') && desc.fired.includes('desc-60') &&
@@ -832,8 +832,8 @@ try {
     const crossedRefuse = await cross();                // crosses 85 km
     await wait();
     const refusal = { fired: g._beatsFired.has('second-climber'), aboard: g._shareRiderAboard,
-                      drawn: g._shareRiderDrawnTotal, card: titles().some((t) => t === 'a second climber requests power'),
-                      cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'a second climber requests power') || { lines: [] }).lines.join(' ') };
+                      drawn: g._shareRiderDrawnTotal, card: titles().some((t) => t === 'another monkey asks to share your wave'),
+                      cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'another monkey asks to share your wave') || { lines: [] }).lines.join(' ') };
     // SHARE: clear the beat, drop back below the request, flip the slider through
     // its own DOM event (the same path a player's finger takes), cross again.
     g._beatsFired.delete('second-climber');
@@ -850,11 +850,11 @@ try {
     const out = {
       before, refusal, engaged, crossedRefuse, crossedShare,
       aboard: g._shareRiderAboard,
-      card: titles().some((t) => t === 'sharing the wave with a second climber'),
+      card: titles().some((t) => t === 'sharing your wave with another monkey'),
       // The shared card quotes the live budget: it must be computed FRESH at the
       // crossing, never read off a stale cache (the crossing frame's updateContinuous
       // ran before updatePosition, so the rider was not aboard yet).
-      cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'sharing the wave with a second climber') || { lines: [] }).lines.join(' '),
+      cardBody: ([g._beatCard, ...g._beatQueue].filter(Boolean).find((c) => c.title === 'sharing your wave with another monkey') || { lines: [] }).lines.join(' '),
       drawn: g._shareRiderDrawnTotal,
       budgetW: g._shareBudgetW, otherDrawW: g._shareOtherDrawW, capW: g._shareCapW,
       budgetShared: document.getElementById('waveBudgetValue').textContent,
@@ -1141,9 +1141,9 @@ try {
       }
       return g._hudLevelDrawn === want;
     };
-    const capture = async () => {
+    const capture = async (card) => {
       // A card has to be on screen to be measured; 7 s is the normal lifetime.
-      g._beatCard = { title: 'SMOKE-TITLE', lines: ['SMOKE-BODY-LINE'] };
+      g._beatCard = card || { title: 'SMOKE-TITLE', lines: ['SMOKE-BODY-LINE'] };
       g._beatCardTimer = 6;
       const seen = [];
       const orig = g.ctx.fillText.bind(g.ctx);
@@ -1156,9 +1156,32 @@ try {
       g._boundUpdate = origUpdate;
       return seen;
     };
+    const waitFrames = async (n) => {
+      let frames = 0; const origUpdate = g._boundUpdate;
+      g._boundUpdate = (t) => { frames++; return origUpdate(t); };
+      const t0 = Date.now();
+      while (frames < n) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+      g._boundUpdate = origUpdate;
+    };
     const out = {};
     out.minimalSet = await setLevel(0); out.minimal = await capture();
     out.fullSet = await setLevel(1);    out.full = await capture();
+    // Trivia cards (minimalQuiet) hide at minimal and draw at full: capture both.
+    out.quietFull = await capture({ title: 'SMOKE-QUIET', lines: ['SMOKE-QUIET-LINE'], minimalQuiet: true });
+    await setLevel(0);
+    out.quietMinimal = await capture({ title: 'SMOKE-QUIET', lines: ['SMOKE-QUIET-LINE'], minimalQuiet: true });
+    await setLevel(0);
+    // The pump skips quiet cards at minimal instead of dwelling invisibly, and
+    // promotes them at full: stage each case through the real queue.
+    g._beatCard = null; g._beatCardTimer = 0; g._beatQueue.length = 0;
+    g._beatQueue.push({ title: 'SMOKE-QUIET-Q', lines: ['x'], minimalQuiet: true });
+    await waitFrames(2);
+    out.quietQueueMinimal = !g._beatCard && g._beatQueue.length === 0;
+    await setLevel(1);
+    g._beatQueue.push({ title: 'SMOKE-QUIET-Q', lines: ['x'], minimalQuiet: true });
+    await waitFrames(2);
+    out.quietQueueFull = !!g._beatCard && g._beatCard.title === 'SMOKE-QUIET-Q';
+    g._beatCard = null; g._beatCardTimer = 0; g._beatQueue.length = 0;
     await setLevel(0);
     // The minimal capture above ran in the pre-climb state (fresh reload, on the
     // ground, clock not started). These two set up the line's other states: 50 km
@@ -1251,10 +1274,12 @@ try {
   });
   await page.setViewportSize({ width: 1280, height: 800 });
   const has = (a, re) => a.some((s) => re.test(s));
-  record('levels: minimal draws the beat TITLE, a bare energy bar and the score line; full adds the readouts',
+  record('levels: minimal draws the beat TITLE, a bare energy bar and the score line; full adds the readouts; minimalQuiet cards hide at minimal',
     drawn.minimalSet && drawn.fullSet &&
     has(drawn.minimal, /SMOKE-TITLE/) && !has(drawn.minimal, /SMOKE-BODY-LINE/) &&
     has(drawn.full, /SMOKE-TITLE/) && has(drawn.full, /SMOKE-BODY-LINE/) &&
+    !has(drawn.quietMinimal, /SMOKE-QUIET/) && has(drawn.quietFull, /SMOKE-QUIET/) &&
+    drawn.quietQueueMinimal === true && drawn.quietQueueFull === true &&
     has(drawn.minimal, /^EPM$/) && !has(drawn.minimal, /switch \d+ kW/) && !has(drawn.minimal, /slip u =/) &&
     has(drawn.full, /switch \d+ kW/) && has(drawn.full, /slip u =/) &&
     // Minimal still says what to press: the compact plate is the one instruction left.

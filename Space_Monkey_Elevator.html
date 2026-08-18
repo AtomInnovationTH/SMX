@@ -406,21 +406,21 @@
         </div>
         <div class="slider-container">
             <label>Wave arriving: <span id="waveBudgetValue">144.2 MW · P = ρ·c·A·V² (slide 6)</span></label>
-            <small class="setting-hint">Where the budget comes from: slide 6's transported power, P = vF = Z·V² = ρ·c·A·V² with the impedance Z = ρ·c·A (48 N/(m/s)/mm² for this film class, the table's longitudinal row exactly). The figure is computed on the LOCAL film at your altitude by the very same formula your stack's coupling draws against and the 85 km share-or-refuse card quotes, so it cannot disagree with the physics. Taper (p.9) holds the transported power constant as the section thins (A·V² is altitude-independent); the p.7 drag tax saps a few percent over the column, so the figure drifts down a little as you climb. While resonant the scarce thing is the anchor's injection instead (p.10's P = σ·v, the budget the amplitude slider then sets), so the line switches to that. With a second climber sharing (p.14) this IS the budget both skims cap against, minus his draw. Read it against the switching and stack-heat rows around it: the wave carries MW against the stack's kW, which is the paper's whole argument for mechanical power.</small>
+            <small class="setting-hint">This is the power the wave carries past you: slide 6's transported power, P = vF = Z·V² = ρ·c·A·V². The impedance Z = ρ·c·A is 48 N/(m/s)/mm² for this film class, exactly the table's longitudinal row. The figure is computed on the local film at your altitude, with the same formula your stack's coupling draws against, so it can never disagree with the physics. Two things move it. Taper (p.9) holds transported power constant as the section thins, while the p.7 drag tax saps a few percent over the column, so the figure drifts down a little as you climb. Under resonance the scarce thing is the anchor's injection instead (p.10's P = σ·v, the budget the amplitude slider then sets), and the line switches to that. With a second climber sharing (p.14), this is the budget both skims cap against, minus his draw. Read it next to the switching and stack-heat rows: the wave carries MW against the stack's kW. That gap is the paper's whole argument for mechanical power.</small>
         </div>
         <div class="slider-container">
             <label>Stack heat: <span id="stackHeatValue">11.8 kW while engaged · air 100.0% of sea level</span></label>
-            <small class="setting-hint">The hot side of the energy loop, booked honestly. While you hold, the switching watts above are dissipated in the magnets (the datasheet's own 4 J per transition). The FG40's published ceiling is +73 °C internal: an absolute maximum set by the heat-deflection limit of the polymer body (the electronics tolerates 105 °C). Low down, the moving air convects the heat away; as the air thins the stack is left with radiation only. What no source publishes is the heat capacity, thermal resistance or emissivity that would turn these watts into a temperature, so no stack temperature is modelled: the watts and the ceiling are the whole honest book. The film's own drag dissipation (the 2 km beat's bill) is the paper's "possibly by drag heating" (p.7); where that heat lands, air or film, the paper does not say, so no film temperature is modelled either.</small>
+            <small class="setting-hint">The hot side of the energy loop. While you hold, the switching watts above land in the magnets as heat, at the datasheet's own 4 J per transition. The FG40 publishes a ceiling of +73 °C internal, an absolute maximum set by the heat-deflection limit of the polymer body (the electronics is good to 105 °C). Low down, the moving air carries that heat away. As the air thins, the stack is left with radiation only. Could we show a temperature instead? Not without inventing numbers: no source publishes the heat capacity, thermal resistance or emissivity you would need, so the game books the exact watts against the exact ceiling and models no stack temperature. The film warms the same way, in theory. Its drag dissipation (the 2 km beat's bill) is the paper's "possibly by drag heating" (p.7), but the paper does not say where that heat lands, air or film, so no film temperature is modelled either.</small>
         </div>
         <div class="slider-container">
             <label>Standing-wave resonance: <span id="resonanceValue">off</span></label>
             <input type="range" id="resonance" min="0" max="1" step="1" value="0">
-            <small class="setting-hint">The paper's p.10 lever: the anchor becomes a node and a standing wave fills the film between anchor and climber. Its tension holds the full stress budget, so the film runs its LOCAL stress ceiling whatever your stroke: power per unit anchor speed rises by v_cap/v_anchor, the table's 2.5 MW/mm² at 200 km/h against 150 kW plain. The price: the cavity only accepts its own modes, so the carrier is overridden by f = n·c/2h, the frequency falls as you rise, and each time the wavelength reaches the 100 km floor the anchor retunes to the next harmonic and pays one cavity round trip of weakened film (the 50 km transient). The stack's switching follows the cavity rate: nearly free aloft, kHz on the pad, so engage it once you are a kilometre up, not on the grass. While resonant the amplitude slider becomes the power budget: the skim cannot exceed the anchor's injection (stress budget × drive speed × section, the table's own P = σ·v). The boundary-value buildup is summarised as the one-round-trip ramp; the reflection interplay the paper calls tricky for multi-climber is not modelled.</small>
+            <small class="setting-hint">The paper's p.10 lever. Engage it and the anchor becomes a node: a standing wave fills the film between anchor and climber, and its tension holds the full stress budget. The film then runs its local stress ceiling whatever your stroke, so power per unit anchor speed rises by v_cap/v_anchor: the table's 2.5 MW/mm² at 200 km/h, against 150 kW plain. The price is that the cavity only accepts its own modes. Your carrier is overridden by f = n·c/2h, so the frequency falls as you climb, and each time the wavelength reaches the 100 km floor the anchor retunes to the next harmonic and pays one cavity round trip of weakened film (the 50 km transient). Switching follows the cavity rate: nearly free aloft, kHz on the pad. Engage it once you are a kilometre up, not on the grass. While resonant, the amplitude slider becomes the power budget: your skim cannot exceed the anchor's injection (stress budget × drive speed × section, the table's own P = σ·v). The boundary-value buildup is summarised as the one-round-trip ramp, and the reflection interplay the paper calls tricky for multi-climber is not modelled.</small>
         </div>
         <div class="slider-container">
             <label>Power share with other climbers: <span id="powerShareValue">refuse</span></label>
             <input type="range" id="powerShare" min="0" max="1" step="1" value="0">
-            <small class="setting-hint">The paper's p.14 open question (how to power more than one climber), playable at the budget level only. Refuse (the default) and you climb alone. Share, and when a second climber requests power at 85 km it boards your wave: the wave's transported power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw. Plain mode carries P = ρ·c·A·V² (slide 6): ~140 MW here against your ~13 kW skim, so sharing a plain wave costs nothing you can feel. Under resonance the budget is the anchor's injection (the P = σ·v the amplitude slider budgets while resonant), so sharing THERE halves your cruise: the paper's "retuning makes sharing tricky" (p.10), felt. The other rider is summarised as a twin in formation cruise (drawing weight × climb speed); what stays absent is the wave physics between riders: partial reflections (p.3) and the standing-pattern perturbation (p.10) are not modelled.</small>
+            <small class="setting-hint">The paper's p.14 open question, how to power more than one climber, playable at the budget level only. Refuse (the default) and you climb alone. Share, and when a second climber requests power at 85 km it boards your wave: the wave's transported power becomes a shared budget, and each rider's skim caps at the budget minus the other's draw. What that costs depends on the mode. A plain wave carries P = ρ·c·A·V² (slide 6), about 140 MW here against your ~13 kW skim, so sharing costs nothing you can feel. Under resonance the budget is the anchor's injection instead (the P = σ·v the amplitude slider budgets), so sharing halves your cruise: the paper's "retuning makes sharing tricky" (p.10), felt. The other rider is summarised as a twin in formation cruise (drawing weight × climb speed). What stays absent is the wave physics between riders: partial reflections (p.3) and the standing-pattern perturbation (p.10) are not modelled.</small>
         </div>
         <div class="slider-container">
             <label>Wave mode: <span id="modeCellValue">longitudinal · travelling</span></label>
@@ -461,7 +461,7 @@
         <div class="slider-container">
             <label>Film taper (anchor : top): <span id="taperValue">1.0 : 1</span></label>
             <input type="range" id="taper" min="1" max="10" step="0.5" value="1">
-            <small class="setting-hint">The paper's p.9 lever: a wider ribbon at the anchor, thinning with altitude. Transported power is constant, so the wave's speed and amplitude adjust as 1/√A with height: the anchor runs √R slower for the same speed at the top (R = 4 is the paper's own example, a 500 km/h anchor for 1000 km/h aloft). The cost is the start: the low ceiling drops by the same factor, and from about R = 3 the low-climb skim can no longer cover the flat switching draw (R = 2.5 flies clean; the demo stack browns out before break-even at R = 3, and a bigger stack does not help, the break-even is per pair), so taper is a trade, not a free lunch. The stress cap binds at the thin top, tightening the stroke cap by 1/√R. Taper is in the ribbon width; the thickness the coupling reads stays uniform, and the drawn band tracks the local width up to the same clamp-jaw cap as before. The paper's cost is tether MASS (2.3 t for its 5.4 MW example), which is the ground station's problem and is not modelled. The taper is slow against the wavelength (100 km against 227 m), so the paper promises no reflections; its λ/4 anti-reflection layer is the other route and is not modelled.</small>
+            <small class="setting-hint">The paper's p.9 lever: a wider ribbon at the anchor, thinning with altitude. Transported power is constant, so the wave's speed and amplitude adjust as 1/√A with height, and the anchor runs √R slower for the same speed at the top. R = 4 is the paper's own example: a 500 km/h anchor for 1000 km/h aloft. What you pay is the start. The low ceiling drops by the same factor, and from about R = 3 the low-climb skim can no longer cover the flat switching draw. R = 2.5 flies clean; the demo stack browns out before break-even at R = 3, and a bigger stack does not help, because the break-even is per pair. A trade, not a free lunch. The stress cap binds at the thin top, tightening the stroke cap by 1/√R. Taper is in the ribbon width; the thickness the coupling reads stays uniform, and the drawn band tracks the local width up to the same clamp-jaw cap as before. The paper's own cost is tether mass (2.3 t for its 5.4 MW example), which is the ground station's problem and is not modelled. The taper is slow against the wavelength (100 km against 227 m), so the paper promises no reflections; its λ/4 anti-reflection layer is the other route, also not modelled.</small>
         </div>
         <div class="slider-container">
             <label>Tension: <span id="tensionValue">100 kg</span></label>
@@ -4884,12 +4884,12 @@
                         const closeKmh = Math.round((-this.monkey.velocityY / GameConfig.PHYSICS.ALTITUDE_CONVERSION
                                                      + DESCENDER_SPEED_MPS) * 3.6);
                         const card = d.targetAlt === 30000
-                            ? { title: 'a descending climber blurs past', lines: [
+                            ? { title: 'another monkey zooms past, going down', lines: [
                                 `closing speed ≈ ${closeKmh} km/h, two climbers passing at cruise.`,
                                 'the paper sketches this rider (p.5: the Descender), the same machinery',
                                 'as yours, riding the wave down. lofstrom: descenders dissipate energy',
                                 'into ribbon vibrations: the ripple on the film is that energy, schematic.'] }
-                            : { title: 'power from the top', lines: [
+                            : { title: 'the ride down can power the ride up', lines: [
                                 `another descender, closing ≈ ${closeKmh} km/h. The paper's own answer to`,
                                 '"how to power more than one climber" (p.14): mode conversion in space, or',
                                 'power FROM THE TOP: space solar, or descenders dumping energy back into',
@@ -4923,8 +4923,8 @@
             _updateClimbBeats(dt) {
                 const prev = this._lastFrameAltitude, alt = this.monkey.altitude;
                 const fired = this._beatsFired;
-                const push = (id, title, lines) => {
-                    if (!fired.has(id)) { fired.add(id); this._beatQueue.push({ title, lines }); }
+                const push = (id, title, lines, minimalQuiet) => {
+                    if (!fired.has(id)) { fired.add(id); this._beatQueue.push({ title, lines, minimalQuiet: !!minimalQuiet }); }
                 };
                 // M4 (p.10): the ACTIVE frequency (the cavity rate while resonant), so
                 // every card below quotes the drive the film is actually running.
@@ -4939,13 +4939,13 @@
                     const capCm = Math.round(this.strokeCapM() * 100);
                     if (this.taperRatio > 1) {
                         const topKmh = Math.round(anchorKmh * Math.sqrt(this.taperRatio));
-                        push('taper', 'your taper is trading start for anchor', [
+                        push('taper', 'the hard part is behind you', [
                             `taper ×${this.taperRatio.toFixed(1)}: the anchor drives ${anchorKmh} km/h and the wave reaches ${topKmh} km/h at the top.`,
                             'amplitude adjusted as 1/√A with height (transported power is constant); the slow',
                             `start you just flew is the cost; the easy anchor is the gain. stroke cap now ${capCm} cm. (paper p.9)`,
                         ]);
                     } else {
-                        push('taper', 'the anchor is the brutal part', [
+                        push('taper', 'climbing gets easier as you go', [
                             `your ground station is driving the film at ${anchorKmh} km/h: 1000 km/h class machinery (paper p.9).`,
                             'taper (Film group) widens the ribbon at the anchor, so the wave speeds up as it climbs:',
                             'the anchor runs √R easier for the same speed at the top. the cost: a slower start.',
@@ -4964,7 +4964,7 @@
                     const widthMm = this.vineWidth * 10;
                     const refMw = (waveDragColumnPowerW(1000 / 3.6, widthMm, this.filmThicknessMm) / 1e6).toFixed(1);
                     const billMw = (waveDragColumnPowerW(anchorMps, widthMm, this.filmThicknessMm) / 1e6).toFixed(1);
-                    push('wave-drag', 'the dense air taxes the wave', [
+                    push('wave-drag', 'you made it through the thickest air!', [
                         `the drag table's longitudinal row (paper p.7): ${refMw} MW at 1000 km/h for your film.`,
                         `you drive ${anchorKmh} km/h, so your live bill is ${billMw} MW: quadratic drag on the wave itself,`,
                         'cubic in film speed and worst in this band where the air is densest; by 40 km it is gone.',
@@ -4979,7 +4979,7 @@
                     const kmh = Math.round(climbSpeedKmh(this.monkey.velocityY));
                     const billMw = (waveDragColumnPowerW(this.waveSystem.amplitude * f * 2 * Math.PI,
                         this.vineWidth * 10, this.filmThicknessMm) / 1e6).toFixed(1);
-                    push('transverse', 'a transverse wave would be dead here', [
+                    push('transverse', 'as high as the jets fly', [
                         'quadratic drag caps a transverse wave at 45 km/h, 20 kW total (paper p.7).',
                         `you are doing ${kmh} km/h on a LONGITUDINAL wave: its drag bill is ${billMw} MW.`,
                         'same equation, different mode. paper p.7 (drag table) · p.12 (longitudinal vs transverse)',
@@ -4990,7 +4990,7 @@
                 // altitude-dependent (v_max/√(section ratio here)), not the top's value.
                 if (upgradeCrossed(prev, alt, 20000, false)) {
                     const localVMax = this.vMaxMps() / Math.sqrt(taperSectionRatioAt(alt, this.taperRatio, GameConfig.MISSION.DELIVER_ALTITUDE_M));
-                    push('thinning', 'the air is thinning', [
+                    push('thinning', 'less air, less drag, more speed', [
                         `air ${airDensityReadout(alt)} of sea level and falling: drag is letting go.`,
                         `the film's stress budget is the ceiling now: ${(this.safetyFraction * 100).toFixed(0)}% of working stress → v_max ${Math.round(localVMax * 3.6)} km/h here.`,
                         'if you left margin in the stress budget, this is where it pays. (paper p.7)',
@@ -5030,14 +5030,14 @@
                             * waveDragSpeedFactorAt(alt, this.waveSystem.amplitude * omega, widthMm, this.filmThicknessMm);
                     }
                     const qWm = waveDragHeatingWM(alt, vLocal, this.filmThicknessMm);
-                    push('stack-heat', 'the air stops carrying your heat', [
+                    push('stack-heat', 'up here, nothing cools your magnets', [
                         `your stack dissipates ${heatKw} kW while you hold (the datasheet's own 4 J per transition); its`,
                         `published ceiling is +${GameConfig.FG40.MAX_INTERNAL_TEMP_C} °C internal. the air that convects it away is`,
                         `${airDensityReadout(alt)} of sea level here and falling: aloft the stack can only radiate. the wave's`,
                         `own drag heating runs ~${qWm.toFixed(0)} W/m of film here, p.7's "possibly by drag heating". no heat`,
                         'capacity or transfer coefficient is published for either, so no temperature is modelled:',
                         'the watts and the ceiling are the honest book. (paper p.7 · FG40 datasheet)',
-                    ]);
+                    ], true);
                 }
                 // 42 km: above the atmosphere, the paper's mode-conversion question
                 // (p.12). M4: surfaced VERBATIM and marked unanswered. The paper's
@@ -5054,13 +5054,13 @@
                 // overlap below an 800 px viewport).
                 if (upgradeCrossed(prev, alt, 42000, false)) {
                     const cell = waveModeCell(this.resonanceOn);
-                    push('mode-conversion', 'above the atmosphere: convert modes? the paper asks', [
+                    push('mode-conversion', 'can the wave change shape? nobody knows', [
                         'p.12\'s mode table ends on a question, not a mechanism: "Consider mode conversion above the',
                         'atmosphere?" a transverse wave up here would carry constant power, decoupled from load',
                         'bearing, but no converter, no coupling length, no efficiency exists to play, so none is',
                         `modelled. you ride the ${cell.label} cell. the one mode change that exists is travelling to`,
                         'standing and back: the resonance lever (Ground station, p.10). (paper p.12/13)',
-                    ]);
+                    ], true);
                 }
                 // 40-70 km — standing-wave resonance (p.10). M4: now live. With
                 // resonance engaged the beat is the RETUNE itself: the drift reaches
@@ -5075,7 +5075,7 @@
                     if (upgradeCrossed(prev, alt, 50000, false) && this._resMode) {
                         const mode = this._resMode;
                         const floorHz = this.tetherWaveSpeed() / GameConfig.TETHER.RESONANCE_LAMBDA_MAX_M;
-                        push('resonance-retune', 'resonance drifted; the anchor retunes', [
+                        push('resonance-retune', 'brief slow patch while the wave resets', [
                             `the standing wave's wavelength fell to the paper's 100 km floor (${floorHz.toFixed(2)} Hz): the anchor is a node (p.10),`,
                             `so it retunes to the next harmonic: n=${mode.n}, ${mode.freqHz.toFixed(2)} Hz. the rebuild costs one cavity round trip,`,
                             `${mode.roundTripS.toFixed(1)} s of weakened film (the transient), then the full boost returns. the frequency keeps`,
@@ -5086,12 +5086,12 @@
                     const mode = resonanceModeAt(alt, this.tetherWaveSpeed());
                     const vCap = this.vMaxMps() / Math.sqrt(this.taperRatio);
                     const boost = resonanceBoostFactor(this.waveSystem.amplitude * f * 2 * Math.PI, vCap);
-                    push('resonance', 'the anchor could become a node', [
+                    push('resonance', 'ring the ribbon like a guitar string', [
                         `p.10: a standing wave on the film holds tension, trading anchor speed for power: x${boost.toFixed(1)} here.`,
                         `the cavity would ring at ${mode.freqHz.toFixed(2)} Hz now (period ${mode.periodS.toFixed(1)} s), the frequency falling as you`,
                         'rise and resetting at the 100 km wavelength floor. engage resonance in Settings (Ground station), but treat it as',
                         'an aloft tool: on the pad the cavity rings at kHz and the stack cannot pay the switching. retune transients are the cost.',
-                    ]);
+                    ], true);
                 }
                 // ~70 km — gigacycle fatigue, CONDITIONAL: only when the carrier sits in
                 // the paper's top decade (p.11). Evaluated while above 70 km (not just at
@@ -5099,11 +5099,11 @@
                 // 92 Hz floor "lower the carrier" is not actionable and the p.11 dashboard
                 // already carries the fatigue cell for the 10-1000 Hz band.
                 if (alt >= 70000 && freqDecadeColumn(f) >= 6) {
-                    push('fatigue', 'gigacycle fatigue', [
+                    push('fatigue', 'does the carrier wear the ribbon out?', [
                         `at ${f.toFixed(0)} Hz the film passes ~${(f * 0.3156).toFixed(0)} gigacycles per decade of service.`,
                         'p.11 flags "Gigacycles per decade?" in this band. Lowering the carrier cuts cycles and',
                         'switching watts; the cost is a longer ground stroke (A_max = v_max/ω), not speed. (paper p.11)',
-                    ]);
+                    ], true);
                 }
                 // ~85 km — a second climber requests power (p.14). M4: now a REAL
                 // share-or-refuse decision, carried by the powerShare slider (Ground
@@ -5134,7 +5134,7 @@
                     });
                     const budgetStr = budgetW >= 1e6 ? `${(budgetW / 1e6).toFixed(1)} MW` : `${(budgetW / 1000).toFixed(0)} kW`;
                     if (this.powerShareOn) {
-                        push('second-climber', 'sharing the wave with a second climber', [
+                        push('second-climber', 'sharing your wave with another monkey', [
                             `the wave is now a shared budget: your skim caps at ${budgetStr} minus the rider's draw.`,
                             this.resonanceOn
                                 ? 'that budget is the anchor\'s injection (p.10): the split halves your cruise, the paper\'s "tricky" felt.'
@@ -5143,7 +5143,7 @@
                             'partial reflections (p.3) and the retune interplay that makes sharing tricky (p.10). (paper p.14)',
                         ]);
                     } else {
-                        push('second-climber', 'a second climber requests power', [
+                        push('second-climber', 'another monkey asks to share your wave', [
                             this.resonanceOn
                                 ? `this wave's shared budget would be the anchor's injection (${budgetStr}, p.10): refusing keeps it all yours.`
                                 : `this wave carries ~${budgetStr} against your ~${skimKw} kW skim: the budget is not what is scarce.`,
@@ -5157,6 +5157,15 @@
                 if (this._beatCard) {
                     this._beatCardTimer -= dt;
                     if (this._beatCardTimer <= 0) this._beatCard = null;
+                }
+                // Trivia cards never dwell invisibly at minimal: drop them and take
+                // the next card now, so an encouragement or a hint is never delayed
+                // behind a card the level hides. They still fired; the full level
+                // shows them, and a mid-card switch to minimal hides them via the
+                // renderClimbBeat gate.
+                while (!this._beatCard && this._beatQueue.length
+                       && this._beatQueue[0].minimalQuiet && _uxHudLevel !== HUD_FULL) {
+                    this._beatQueue.shift();
                 }
                 if (!this._beatCard && this._beatQueue.length) {
                     this._beatCard = this._beatQueue.shift();
@@ -5175,6 +5184,10 @@
             // something happened and what it was; H opens the rest.
             renderClimbBeat(ctx, width) {
                 if (!this._beatCard || _uxHudLevel === HUD_OFF) return;
+                // Trivia cards (minimalQuiet) still fire and still draw at FULL, but
+                // stay silent at the default minimal level: the interruption layer is
+                // for encouragement and hints, not homework.
+                if (this._beatCard.minimalQuiet && _uxHudLevel !== HUD_FULL) return;
                 const t = this._beatCardTimer;   // 7 -> 0
                 const alpha = _uxReducedMotion ? 0.95
                     : Math.max(0, Math.min(0.95, (7 - t) / 0.3, t / 0.8));
