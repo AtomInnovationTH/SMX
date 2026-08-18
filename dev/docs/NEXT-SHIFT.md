@@ -131,6 +131,42 @@ What remains is presentation of state the game already owns; nothing is queued. 
 the next candidate is seen, it goes here with its section-0 bar (name the paper hook,
 or stay presentation-only with numbers the game already owns).
 
+### Queued now: phase 2 of the copy pass (presentation-only, no physics)
+
+The direction is settled and recorded in [`DESIGN.md`](DESIGN.md) under
+"Player-facing copy" (read it first; it was settled with the owner over three
+review rounds and breaking it gets reverted). Phase 1 shipped in `378ec84`:
+plain-language settings hints, encouragement-register beat titles, and the
+`minimalQuiet` trivia gate. Three items remain; one commit for the set is fine:
+
+1. **Full-HUD beat-card bodies get plain first lines.** The first line of each body
+   says the thing in everyday words; the numbers and citations follow. Keep every
+   smoke-pinned body fragment byte-identical: `/no converter/` (42 km),
+   `/no temperature is modelled/` and `/\+73 /` (30 km), the share-card budget
+   regexes (85 km). Body lines are 11 px monospace on a plate sized to the widest
+   line, so keep new lines no longer than the longest line each card already has
+   (full HUD is effectively desktop; phones cannot reach it).
+2. **Brownout/UNLOADED strings become kind and actionable.** Current offenders:
+   `UNLOADED: flutter ±0.10 mm overruns the ±0.15 mm/side gap` (the stack label,
+   ~line 4394 and ~5734-5735) and the brownout `why:` line (~line 4847). Direction:
+   say what happened and what to do in plain words ("magnets let go: the film is
+   wobbling too much. widen the gap or add tension."). Grep
+   `dev/tests/smoke/smoke.mjs` for UNLOADED/flutter before touching (nothing pins
+   them as of this writing; the pins rule still applies).
+3. **"anchor" retires from player-facing copy in favor of "ground station"** (the
+   settings vocabulary, self-explanatory). Player-facing hits: the settings hints
+   (~lines 409/418/423/459/464), the `Film taper (anchor : top)` label, beat-card
+   bodies, and TWO smoke-pinned formats that move in lockstep: the readout
+   `/^\d+ kW · the anchor's injection, P = σ·v \(p\.10\)$/` (smoke ~line 783) and
+   `taperInfo.stress.includes('anchor')` (smoke ~line 575). Keep "anchor" where the
+   paper is quoted and in code comments.
+
+Done means: `bash dev/tools/check.sh` green (142 unit, em-dash, rebuild in sync,
+98 = 98 refs, 30/30 smoke), smoke pins moved in lockstep with any matched word
+(and the pins list in the done-backlog above updated to match), canvas-string
+widths verified on the real font, `CHANGELOG.md` Unreleased updated in the same
+commit, then commit + push (CI deploys).
+
 ## Screenshot recipe, already paid for
 
 The tool is `dev/tools/capture.mjs` (stills, clip, or both; skips cleanly when

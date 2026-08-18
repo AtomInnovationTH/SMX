@@ -117,6 +117,35 @@ both impedances, all three power rows. With ρ = 1800 every one of them misses b
   ~1 TPa across the whole material ladder. The only real attenuation is the p.7
   air drag on the wave, which M4 ships. Do not bring back a strength-based fade.
 
+## Player-facing copy (settled with the owner)
+
+The game translates the paper for people who will never read it, and the monkey is
+the friendly face of that translation (grasping without touching: the coupling,
+drawn). The copy has to match the monkey. These rules were settled over three
+review rounds in August 2026; breaking them gets reverted.
+
+- **The interruption layer (minimal HUD) is for encouragement, celebration and
+  hints the player can act on without leaving the game.** Never homework, and
+  never instructions to open Settings: a casual player never will.
+- **No jargon at minimal.** Everyday words at the surface. The physics terms live
+  one deck down (full-HUD card bodies, settings hints, the README), where curious
+  players learn them with context instead of as a password.
+- **The riders are monkeys**, the way the game looks: "another monkey zooms past,
+  going down", not "a descending climber".
+- **Never criticize the player's play.** "Slow start, smooth climbing ahead" was
+  rejected as an insult; "the hard part is behind you" is the same fact as a gift.
+  Celebration beats instruction: "you made it through the thickest air!"
+- **Trivia beats are `minimalQuiet`**: they still fire and still draw at full HUD,
+  but the pump skips them outright at minimal so an encouragement is never delayed
+  behind a hidden card. (Stack heat, the mode question, the resonance offer and
+  gigacycle fatigue, as of the bridge pass.)
+- **Friendlier is not faker.** Honest mystery is welcome ("can the wave change
+  shape? nobody knows"); invented comfort is not. Every title stays true to the
+  physics and the bodies keep the citations.
+- **Canvas strings are width-verified on the real font.** Beat titles must fit a
+  390 px phone plate (the whole set measures <= 360 px since the bridge pass; the
+  mode card's 460 px overflow was the bug that proved the rule).
+
 ## What is deliberately not here
 
 Milestone specs (M1-M4 all shipped; see the changelog and the shift log), the test
