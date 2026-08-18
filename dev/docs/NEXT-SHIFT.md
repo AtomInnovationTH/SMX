@@ -221,6 +221,9 @@ rediscover the traps:
 - Nothing may flash faster than 3 Hz, everything must freeze under `prefers-reduced-motion`,
   and colour must never be the only signal.
 - **No em dashes in player-facing or repo-facing prose.** The owner has asked three times.
+- **Settled design decisions live in [`DESIGN.md`](DESIGN.md)**: the principle, the
+  physical architecture, the stress-budget reconciliation, and the decisions whose
+  reasons are not in the code. Do not re-litigate them.
 - Never invent physics to fill a gap. Say it is absent instead. That discipline is the whole
   reason this project is worth showing to the deck's author.
 

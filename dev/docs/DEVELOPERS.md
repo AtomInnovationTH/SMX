@@ -5,7 +5,8 @@ cartoon-wrapped simulation of contactless climbing of a space-elevator seed teth
 
 > This file is the current reference. The superseded design/roadmap documents that
 > used to sit in `docs/history/` were deleted in the August 2026 tidy; `git log` has
-> them if you ever need them.
+> them if you ever need them. The settled design decisions that must not be
+> re-litigated live in [`DESIGN.md`](DESIGN.md).
 
 ---
 

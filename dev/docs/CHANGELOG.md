@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **[`DESIGN.md`](DESIGN.md) records the settled design decisions** (the principle,
+  the physical architecture, the stress-budget reconciliation, and the decisions
+  whose reasons live nowhere in the code), distilled from the local working plan that
+  drove M1-M4. That plan sat gitignored in `.kilo/plans/` on one machine, pointed at
+  only by the local `handoff.md`, which is now deleted; `DEVELOPERS.md` links
+  `DESIGN.md` as the do-not-re-litigate record.
+
 ## [1.1.0] - 2026-08-18
 
 ### Simulation-fidelity rework
@@ -16,6 +25,18 @@ Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupl
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
 M4's deferred physics list is complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
+
+#### Added (docs and gate hygiene, August 2026)
+
+- **The no-em-dash rule is now enforced by the gate, not by review.** New
+  `dev/tools/check_emdash.py` proves no em dash sits outside a comment in
+  `Space_Monkey_Elevator.html` (a state machine over the HTML, CSS and JS contexts,
+  string- and template-literal-aware); it runs as step 2/5 of `dev/tools/check.sh`
+  and as a build-job step in CI.
+- **`NEXT-SHIFT.md` split for readability.** Current state, priorities, the
+  screenshot recipe and the rules stay in `NEXT-SHIFT.md` (1,288 to 234 lines); the
+  fifteen per-shift narratives moved verbatim to [`shift-log.md`](shift-log.md),
+  newest first.
 
 #### Added (full mission block on phones, August 2026)
 
