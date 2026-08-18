@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Run em-dash check
+        run: python3 dev/tools/check_emdash.py
+
       - name: Rebuild index.html from source
         run: python3 embed_assets.py
 

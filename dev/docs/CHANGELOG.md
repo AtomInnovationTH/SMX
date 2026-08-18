@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Simulation-fidelity rework (in progress)
+## [1.1.0] - 2026-08-18
 
-Reworking the game so it accurately illustrates Blaise Gassend's *Powering Climbers
+### Simulation-fidelity rework
+
+Reworks the game so it accurately illustrates Blaise Gassend's *Powering Climbers
 Using Mechanical Waves* (ISDC 2025), with Zubax FluxGrip FG40 as the named coupling
 hardware. Physics landed first (M1-M2); the illustration layer landed next (M3), and
-M4's deferred physics list is now complete (taper, wave drag, resonance, multi-climber
+M4's deferred physics list is complete (taper, wave drag, resonance, multi-climber
 sharing, mode conversion, the hot side of thermal).
 
 #### Added (full mission block on phones, August 2026)
@@ -836,7 +838,8 @@ full pre-publish engineering review.
 
 - _Nothing else this release._
 
-[Unreleased]: https://github.com/AtomInnovationTH/SMX/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/AtomInnovationTH/SMX/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/AtomInnovationTH/SMX/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AtomInnovationTH/SMX/releases/tag/v0.1.0

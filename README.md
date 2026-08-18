@@ -183,8 +183,8 @@ the author's copy.
 
 [MIT](LICENSE), code and art alike.
 
-Still in progress, so the live build moves around. The paper's deferred simulation list is
-complete: taper, wave drag, resonance, multi-climber sharing, mode conversion and, as of this
-shift, the hot side of thermal (booked exactly, temperature marked absent). What remains
-unsimulated is the paper's own unsolved problems.
+v1.1.0. The paper's deferred simulation list is complete: taper, wave drag, resonance,
+multi-climber sharing, mode conversion and the hot side of thermal (booked exactly, temperature
+marked absent). What remains unsimulated is the paper's own unsolved problems. The live build
+deploys from `main`.
 Issues and pull requests welcome: [CONTRIBUTING.md](.github/CONTRIBUTING.md).

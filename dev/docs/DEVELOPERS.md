@@ -43,8 +43,9 @@ refused if it serves something else, instead of playing the wrong page. Handy kn
 `PORT=8765 ./start.sh`, `NO_OPEN=1 ./start.sh` (headless shells), and a query-string
 argument (`./start.sh '?debug'`). The same by hand:
 `python3 -m http.server 8002`, then open `http://localhost:8002/index.html`.
-CI (`.github/workflows/`) runs the unit tests, re-runs the build on push and fails if
-the committed `index.html` is out of sync, then deploys to GitHub Pages.
+CI (`.github/workflows/`) runs the unit tests, checks for em dashes outside comments,
+re-runs the build on push and fails if the committed `index.html` is out of sync,
+then deploys to GitHub Pages.
 
 ---
 
@@ -141,7 +142,8 @@ For a single command that reproduces the full CI gate, use `dev/tools/check.sh`:
 bash dev/tools/check.sh    # or: SKIP_SMOKE=1 bash dev/tools/check.sh
 ```
 
-It runs the unit tests, regenerates `index.html` from the source and **fails if it was
+It runs the unit tests, checks for em dashes outside comments, regenerates `index.html`
+from the source and **fails if it was
 out of sync** (note it mutates the tree, exactly as CI does — if it fails on the in-sync
 check, `git add index.html` and re-run), verifies asset references, then runs the browser
 smoke test. `SKIP_SMOKE=1` skips the browser step for speed.
@@ -519,9 +521,12 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   at any point (photosafety), freeze it under reduced motion, and route its colours
   through `COLOR_PALETTE` so the Okabe-Ito swap keeps working.
 - Quick sanity check before committing: `bash dev/tools/check.sh` (or
-  `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, rebuilds `index.html`
-  and fails if the committed artifact was stale, checks asset references, and drives the
-  browser smoke suite.
+  `SKIP_SMOKE=1 bash dev/tools/check.sh`). It runs the unit tests, checks for em dashes
+  outside comments, rebuilds `index.html` and fails if the committed artifact was stale,
+  checks asset references, and drives the browser smoke suite.
+- No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
+  by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
+  gate.
 - **Current gate numbers** (keep these updated when they move): **142 unit tests**
   (pure 121, sliders 12, balance 9), **62 pure helpers** in the delimited block,
   **98 = 98** asset references, **30 browser smoke checks**, `index.html` **435 KB**.
