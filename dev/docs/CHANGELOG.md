@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **[`DESIGN.md`](DESIGN.md) records the settled design decisions** (the principle,
-  the physical architecture, the stress-budget reconciliation, and the decisions
-  whose reasons live nowhere in the code), distilled from the local working plan that
-  drove M1-M4. That plan sat gitignored in `.kilo/plans/` on one machine, pointed at
-  only by the local `handoff.md`, which is now deleted; `DEVELOPERS.md` links
-  `DESIGN.md` as the do-not-re-litigate record.
+- **[`DESIGN.md`](DESIGN.md) records the settled design decisions** so they no
+  longer live on one machine: the one principle, the physical setup agreed with the
+  owner, why the stress slider means what it means, and the decisions whose reasons
+  are nowhere in the code. Distilled from the M1-M4 working plan, which sat
+  gitignored in `.kilo/plans/` with only the local `handoff.md` pointing at it (both
+  retired now). `DEVELOPERS.md` links it as the record not to re-litigate.
 
 ## [1.1.0] - 2026-08-18
 
@@ -28,11 +28,11 @@ sharing, mode conversion, the hot side of thermal).
 
 #### Added (docs and gate hygiene, August 2026)
 
-- **The no-em-dash rule is now enforced by the gate, not by review.** New
-  `dev/tools/check_emdash.py` proves no em dash sits outside a comment in
-  `Space_Monkey_Elevator.html` (a state machine over the HTML, CSS and JS contexts,
-  string- and template-literal-aware); it runs as step 2/5 of `dev/tools/check.sh`
-  and as a build-job step in CI.
+- **The no-em-dash rule is now checked by the gate instead of by eye.** New
+  `dev/tools/check_emdash.py` scans `Space_Monkey_Elevator.html` with a small state
+  machine (HTML, CSS and JS contexts, aware of strings and template literals) and
+  fails if an em dash sits outside a comment. It runs as step 2/5 of
+  `dev/tools/check.sh` and as a build step in CI.
 - **`NEXT-SHIFT.md` split for readability.** Current state, priorities, the
   screenshot recipe and the rules stay in `NEXT-SHIFT.md` (1,288 to 234 lines); the
   fifteen per-shift narratives moved verbatim to [`shift-log.md`](shift-log.md),
