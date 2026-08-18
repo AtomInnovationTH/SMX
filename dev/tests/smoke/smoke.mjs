@@ -572,7 +572,7 @@ try {
   record('taper: stroke cap tightens by 1/√R, amplitude label shows the clamp, band widens at the anchor under the jaw cap',
     taperInfo.ratio === 4 && taperInfo.band === 13 && taperInfo.band < taperInfo.jaws &&
     taperInfo.cap.startsWith('0.54 m') && taperInfo.amp.includes('(capped)') &&
-    taperInfo.stress.includes('anchor') &&
+    taperInfo.stress.includes('ground station') &&
     taperInfo.restoredBand === 12 && Math.abs(taperInfo.restoredAmp - 1) < 1e-9,
     JSON.stringify(taperInfo));
 
@@ -778,9 +778,9 @@ try {
     res.engaged.on === true && res.engaged.label.includes('node') &&
     res.engaged.freqLabel.includes('cavity') &&
     res.engaged.modeLabel.includes('standing') &&   // M4 (p.12/13): the one mode change, named
-    // M4 (slide 6): the budget readout rides the mode too: the anchor's injection
-    // (kW-scale, P = σ·v) while engaged, back to slide 6's transported MW plain.
-    /^\d+ kW · the anchor's injection, P = σ·v \(p\.10\)$/.test(res.budgetEngaged) &&
+    // M4 (slide 6): the budget readout rides the mode too: the ground station's
+    // injection (kW-scale, P = σ·v) while engaged, back to slide 6's transported MW plain.
+    /^\d+ kW · the ground station's injection, P = σ·v \(p\.10\)$/.test(res.budgetEngaged) &&
     /^\d+\.\d+ MW · P = ρ·c·A·V² \(slide 6\)$/.test(res.budgetRestored) &&
     res.n === 2 && res.resets === 1 && res.transient > 0 &&
     res.retuneFired === true && res.availFired === true &&

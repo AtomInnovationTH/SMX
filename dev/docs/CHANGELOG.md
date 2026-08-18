@@ -39,6 +39,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   460 px plate overflowed before). Smoke pins moved in lockstep, plus new checks
   that quiet cards hide at minimal, draw at full, and never dwell in the pump
   (30/30 green).
+- **Phase 2 of the copy pass: beat-card bodies open in plain words, failures ask
+  kindly, and the "anchor" is the ground station now.** Every full-HUD beat-card
+  body leads with one everyday-words line before the numbers and citations (the
+  two descender cards included). The stack's UNLOADED label, the settings
+  centering readout and the brownout reason line now say what happened and what
+  to do in plain words ("magnets let go: the film is wobbling too much. widen
+  the gap or add tension."). And "anchor" retired to "ground station" across the
+  settings hints, the taper label, the resonance and film-section readouts, and
+  the card bodies; the paper's own "anchor" stays only where the paper is
+  quoted (the §2.5 reference configuration in the pairs hint) and in code
+  comments. Smoke-pinned fragments were kept byte-identical (`no converter`,
+  `no temperature is modelled`, `+73 `, the share-card budget regexes) or moved
+  in lockstep with the wording (the wave-budget injection readout regex, the
+  wave-stress taper suffix), and every new canvas line was measured on the real
+  font against the widest line its card already drew. No physics, no settings
+  structure changes (142 unit, 30/30 smoke green).
 
 ## [1.1.0] - 2026-08-18
 

@@ -70,7 +70,10 @@ value containing an em dash (the only em-dash-adjacent guard is `minimalScoreLin
 exact equality ('another monkey asks to share your wave', 'sharing your wave with
 another monkey', 'can the wave change shape? nobody knows', 'up here, nothing
 cools your magnets'), plus the body fragments `/no converter/`,
-`/no temperature is modelled/`, `/\+73 /` and the share-card budget regexes. Check
+`/no temperature is modelled/`, `/\+73 /` and the share-card budget regexes. Phase 2
+added two more pins, moved in lockstep with the anchor retirement: the wave-budget
+readout regex `/^\d+ kW · the ground station's injection, P = σ·v \(p\.10\)$/` and
+`taperInfo.stress.includes('ground station')`. Check
 `dev/tests/smoke/smoke.mjs` for distinctive words before touching any player-facing
 string, and keep matched fragments verbatim. New prose stays em-dash-free.
 
@@ -131,41 +134,36 @@ What remains is presentation of state the game already owns; nothing is queued. 
 the next candidate is seen, it goes here with its section-0 bar (name the paper hook,
 or stay presentation-only with numbers the game already owns).
 
-### Queued now: phase 2 of the copy pass (presentation-only, no physics)
+### 2. (done) Phase 2 of the copy pass (presentation-only, no physics)
 
-The direction is settled and recorded in [`DESIGN.md`](DESIGN.md) under
-"Player-facing copy" (read it first; it was settled with the owner over three
-review rounds and breaking it gets reverted). Phase 1 shipped in `378ec84`:
-plain-language settings hints, encouragement-register beat titles, and the
-`minimalQuiet` trivia gate. Three items remain; one commit for the set is fine:
+**Done this shift, one commit for the set.** The direction is settled in
+[`DESIGN.md`](DESIGN.md) under "Player-facing copy"; phase 1 shipped in `378ec84`.
+The three remaining items:
 
-1. **Full-HUD beat-card bodies get plain first lines.** The first line of each body
-   says the thing in everyday words; the numbers and citations follow. Keep every
-   smoke-pinned body fragment byte-identical: `/no converter/` (42 km),
-   `/no temperature is modelled/` and `/\+73 /` (30 km), the share-card budget
-   regexes (85 km). Body lines are 11 px monospace on a plate sized to the widest
-   line, so keep new lines no longer than the longest line each card already has
-   (full HUD is effectively desktop; phones cannot reach it).
-2. **Brownout/UNLOADED strings become kind and actionable.** Current offenders:
-   `UNLOADED: flutter ±0.10 mm overruns the ±0.15 mm/side gap` (the stack label,
-   ~line 4394 and ~5734-5735) and the brownout `why:` line (~line 4847). Direction:
-   say what happened and what to do in plain words ("magnets let go: the film is
-   wobbling too much. widen the gap or add tension."). Grep
-   `dev/tests/smoke/smoke.mjs` for UNLOADED/flutter before touching (nothing pins
-   them as of this writing; the pins rule still applies).
-3. **"anchor" retires from player-facing copy in favor of "ground station"** (the
-   settings vocabulary, self-explanatory). Player-facing hits: the settings hints
-   (~lines 409/418/423/459/464), the `Film taper (anchor : top)` label, beat-card
-   bodies, and TWO smoke-pinned formats that move in lockstep: the readout
-   `/^\d+ kW · the anchor's injection, P = σ·v \(p\.10\)$/` (smoke ~line 783) and
-   `taperInfo.stress.includes('anchor')` (smoke ~line 575). Keep "anchor" where the
-   paper is quoted and in code comments.
+1. **Full-HUD beat-card bodies got plain first lines.** Every body now opens with
+   the thing in everyday words; the numbers and citations follow. The two
+   descender cards included. Every smoke-pinned body fragment stayed
+   byte-identical (`/no converter/` at 42 km, `/no temperature is modelled/` and
+   `/\+73 /` at 30 km, the share-card budget regexes at 85 km), and every new
+   line was measured on the real 11 px monospace font against the widest line
+   its card already drew (17 cases, all under; the three that overshot were
+   re-trimmed and re-measured).
+2. **Brownout/UNLOADED strings became kind and actionable.** The stack plate
+   (both widths), the settings centering readout and the brownout `why:` line's
+   unloaded branch now say what happened and what to do in plain words:
+   "magnets let go: the film is wobbling too much. widen the gap or add
+   tension." Nothing in the smoke suite pinned the old strings.
+3. **"anchor" retired to "ground station" in player-facing copy.** The settings
+   hints, the taper label, the resonance toggle formatter, the film-section and
+   wave-stress readouts, and every beat-card body. The two smoke-pinned formats
+   moved in the same commit: `/^\d+ kW · the ground station's injection, P = σ·v
+   \(p\.10\)$/` (was `the anchor's injection`) and
+   `taperInfo.stress.includes('ground station')` (was `'anchor'`). The paper's
+   own "anchor" stays where the paper is quoted (the §2.5 reference
+   configuration in the pairs hint) and in code comments.
 
-Done means: `bash dev/tools/check.sh` green (142 unit, em-dash, rebuild in sync,
-98 = 98 refs, 30/30 smoke), smoke pins moved in lockstep with any matched word
-(and the pins list in the done-backlog above updated to match), canvas-string
-widths verified on the real font, `CHANGELOG.md` Unreleased updated in the same
-commit, then commit + push (CI deploys).
+`updateContinuous` untouched, so the balance trace cannot move. Gate green: 142
+unit, em-dash, rebuild in sync, 98 = 98 refs, 30/30 smoke.
 
 ## Screenshot recipe, already paid for
 

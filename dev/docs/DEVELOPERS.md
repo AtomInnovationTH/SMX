@@ -376,9 +376,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   - **The readouts that explain the model**: `slip u` on the gauge (the quantity that
     explains why thrust fades), the **centering margin** (gap per side − film flutter,
     from the shared `flutterAmplitudeMm`) on the panel and the stack plate — reading
-    `UNLOADED` in words when flutter fills the gap — and the **brownout reason** captured
-    at trip time (unloaded stack / slip closure at `u ≥ 0.8` / low-speed extraction
-    deficit).
+    "magnets let go" in plain words when flutter fills the gap — and the **brownout
+    reason** captured at trip time (unloaded stack / slip closure at `u ≥ 0.8` /
+    low-speed extraction deficit).
   - **The paper's p.11 table as the dashboard** (`renderFreqTable`, `FREQ_TABLE`,
     `freqDecadeColumn`): seven decade columns with the paper's wavelengths and consequence
     rows in the paper's own words, the ~0.01–1 Hz band shaded (the climber reflects 50 % of
