@@ -598,12 +598,15 @@ try {
     g.paused = false; g.gameOver = false; g.running = true;
     // The frozen proof is a negative assertion: the sweep must NOT move while frames
     // keep running. Soak in STATE, not clock: 24 frames is the old 400 ms at 60fps,
-    // and the frame count proves the soak was real even on a runner that idled.
+    // and the frame count proves the soak was real even on a runner that idled. The
+    // 20 s wall guard is only a wedge backstop: a software-rendered CI runner can
+    // crawl at ~4 fps (observed 22 frames in 5 s), which tripped a tighter 5 s guard
+    // without anything being wrong.
     let frames = 0; const orig = g._boundUpdate;
     g._boundUpdate = (t) => { frames++; return orig(t); };
     const t0 = Date.now();
     const a = g._stackSweepPos;
-    while (frames < 24) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    while (frames < 24) { if (Date.now() - t0 > 20000) break; await new Promise((r) => setTimeout(r, 25)); }
     g._boundUpdate = orig;
     return { a, b: g._stackSweepPos, flag: g._stackSweepFrozen, pairs: g._stackDrawnPairs, frames };
   });
@@ -1398,13 +1401,15 @@ try {
     g.monkey.velocityY = 0;
     // State, not clock: two frames settle the first sample, then an 18-frame soak
     // (the old 300 ms at 60fps) proves the frozen scroll never moves while frames run.
+    // The 20 s wall guard is only a wedge backstop, same class as the sweep freeze
+    // above: a software-rendered CI runner can crawl at ~4 fps.
     let frames = 0; const orig = g._boundUpdate;
     g._boundUpdate = (t) => { frames++; return orig(t); };
     const t0 = Date.now();
-    while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    while (frames < 2) { if (Date.now() - t0 > 20000) break; await new Promise((r) => setTimeout(r, 25)); }
     const a = g._crestScrollPx;
     const framesAtA = frames;
-    while (frames - framesAtA < 18) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    while (frames - framesAtA < 18) { if (Date.now() - t0 > 20000) break; await new Promise((r) => setTimeout(r, 25)); }
     g._boundUpdate = orig;
     return { frozen: g._crestScrollFrozen, a, b: g._crestScrollPx,
              push: g._crestPush, speed: g._crestScrollPxS, frames: frames - framesAtA };
