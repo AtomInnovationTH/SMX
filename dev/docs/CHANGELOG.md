@@ -55,6 +55,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wave-stress taper suffix), and every new canvas line was measured on the real
   font against the widest line its card already drew. No physics, no settings
   structure changes (142 unit, 30/30 smoke green).
+- **The settings opening prose is now the owner's own rewrite.** The concept
+  paragraph presents the climber's propulsion as a stack of EPMs trading momentum
+  with the conductive graphene tether through an air gap, the controller flicking
+  the magnets on while the tether is moving up, steering by left/right timing and
+  centering by current to the opposed magnets, "nothing ever touches the tether",
+  the EPM case (electromagnet too heavy and always on, permanent magnet never
+  off), and the FG40's lab note (works on 1 mm aluminum; slow switching requires
+  long waves). The real tether's description (about 30 cm wide, under 0.1 mm
+  thick, silverish like multilayer graphene or aluminum foil, the paper's
+  "typical elevator ribbon is 20 mm²") lives in the Tether width hint, with the
+  game's own 45 mm × 0.2 mm = 9 mm² framed as the ~10 mm² class the paper's wave
+  tables assume. The settings group and its four labels were renamed Film to
+  Tether to match (the one card that named the group moved in the same edit).
+  No physics, no test fixtures touched (142 unit, 30/30 smoke green).
 
 ## [1.1.0] - 2026-08-18
 

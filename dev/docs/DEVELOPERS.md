@@ -497,7 +497,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   - **Soft failure**: 1.2 s of sustained thrust below weight sets `_stalled` and the stack
     plate explains it in words (slip collapsed vs overloaded). A stall costs time and never
     ends the run.
-  - **Panel groups + presets** (`PRESETS`): Ground station / Film / Climber, each with its
+  - **Panel groups + presets** (`PRESETS`): Ground station / Tether / Climber, each with its
     derived readouts, plus five presets that apply through the **sliders' own DOM events**
     (never a parallel write path). Preset numbers were validated against the balance harness
     before shipping; Lofstrom 1000 Hz is a labelled stall demo, not a bug.

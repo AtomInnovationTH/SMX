@@ -345,29 +345,30 @@
         <button id="settings-close" title="Close settings" aria-label="Close settings">&times;</button>
         <h3 id="settings-heading">Settings (Press S to toggle)</h3>
         <div class="settings-concept">
-            Your vehicle is a <b>stack of electro-permanent magnets (EPMs)</b>: the two
-            opposed rails drawn beside the climber, with the film running through the gap
-            between them. A ground station beams
-            traveling waves up a conductive graphene seed film; <b id="grab-input-word">hold SPACE</b> to engage the
-            stack and induce eddy currents in the moving film. The onboard controller does the
-            timing: it pulls only while the film is outrunning you, so you never time a pulse
-            yourself. What you watch is the trade: thrust fades as your speed closes on the
-            wave, while the switching cost stays flat, so the skim eventually stops covering it and
-            it is time to let go.<br><br>
-            <b>Nothing ever touches.</b> Momentum crosses an air gap by pulsed eddy-current
-            traction. That is the whole point: no wheel, no clamp, no friction to wear out.<br><br>
-            <b>Why an EPM and nothing else.</b> An electromagnet burns power continuously just to
-            hold a field. A permanent magnet can never switch off. An EPM is the only device that
-            is <b>on for free and off for free</b>: it pays only a few joules per switch.
-            <b>Zero static power is the enabling technology</b>; without it the climber would
-            spend more energy holding on than climbing.<br><br>
-            Above ~40 km there is effectively no air: let go and you keep your speed.
-            Your magnets latch off at zero power, so coasting costs nothing.<br><br>
+            Your climber's propulsion is a <b>stack of electro-permanent magnets (EPMs)</b>:
+            momentum crosses an air gap by pulsed eddy-current traction in the conductive
+            graphene tether. The tether runs through the gap between two opposing magnet
+            stacks, and it is moving up and down. <b id="grab-input-word">hold SPACE</b>
+            to engage the stacks and induce eddy currents in the moving tether. The onboard
+            controller flicks the magnets on while the tether is moving up, and the
+            eddy currents transfer momentum to your climber. It steers the climber with
+            slight timing adjustments to the left and right magnets of each stack, like
+            tires on a car, and it sends current to the opposing magnets to center itself
+            on the tether.<br><br>
+            <b>Nothing ever touches the tether.</b> No wheel, no clamp, no friction to
+            wear out, no damage to the tether.<br><br>
+            <b>Why an EPM?</b> An electromagnet is too heavy and burns power continuously
+            just to hold a field. A permanent magnet can never switch off. An EPM is the
+            only device that is <b>on for free and off for free</b>: it costs only a few
+            joules per switch. <b>Zero static power is the enabling technology</b>;
+            without it the climber would spend more energy holding on than climbing.<br><br>
             Based on Blaise Gassend, <i>Powering Climbers Using Mechanical Waves</i>, ISDC 2025
             · <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">read the paper ↗</a>
             (author&rsquo;s page: <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">gassend.net/spaceelevator/isdc2025</a>).<br>
             Coupling hardware modelled on <a href="https://fluxgrip.zubax.com/" target="_blank" rel="noopener">Zubax FluxGrip FG40</a>
-            electro-permanent magnets; no affiliation or endorsement implied.
+            electro-permanent magnets; no affiliation or endorsement implied. FG40 works
+            in the lab on 1 mm aluminum: it does transfer momentum, and its slow
+            switching on/off requires long waves.
         </div>
 
         <div class="preset-row">
@@ -432,7 +433,7 @@
             even with steady pulsing (efficient). A <b>square</b> wave only couples at its sharp edges (extreme skill).
         </div>
 
-        <h4>Film</h4>
+        <h4>Tether</h4>
         <div class="slider-container">
             <label>Material: <span id="materialValue">100 GPa Polycrystalline Graphene</span></label>
             <select id="material">
@@ -445,21 +446,21 @@
             <small class="setting-hint">Carbon films by working STRENGTH: stiffness (~1 TPa) and density (2300 kg/m³) barely vary across them, so strength alone sets the wave's speed ceiling (v_max, below). Entries above ~130 GPa exceed anything the source paper assumes and are marked speculative.</small>
         </div>
         <div class="slider-container">
-            <label>Film width: <span id="widthValue">45 mm</span></label>
+            <label>Tether width: <span id="widthValue">45 mm</span></label>
             <input type="range" id="width" min="10" max="1000" step="5" value="45">
-            <small class="setting-hint">The ribbon is a paper-thin conductive FILM, not a cable: 45 mm × 0.2 mm = the paper's 9 mm². The drawn band follows this slider up to about 50 mm and then stops widening, because past that it would grow into the climber's clamps and the air gap would stop being visible, which is the one thing the picture must not say. The number here is the width the physics uses.</small>
+            <small class="setting-hint">The tether is a paper-thin conductive FILM, not a cable: on the real elevator a ribbon about 30 cm wide and under 0.1 mm thick, silverish like multilayer graphene or aluminum foil (the paper's "typical elevator ribbon is 20 mm²"). This game flies the ~10 mm² class the paper's wave tables assume: 45 mm × 0.2 mm = 9 mm²; the slider spans both. The drawn band follows this slider up to about 50 mm and then stops widening, because past that it would grow into the climber's clamps and the air gap would stop being visible, which is the one thing the picture must not say. The number here is the width the physics uses.</small>
         </div>
         <div class="slider-container">
-            <label>Film thickness: <span id="thicknessValue">0.20 mm</span></label>
+            <label>Tether thickness: <span id="thicknessValue">0.20 mm</span></label>
             <input type="range" id="thickness" min="0.05" max="1" step="0.05" value="0.2">
-            <small class="setting-hint">Thicker film couples harder per pair (k ∝ t) but adds mass per metre. 0.2 mm is the paper's ribbon.</small>
+            <small class="setting-hint">Thicker film couples harder per pair (k ∝ t) but adds mass per metre. The real tether runs at under 0.1 mm; the default 0.2 mm is the paper's worked example, and the slider floor (0.05 mm) reaches the real range.</small>
         </div>
         <div class="slider-container">
-            <label>Film section: <span id="filmSectionValue">9.0 mm²</span></label>
+            <label>Tether section: <span id="filmSectionValue">9.0 mm²</span></label>
             <small class="setting-hint">width × thickness, the conductor the eddy currents flow in. With taper this is the section ALOFT; the ground station's is R times wider.</small>
         </div>
         <div class="slider-container">
-            <label>Film taper (ground station : top): <span id="taperValue">1.0 : 1</span></label>
+            <label>Tether taper (ground station : top): <span id="taperValue">1.0 : 1</span></label>
             <input type="range" id="taper" min="1" max="10" step="0.5" value="1">
             <small class="setting-hint">The paper's p.9 lever: a wider ribbon at the ground station, thinning with altitude. Transported power is constant, so the wave's speed and amplitude adjust as 1/√A with height, and the ground station runs √R slower for the same speed at the top. R = 4 is the paper's own example: a 500 km/h ground station for 1000 km/h aloft. What you pay is the start. The low ceiling drops by the same factor, and from about R = 3 the low-climb skim can no longer cover the flat switching draw. R = 2.5 flies clean; the demo stack browns out before break-even at R = 3, and a bigger stack does not help, because the break-even is per pair. A trade, not a free lunch. The stress cap binds at the thin top, tightening the stroke cap by 1/√R. Taper is in the ribbon width; the thickness the coupling reads stays uniform, and the drawn band tracks the local width up to the same clamp-jaw cap as before. The paper's own cost is tether mass (2.3 t for its 5.4 MW example), which is the ground station's problem and is not modelled. The taper is slow against the wavelength (100 km against 227 m), so the paper promises no reflections; its λ/4 anti-reflection layer is the other route, also not modelled.</small>
         </div>
@@ -4951,7 +4952,7 @@
                         push('taper', 'climbing gets easier as you go', [
                             'all the driving happens on the ground: the machine there whips the whole film.',
                             `your ground station is driving the film at ${anchorKmh} km/h: 1000 km/h class machinery (paper p.9).`,
-                            'taper (Film group) widens the ribbon at the ground station, so the wave speeds up as it climbs:',
+                            'taper (Tether group) widens the ribbon at the ground station, so the wave speeds up as it climbs:',
                             'the ground station runs √R easier for the same speed at the top. the cost: a slower start.',
                             'R = 4 is the paper\'s own example (500 km/h at the ground station, 1000 km/h aloft). your call.',
                         ]);
