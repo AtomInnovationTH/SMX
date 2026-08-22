@@ -10,7 +10,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 143 unit tests, 32 smoke checks, 98 = 98 asset references, all green.
+  Currently 144 unit tests, 33 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -178,7 +178,15 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
    Render-only: updateContinuous untouched, balance trace cannot move. Costs two
    pure helpers (count 61 -> 63), one new debug handle beside `_filmBandHalfPx`,
    hint/readme/docs disclosure, and staged-frame A/B at 0.60 vs 1.00 m strokes.
-3. **Altitude rail at every instrument level.** A thin fixed rail (ground to Kármán)
+3. **(done) Altitude rail.** Shipped this shift: right-edge sqrt-axis rail under the
+   EPM gauge, landmark ticks, ghost-best tick in the BEST line's gold, descender
+   chevrons at 30/60 km, the act boundary as a track shade (not a tick: it sits
+   1.2 % of the span from Baumgartner), live dot; labelled at full HUD only
+   ("sqrt scale", "Kármán · 100 km"), hidden exactly at off so ?clean stays clean.
+   One pure helper (`railAltitudeToFrac`, 64 total), one smoke check pinning
+   `_railState()` through the H cycle (33 total). Narrative in
+   [`shift-log.md`](shift-log.md). The original entry is kept for the record:
+   A thin fixed rail (ground to Kármán)
    with landmark ticks, the ghost-best tick and the descender markers gives the run
    its shape and makes "how far to go" glanceable at minimal HUD, where altitude
    awareness currently depends on catching the altimeter pill mid-scroll.

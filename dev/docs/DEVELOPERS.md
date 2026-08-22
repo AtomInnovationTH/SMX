@@ -383,6 +383,23 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     stays true (nothing compresses c/f), and the straight band edges are correct for
     a longitudinal wave. Debug handles `_waveDrawAmpPx` / `_waveShapeFrozen` sit
     beside `_filmBandHalfPx`.
+  - **The altitude rail** (`renderRailHud` / `_railState`, shift B): a thin fixed
+    rail on the right edge under the EPM gauge (which owns x width-37..width-13,
+    y 56..236; the rail runs y 252..height-78 on the gauge's centre x, on the SAME
+    translucent black plate every instrument reads through — without the plate the
+    marks wash out against bright cloud; the first staged frame taught this).
+    One computed
+    state (`_railState`) feeds both the renderer and the smoke pin, so they cannot
+    drift; it returns null at HUD off, so ?clean stays clean. The axis is SQRT
+    (`railAltitudeToFrac`): linear crushes every diegetic landmark but Everest under
+    12 % of the span; the compression is labelled at full HUD ("sqrt scale") and the
+    Kármán crown is labelled there too. The 40 km act boundary is a SHADE in the
+    track (Act I blue below, vacuum dim above), not a tick, because it sits 1.2 % of
+    the span from the Baumgartner tick. Ghost best echoes the world-space BEST
+    line's gold dashed language; the p.14 descenders are downward chevrons at their
+    crossing altitudes; the live dot follows data and nothing animates, so
+    photosafety and reduced motion need no guard. Landmark ticks are the altimeter
+    pill's own table (ground and the crown drawn separately, ISS off-span).
   - **The FG40 sandwich** (`renderFg40Stack`): 8 schematic opposed pairs flanking the
     film, drawn always (dim at rest), on a **fixed** span — a real-scale stack is 26–105 px
     next to a 240 px sprite that is itself not to scale, so the drawing is schematic and
@@ -555,9 +572,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **143 unit tests**
-  (pure 124, sliders 12, balance 9), **63 pure helpers** in the delimited block,
-  **98 = 98** asset references, **32 browser smoke checks**, `index.html` **435 KB**.
+- **Current gate numbers** (keep these updated when they move): **144 unit tests**
+  (pure 123, sliders 12, balance 9), **64 pure helpers** in the delimited block,
+  **98 = 98** asset references, **33 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

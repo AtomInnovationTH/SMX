@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The altitude rail: the run's shape, always on screen.** A thin fixed rail on
+  the right edge under the EPM gauge runs ground to Kármán on a sqrt axis (linear
+  crushes every diegetic landmark but Everest under 12 % of the span; the
+  compression is labelled at full HUD). Landmark ticks come from the altimeter's
+  own table, the ghost best echoes the world-space BEST line's gold dashed
+  language as a tick, the p.14 descenders are downward chevrons at their 30/60 km
+  crossings, and the 40 km act boundary is a shade in the track rather than a tick
+  because it sits 1.2 % of the span from Baumgartner ("the air quits there" reads
+  as texture). The live dot follows data and nothing animates: photosafety and
+  reduced motion need no guard. One computed state (`_railState`) feeds both the
+  renderer and the smoke pin; it returns null at HUD off, so ?clean stays clean.
+  Render-only: `updateContinuous` byte-identical, balance trace untouched. Gate:
+  144 unit tests (was 143), 64 pure helpers (was 63), 33/33 smoke (was 32).
 - **The legible wave: the drawn displacement is a labelled schematic on both axes.**
   A real 1 m stroke is 10 px against a 2,270 px wavelength, so the Stroke slider,
   the lever that most defines a run, moved nothing the eye could see. The renderer

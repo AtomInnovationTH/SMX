@@ -99,6 +99,7 @@ const EXPORTED_SYMBOLS = [
   'filmBandHalfPx',
   'waveDrawAmpPx',
   'drawnOscillationHz',
+  'railAltitudeToFrac',
   'CLAMP_JAW_HALF_PX',
   'FILM_BAND_MIN_HALF_PX',
   'FILM_BAND_MAX_HALF_PX',

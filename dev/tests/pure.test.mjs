@@ -88,6 +88,7 @@ const {
   filmBandHalfPx,
   waveDrawAmpPx,
   drawnOscillationHz,
+  railAltitudeToFrac,
   CLAMP_JAW_HALF_PX,
   FILM_BAND_MIN_HALF_PX,
   FILM_BAND_MAX_HALF_PX,
@@ -117,6 +118,7 @@ test('extraction exposes the core pure symbols', () => {
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
     filmBandHalfPx, minimalScoreLine, waveDrawAmpPx, drawnOscillationHz,
+    railAltitudeToFrac,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -139,13 +141,14 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 63 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 64 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
   // 62 -> 61: coldGripFactor deleted with the invented cold-coupling term it fed.
   // 61 -> 63: waveDrawAmpPx + drawnOscillationHz, the legible-wave schematics.
-  assert.equal(declaredPureHelpers().length, 63);
+  // 63 -> 64: railAltitudeToFrac, the altitude rail's sqrt axis.
+  assert.equal(declaredPureHelpers().length, 64);
 });
 
 // ---------------------------------------------------------------------------
@@ -1929,6 +1932,31 @@ test('drawnOscillationHz maps carriers into a slow band, monotonically', () => {
   // Out-of-band carriers clamp instead of extrapolating.
   approx(drawnOscillationHz(5), 0.15);
   approx(drawnOscillationHz(5000), 1.2);
+});
+
+// Shift B (altitude rail): a sqrt axis. Linear would crush every diegetic landmark
+// but Everest under 12 % of the span; sqrt spreads the low climb while both endpoints
+// stay exact and monotonicity holds across the whole mission.
+test('railAltitudeToFrac: sqrt axis spreads the low climb, clamps both ends', () => {
+  const M = 100000;
+  assert.equal(railAltitudeToFrac(0, M), 0);
+  approx(railAltitudeToFrac(M, M), 1);
+  // Below ground and past the Kármán line clamp, never extrapolate.
+  approx(railAltitudeToFrac(-5, M), 0);
+  approx(railAltitudeToFrac(400000, M), 1);   // the ISS sits at the crown, off-span
+  // The landmarks that motivated the axis: Everest at ~30 %, cruising altitude at
+  // ~35 %, the act boundary and Baumgartner separated by ~1 % of rail each.
+  approx(railAltitudeToFrac(8848, M), Math.sqrt(8848 / M));
+  approx(railAltitudeToFrac(20000, M), Math.sqrt(0.2));
+  approx(railAltitudeToFrac(40000, M), Math.sqrt(0.4));
+  assert.ok(Math.abs(railAltitudeToFrac(39000, M) - railAltitudeToFrac(40000, M)) < 0.01,
+    'Baumgartner and the act boundary stay distinct but close');
+  let prev = -Infinity;
+  for (let m = 0; m <= M; m += 2500) {
+    const f = railAltitudeToFrac(m, M);
+    assert.ok(f > prev, `frac must increase with altitude (${m} m)`);
+    prev = f;
+  }
 });
 
 test('viewportTooSmall passes every real phone and only rejects the unplaceable', () => {

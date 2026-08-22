@@ -9,7 +9,52 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The legible-wave shift (most recent)
+### The altitude-rail shift (most recent)
+
+Updated at the end of the altitude-rail shift: queued candidate 3 shipped, the
+second of the three planned UI shifts (after the legible wave, before the
+projected-cruise readout).
+
+The rail is a thin fixed band on the right edge, UNDER the EPM gauge rather than
+beside it: the gauge owns x width-37..width-13 down to y 236 with its net-flow
+arrow, so the rail runs y 252 to height-78 on the gauge's centre x and the right
+edge reads as one instrument column. The axis is SQRT (`railAltitudeToFrac`, one
+new pure helper): linear crushes every diegetic landmark but Everest under 12 % of
+the Kármán span, while sqrt spreads the low climb the way the run actually
+experiences it. Watched-surface rule respected: the compression is labelled at
+full HUD ("sqrt scale"), the Kármán crown is labelled there too ("Kármán ·
+100 km"), and minimal stays text-free (copy rules).
+
+Design decisions worth keeping: (1) the 40 km act boundary is a SHADE in the track
+(Act I blue below, vacuum dim above), not a tick, because sqrt puts it 1.2 % of the
+span from the Baumgartner tick; "the air quits there" reads as the rail's own
+texture changing. (2) The ghost best reuses the world-space BEST line's gold
+dashed language as a tick, so one visual grammar means one thing everywhere.
+(3) The p.14 descenders are downward chevrons at their 30/60 km crossings.
+(4) Nothing animates: the live dot follows data like the chest badge, so
+photosafety and reduced motion need no guard by construction.
+
+The pin is the design: `_railState()` computes everything the renderer draws
+(level, x, band, live frac, ghost frac, act frac, descender fracs) and returns
+null at HUD off, so ?clean stays clean by construction and smoke 11c pins the
+sqrt fractions for a known altitude, the ghost tick answering the persisted-best
+property live, the exact geometry (x width-25, y 252..height-78), and the H cycle
+hiding the rail exactly at off. One pure helper with endpoint/clamp/monotonicity
+tests (144 unit, 64 helpers), one new smoke check (33 total). The eyeball loop
+earned its keep once more: the first staged frame showed the bare canvas marks
+washing out completely against bright cloud, so the rail now sits on the same
+translucent black plate every other instrument reads through, with the mark
+alphas raised to match - the smoke pins could not have caught that, which is
+exactly why "shoot the frame" is a rule. Stills re-shot:
+byte-different from HEAD through the documented shader-noise nondeterminism only
+(the rail does not draw at ?clean), centres capture-exact, committed per
+precedent. Render-only: updateContinuous byte-identical, balance trace untouched,
+no snapshot regen. Also swept in passing: the updateThermal docstring still said
+"cache the cold coupling multiplier" two shifts after that term was deleted.
+Gate green end to end: 144 unit / em-dash / rebuild in sync / 98 = 98 refs /
+33/33 smoke, CAPTURE PASS re-run on the final build. Not yet pushed at shift end.
+
+### The legible-wave shift
 
 Updated at the end of the legible-wave shift: queued candidate 2 shipped, and the
 research pass changed the design before any code landed. Two findings mattered.

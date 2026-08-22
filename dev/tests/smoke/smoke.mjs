@@ -688,6 +688,55 @@ try {
     waveFrozen.amp === 80 && waveFrozen.frames >= 24, JSON.stringify(waveFrozen));
   await waveRmContext.close();
 
+  // 11c) Shift B (altitude rail): the rail's computed state is the pin. On its own page
+  //      (minimal default): the frac matches the sqrt axis for a known altitude, the
+  //      ghost tick answers the persisted-best property live, the act boundary and the
+  //      two descender crossings sit at their sqrt fractions, and the H cycle hides the
+  //      rail exactly at off (it is an instrument; ?clean stays clean).
+  const railCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const railPage = await railCtx.newPage();
+  await railPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await railPage.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._hudLevelDrawn === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const rail = await railPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    const M = 100000;
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.y = -200000; g.monkey.velocityY = 0; g.monkey.altitude = 20000;
+    const press = async () => {
+      const prev = g._hudLevelDrawn;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+      const t0 = Date.now();
+      while (g._hudLevelDrawn === prev) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+      return g._hudLevelDrawn;
+    };
+    const atMinimal = g._railState();
+    g.ghostBestAltitude = 20000;
+    const withGhost = g._railState();
+    const afterFull = await press();          // -> full (1)
+    const atFull = g._railState();
+    await press();                            // -> off (2)
+    const atOff = g._railState();
+    await press();                            // -> minimal (0) for later checks
+    return {
+      level0: atMinimal.level, frac: atMinimal.frac,
+      ghostFrac: withGhost.ghostFrac, actFrac: atMinimal.actFrac,
+      descenders: atMinimal.descenderFracs,
+      level1: atFull.level, x1: atFull.x, topPx: atFull.topPx, bottomPx: atFull.bottomPx,
+      offNull: atOff === null, back: g._hudLevelDrawn,
+      sqrt: Math.sqrt(0.2), sqrtAct: Math.sqrt(0.4), sqrtD1: Math.sqrt(0.3), sqrtD2: Math.sqrt(0.6),
+    };
+  });
+  record('altitude rail: sqrt-axis state at minimal and full, ghost tick live, hidden exactly at off',
+    rail.level0 === 0 && Math.abs(rail.frac - rail.sqrt) < 1e-9 &&
+    Math.abs(rail.ghostFrac - rail.sqrt) < 1e-9 && Math.abs(rail.actFrac - rail.sqrtAct) < 1e-9 &&
+    Math.abs(rail.descenders[0] - rail.sqrtD1) < 1e-9 && Math.abs(rail.descenders[1] - rail.sqrtD2) < 1e-9 &&
+    rail.level1 === 1 && rail.x1 === 1280 - 25 && rail.topPx === 252 && rail.bottomPx === 800 - 78 &&
+    rail.offNull === true && rail.back === 0,
+    JSON.stringify(rail));
+  await railCtx.close();
+
   // 12) M3.4: the event schedule — the 12 km transverse reveal fires on the crossing
   //     (once per run, card queued), and the 70 km gigacycle-fatigue beat stays SILENT
   //     at the 92 Hz default: it is conditional on the carrier sitting in the paper's
