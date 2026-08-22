@@ -107,7 +107,10 @@ at 1000 km/h).
 
 Simplified on purpose, and labelled on screen: the reflection band, the stack's firing
 animation (slowed down so you can see it, frozen if you prefer reduced motion), the monkey
-and the drawn magnet stack (not to scale), the ripple a passing descender leaves in the film,
+and the drawn magnet stack (not to scale), the drawn wave itself (enlarged ~8x and
+time-dilated into a sub-Hz bob so a 1 m stroke is visible at all; the slip physics runs
+the real metres at the real frequency, and it freezes under reduced motion), the ripple a
+passing descender leaves in the film,
 the resonant buildup after a retune (one cavity round trip, not a boundary-value solve), the
 second rider (a twin in formation cruise drawing weight x climb speed, not a solved body),
 and the climber's own aerodynamic drag. On that last one: the paper books drag on the film

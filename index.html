@@ -398,7 +398,7 @@
         <div class="slider-container">
             <label>Amplitude: <span id="amplitudeValue">1.00 m</span></label>
             <input type="range" id="amplitude" min="0.05" max="1.1" step="0.05" value="1">
-            <small class="setting-hint">Ground stroke per cycle, in real metres. The stress budget caps it (A·ω·√R ≤ v_max, where R is the taper below: wave stress peaks at the film's thinnest section, so that is where the cap binds). Raise the carrier and the cap drops; the label then reads "(capped)" and shows the stroke actually in use.</small>
+            <small class="setting-hint">Ground stroke per cycle, in real metres. The stress budget caps it (A·ω·√R ≤ v_max, where R is the taper below: wave stress peaks at the film's thinnest section, so that is where the cap binds). Raise the carrier and the cap drops; the label then reads "(capped)" and shows the stroke actually in use. The film's drawn wiggle is enlarged ~8x and slowed so you can SEE your stroke; the physics runs the real metres at the real frequency.</small>
         </div>
         <div class="slider-container">
             <label>Tether stress budget: <span id="stressBudgetValue">30% of stress (9.0% of power)</span></label>
@@ -650,6 +650,17 @@
         const FILM_BAND_REF_MM = 45;
         const FILM_BAND_MIN_HALF_PX = 3;
         const FILM_BAND_MAX_HALF_PX = CLAMP_JAW_HALF_PX - FILM_BAND_CLEARANCE_PX;
+
+        // Shift A (legible wave): the drawn displacement is a labelled schematic on BOTH
+        // axes. Spatial: waveDrawAmpPx exaggerates the real stroke ~8x and caps it.
+        // Temporal: drawnOscillationHz dilates the shape's clock into a sub-1.25 Hz bob
+        // (true carrier frequency aliases against the display refresh and would strobe at
+        // this scale), frozen outright under prefers-reduced-motion - which also closes
+        // this channel's old reduced-motion gap (the one motion channel that lacked a
+        // guard). The physics never sees either schematic: slip runs the real metres at
+        // the real frequency, and the coupling instruments keep the real clock.
+        const WAVE_DRAW_EXAGGERATION = 8;
+        const WAVE_DRAW_MAX_AMP_PX = 80;
 
         // UX (M3.5, decision 19): descending climbers replace the arcade pickups. The
         // paper supplies them — p.5 sketches a Descender, p.14 proposes "powering from
@@ -1753,6 +1764,33 @@
         function filmBandHalfPx(vineWidth, refPx = 12) {
             const scaled = refPx * (vineWidth * 10) / FILM_BAND_REF_MM;
             return Math.max(FILM_BAND_MIN_HALF_PX, Math.min(FILM_BAND_MAX_HALF_PX, scaled));
+        }
+
+        // Shift A (legible wave): the DRAWN displacement amplitude in screen px. Real
+        // strokes are 5 cm to ~1.1 m, i.e. 0.5-11 px at PX_PER_M - invisible against a
+        // 2,270 px wavelength (c/f at the default carrier). The renderer exaggerates
+        // proportionally and caps: below WAVE_DRAW_MAX_AMP_PX the stroke slider scales
+        // the picture honestly; at and above it the cap bounds the motion (the taper's
+        // thin-top factor can push a 1 m anchor stroke past it). Labelled schematic:
+        // disclosed in the stroke hint and the README's simplified-on-purpose list,
+        // same precedent as the stack drawing and the descender ripple. Render-only.
+        function waveDrawAmpPx(amplitudeM, pxPerM, exaggeration, capPx) {
+            return Math.min(amplitudeM * pxPerM * exaggeration, capPx);
+        }
+
+        // Shift A (legible wave): the drawn shape's apparent oscillation rate for a
+        // carrier of freqHz. True carrier frequency cannot be drawn large: sampled by
+        // the display refresh it aliases unpredictably, and an exaggerated displacement
+        // above the 3 Hz flash ceiling would break photosafety. This is a MONOTONE map
+        // of the carrier into a sub-1.25 Hz band, so ordering survives - 1000 Hz visibly
+        // out-paces 92 Hz - while every drawn motion stays slow and readable. Spatial
+        // truth is untouched: wavelength stays c/f, and the coupling instruments (green
+        // film dot, slip halo, crest chevrons) stay on the REAL clock. Pinned by tests
+        // at the endpoints and for monotonicity.
+        function drawnOscillationHz(freqHz) {
+            const lo = Math.log10(10), hi = Math.log10(1000);
+            const x = (Math.log10(Math.max(10, Math.min(1000, freqHz))) - lo) / (hi - lo);
+            return 0.15 + x * (1.2 - 0.15);
         }
 
         // SIM (§2.3 / M2.5): the slip-gate factor, i.e. the cycle-mean overtaking rate at
@@ -3589,6 +3627,9 @@
                 // SIM (thermal layer): -1 = no suit yet; temperature tracked for the HUD readout.
                 this._thermalTier = -1;
                 this.temperatureC = 15;
+                // Shift A: the drawn shape's schematic clock, defined from boot so a
+                // reduced-motion run reads a real frozen zero, not undefined.
+                this._shapeTimeS = 0;
                 this.coyoteTimeLeft = 0;       // UX: coyote time (2b)
                 this.bufferedGrab = false;      // UX: input buffering (2b)
                 this.currentLandmarkName = '';
@@ -5238,6 +5279,15 @@
                 dt = Math.min(dt, 0.1);
 
                 this.waveSystem.time += dt;
+                // Shift A: the drawn shape's schematic clock (drawnOscillationHz). SIM
+                // time - pauses with the game, like waveSystem.time - but dilated so the
+                // exaggerated displacement never approaches the 3 Hz ceiling, and frozen
+                // outright under reduced motion. The real clock above is untouched: every
+                // coupling instrument and the physics read it.
+                if (!_uxReducedMotion) {
+                    this._shapeTimeS = (this._shapeTimeS || 0)
+                        + dt * (drawnOscillationHz(this.waveSystem.frequency) / Math.max(1e-6, this.waveSystem.frequency));
+                }
                 // M3.6: run clock (sim time — pauses with the game) and the climb
                 // segment it measures for the throughput score. The clock starts at
                 // first liftoff: pre-run configuration is not charged against kg/h.
@@ -5399,8 +5449,17 @@
                 const rgb = this.waveSystem.getRGB();
                 const cMps = this.tetherWaveSpeed();
                 const freq = this.waveSystem.frequency;
-                const ampPx = this.waveSystem.amplitude * GameConfig.PHYSICS.ALTITUDE_CONVERSION;
+                // Shift A: the drawn amplitude is the labelled schematic (waveDrawAmpPx),
+                // not the real A x PX_PER_M - a 1 m stroke is 10 px at world scale, which
+                // no one can see. The strain shimmer below keeps its own normalised
+                // modulation, so nothing else consumes this.
+                const ampPx = waveDrawAmpPx(this.waveSystem.amplitude, GameConfig.PHYSICS.ALTITUDE_CONVERSION,
+                    WAVE_DRAW_EXAGGERATION, WAVE_DRAW_MAX_AMP_PX);
                 const t = this.waveSystem.time;
+                // Shift A: the shape's schematic clock (see drawnOscillationHz), advanced
+                // in update() in SIM time and frozen under reduced motion. The displacement
+                // below reads THIS clock; every coupling instrument keeps the real t.
+                const shapeT = this._shapeTimeS || 0;
                 const cameraY = this.camera.getY();
                 const pxPerM = GameConfig.PHYSICS.ALTITUDE_CONVERSION;
                 const cy = this.monkey.y - cameraY + this.monkey.height / 2;   // climber centre, screen px
@@ -5445,6 +5504,10 @@
                 // drew at the climber, and the fixed jaw half-width it must never reach.
                 this._filmBandHalfPx = bandHalf;
                 this._clampJawHalfPx = CLAMP_JAW_HALF_PX;
+                // Shift A: live render handles for the smoke test - the schematic
+                // amplitude actually drawn, and whether the shape clock is frozen.
+                this._waveDrawAmpPx = ampPx;
+                this._waveShapeFrozen = _uxReducedMotion;
                 const foil = ctx.createLinearGradient(this.wave.x - bandHalf, 0, this.wave.x + bandHalf, 0);
                 foil.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`);
                 foil.addColorStop(0.35, 'rgba(255, 255, 255, 0.30)');
@@ -5469,11 +5532,16 @@
                     const yBase = i * baseSpacing;
                     const altHere = altAt(yBase);
                     const phi = tetherPhaseAt(altHere, t, freq, cMps);
-                    // Real longitudinal displacement, real LOCAL amplitude: the anchor's
-                    // stroke times the taper's 1/√A factor at this row's altitude (A ≤
-                    // ~1.08 m at the stress-capped 92 Hz carrier — small and honest, not
-                    // exaggerated). R = 1 collapses this to the uniform amplitude.
-                    let y = yBase - shape.position(ampPx * taperVelocityFactorAt(altHere, this.taperRatio, taperSpanM), phi);
+                    // Shift A: the drawn displacement is a LABELLED SCHEMATIC on both
+                    // axes - exaggerated amplitude (waveDrawAmpPx) on the shape's dilated
+                    // clock (shapeT), so a 1 m stroke reads on screen without strobing.
+                    // The strain modulation below stays on the REAL phase at its normalised
+                    // (small) depth: the honest high-frequency channel, and the one the
+                    // slip physics actually integrates. Wavelength stays true: nothing
+                    // here compresses c/f. Edges stay straight because this is a
+                    // LONGITUDINAL wave - the silhouette does not displace axially.
+                    const shapePhi = tetherPhaseAt(altHere, shapeT, freq, cMps);
+                    let y = yBase - shape.position(ampPx * taperVelocityFactorAt(altHere, this.taperRatio, taperSpanM), shapePhi);
                     // M3.5: the descender's dumped energy (Lofstrom) — a LABELLED, schematic
                     // ripple on the film around the pass altitude, decaying in sim time.
                     // Presentation only: it never enters tetherPhaseAt or the slip integral,

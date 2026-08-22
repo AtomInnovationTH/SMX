@@ -97,6 +97,8 @@ const EXPORTED_SYMBOLS = [
   'cleanModeRequested',
   'COMPACT_HUD_MAX_W',
   'filmBandHalfPx',
+  'waveDrawAmpPx',
+  'drawnOscillationHz',
   'CLAMP_JAW_HALF_PX',
   'FILM_BAND_MIN_HALF_PX',
   'FILM_BAND_MAX_HALF_PX',

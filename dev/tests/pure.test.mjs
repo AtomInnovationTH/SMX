@@ -86,6 +86,8 @@ const {
   cleanModeRequested,
   COMPACT_HUD_MAX_W,
   filmBandHalfPx,
+  waveDrawAmpPx,
+  drawnOscillationHz,
   CLAMP_JAW_HALF_PX,
   FILM_BAND_MIN_HALF_PX,
   FILM_BAND_MAX_HALF_PX,
@@ -114,7 +116,7 @@ test('extraction exposes the core pure symbols', () => {
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
-    filmBandHalfPx, minimalScoreLine,
+    filmBandHalfPx, minimalScoreLine, waveDrawAmpPx, drawnOscillationHz,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -137,12 +139,13 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 61 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 63 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
   // 62 -> 61: coldGripFactor deleted with the invented cold-coupling term it fed.
-  assert.equal(declaredPureHelpers().length, 61);
+  // 61 -> 63: waveDrawAmpPx + drawnOscillationHz, the legible-wave schematics.
+  assert.equal(declaredPureHelpers().length, 63);
 });
 
 // ---------------------------------------------------------------------------
@@ -1875,6 +1878,57 @@ test('filmBandHalfPx tracks the film-width slider and never reaches the clamp ja
   assert.equal(filmBandHalfPx(100, 12), FILM_BAND_MAX_HALF_PX);
   // And the clearance is real, not zero.
   assert.ok(CLAMP_JAW_HALF_PX - FILM_BAND_MAX_HALF_PX >= 2);
+});
+
+// Shift A (legible wave): the drawn displacement is a labelled schematic on BOTH
+// axes. Spatially, waveDrawAmpPx exaggerates the real stroke proportionally and
+// caps it (the taper's thin-top factor can push a 1 m anchor stroke past the cap).
+// Temporally, drawnOscillationHz maps the carrier monotonically into a sub-1.25 Hz
+// band: true carrier frequency sampled by a display refresh aliases, and an
+// exaggerated shape above the 3 Hz flash ceiling would break photosafety. The map
+// must preserve ORDER so a hotter carrier still reads faster.
+test('waveDrawAmpPx scales strokes proportionally and caps the drawing', () => {
+  // Proportional below the cap: 0.5 m at PX_PER_M 10, x8 => 40 px; Wessels' 0.60 m
+  // draws visibly less than the paper baseline's 1.00 m (48 vs 80).
+  assert.equal(waveDrawAmpPx(0.5, 10, 8, 80), 40);
+  assert.equal(waveDrawAmpPx(0.6, 10, 8, 80), 48);
+  assert.equal(waveDrawAmpPx(0.05, 10, 8, 80), 4);   // slider floor stays visible-ish
+  // The default stroke lands exactly on the cap; the stress-capped maximum (1.1 m)
+  // saturates rather than runs away.
+  assert.equal(waveDrawAmpPx(1.0, 10, 8, 80), 80);
+  assert.equal(waveDrawAmpPx(1.1, 10, 8, 80), 80);
+  // Zero stroke draws nothing, and monotonicity holds across the whole slider.
+  assert.equal(waveDrawAmpPx(0, 10, 8, 80), 0);
+  let prev = -Infinity;
+  for (let cm = 5; cm <= 110; cm += 5) {
+    const px = waveDrawAmpPx(cm / 100, 10, 8, 80);
+    assert.ok(px >= prev, `drawn amplitude must not shrink as stroke grows (${cm} cm)`);
+    prev = px;
+    assert.ok(px <= 80 && px > 0);
+  }
+});
+
+test('drawnOscillationHz maps carriers into a slow band, monotonically', () => {
+  // Endpoints of the labelled map: 10 Hz -> 0.15, 1000 Hz -> 1.2.
+  approx(drawnOscillationHz(10), 0.15);
+  approx(drawnOscillationHz(1000), 1.2);
+  // The shipped default sits comfortably below half the 3 Hz ceiling.
+  const fDefault = drawnOscillationHz(92);
+  approx(fDefault, 0.15 + (Math.log10(9.2) / 2) * 1.05, 1e-12);
+  assert.ok(fDefault < 0.7, `default carrier must draw well under 1 Hz (got ${fDefault})`);
+  // Monotone across the whole carrier slider, and EVERY drawn rate clears the
+  // photosafety budget with margin: hard ceiling at 1.25 Hz.
+  let prev = -Infinity;
+  for (let hz = 10; hz <= 1000; hz += 10) {
+    const out = drawnOscillationHz(hz);
+    assert.ok(out > prev, `drawn rate must increase with the carrier (${hz} Hz)`);
+    prev = out;
+    assert.ok(out >= 0.15 && out <= 1.2, `drawn rate must stay in the labelled band (${hz} Hz => ${out})`);
+    assert.ok(out <= 3 * 0.42, 'well clear of the 3 Hz flash rule');
+  }
+  // Out-of-band carriers clamp instead of extrapolating.
+  approx(drawnOscillationHz(5), 0.15);
+  approx(drawnOscillationHz(5000), 1.2);
 });
 
 test('viewportTooSmall passes every real phone and only rejects the unplaceable', () => {

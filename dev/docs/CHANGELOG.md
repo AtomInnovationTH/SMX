@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The legible wave: the drawn displacement is a labelled schematic on both axes.**
+  A real 1 m stroke is 10 px against a 2,270 px wavelength, so the Stroke slider,
+  the lever that most defines a run, moved nothing the eye could see. The renderer
+  now exaggerates the drawn stroke ~8x proportionally under an 80 px cap
+  (`waveDrawAmpPx`) and runs the shape on a dilated clock (`drawnOscillationHz`, a
+  monotone map of the carrier into 0.15-1.2 Hz): true carrier frequency sampled by
+  the display refresh aliases, and an 80 px oscillation above the 3 Hz ceiling would
+  break photosafety. Wessels' 0.60 m stroke now draws 48 px against the paper
+  baseline's 80, so a carrier choice is visible in proportions the cap keeps honest.
+  Wavelength stays true (nothing compresses c/f); the strain shimmer, the green film
+  dot, the slip halo and the crest chevrons stay on the real clock and real u (what
+  you see is what couples); and the shape freezes outright under
+  prefers-reduced-motion, closing the one motion channel that had no guard.
+  Disclosed in the stroke hint and the README's simplified-on-purpose list.
+  Render-only: `updateContinuous` byte-identical, balance trace untouched. Gate:
+  143 unit tests (was 141; the two helpers take their tests), 63 pure helpers (was
+  61), 32/32 smoke (was 30; the drawn amplitude and the reduced-motion freeze are
+  pinned), committed stills re-shot with the wave visible.
 - **Score integrity: the delivery credits the cargo aboard at liftoff.** A new
   `_runCargoKg` snapshot is taken when the climb starts and feeds `cargoDeliveryCredit`,
   the mission block's goal/pace lines and the minimal score line (falling back to the

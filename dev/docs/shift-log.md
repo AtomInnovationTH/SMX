@@ -9,7 +9,48 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The integrity shift: cold-grip deleted, scored cargo frozen (most recent)
+### The legible-wave shift (most recent)
+
+Updated at the end of the legible-wave shift: queued candidate 2 shipped, and the
+research pass changed the design before any code landed. Two findings mattered.
+
+(1) The displacement channel animated at TRUE carrier frequency, sampled by the
+display refresh: at 92 Hz and 60 fps that aliases to a device-dependent beat, and
+at an exaggerated 80 px it would have been a photosafety-violating strobe. (2) It
+was also the ONE motion channel with no prefers-reduced-motion guard (ripple,
+highlight, crest and stack sweep all had one; the displacement loop did not).
+Invisible at the old 10 px; indefensible at the new scale. So "make the wave
+visible" became a two-axis schematic: spatial (waveDrawAmpPx, ~8x proportional
+under an 80 px cap, the taper's thin-top factor included) and temporal
+(drawnOscillationHz, a monotone log map of the carrier into 0.15-1.2 Hz, so 1000 Hz
+still visibly out-paces 92 Hz while every drawn motion stays under half the 3 Hz
+ceiling). The shape clock advances in SIM time in update(), freezes outright under
+reduced motion, and the world-anchored phase survives intact: the shape is still
+tetherPhaseAt(altitude, tau), so crests drift up at c x dilation and wavelength
+stays true. The coupling instruments (strain shimmer, green film dot, slip halo,
+crest chevrons) deliberately keep the REAL clock and real u: they are the what-you-
+see-is-what-couples channel and must never inherit the schematic clock. Geometry
+was verified before drawing: at 80 px over a 2,270 px wavelength the displacement
+slope stays far below segment spacing (no pile-up), and the straight band edges are
+CORRECT for a longitudinal wave (the silhouette does not displace axially).
+
+Tests: two pure helpers with endpoint/monotonicity/cap tests (142 -> 143 unit with
+the integrity shift's count already in place; 63 helpers), two new smoke checks
+(32 total): the drawn-amplitude check drives the stroke slider through 0.05/0.6/1.0/
+1.1 and pins 4/48/80/80 plus both clocks advancing (shape dilated, waveSystem.time
+real), and a reduced-motion boot pins the frozen shape at full drawn amplitude
+(freezing means no motion, never no wave). Staged frames: the committed stills were
+re-shot (the wave draws at ?clean because it is the world, not an instrument) and
+a throwaway 0.60-vs-1.00 m A/B confirmed artifact-free frames at both strokes. The
+stills undersell the change and that is worth recording: the payoff is TEMPORAL (a
+1.6 s-cycle bob, 48 vs 80 px between strokes), which a single frame cannot carry;
+the frame shows only the spacing gradient of the compression bands. Disclosed in
+the stroke hint and the README's simplified-on-purpose list. Render-only:
+updateContinuous byte-identical, balance trace untouched, no snapshot regen. Gate
+green end to end: 143 unit / em-dash / rebuild in sync / 98 = 98 refs / 32/32
+smoke, CAPTURE PASS on the re-shot stills. Not yet pushed at shift end.
+
+### The integrity shift: cold-grip deleted, scored cargo frozen
 
 Updated at the end of the integrity shift: a code-level audit reading the integrator
 itself (not the docs) found two violations of the project's own rules, both fixed.
@@ -30,7 +71,7 @@ helpers), and thermalStep's contract test now pins the four-key shape so a coupl
 term cannot quietly grow back.
 
 (2) **The score was exploitable and now is not.** Every slider applied live mid-run
-with no gate — including Weight, the scored quantity. Climb at 3 kg, open the panel
+with no gate, including Weight, the scored quantity. Climb at 3 kg, open the panel
 at 99 km, slide to 200 kg, coast across the line: `cargoDeliveryCredit` credited
 whatever the slider read. Now `_runCargoKg` snapshots Weight at liftoff (the same
 moment `_climbStartS` starts the clock) and feeds the credit, the mission block's
@@ -44,7 +85,7 @@ code".
 1027 -> 1042 km/h, cruise 1085 km/h unchanged (= 0.48 v_max). The movement is
 exactly where the penalty lived: the low climb below 19 km, which had been paying
 5-12 % invented tax, while vacuum was never penalized (the pressure suit's
-threshold made the factor exactly 1 above it) — the cleanest possible confirmation
+threshold made the factor exactly 1 above it): the cleanest possible confirmation
 that the deletion changed nothing the paper owns. All M2.11 target bands hold
 without touching them. The snapshot regeneration also folded in pre-existing format
 drift (`resonanceOn`/`powerShareOn`/`startAltM` config fields the harness gained in

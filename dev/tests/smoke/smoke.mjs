@@ -576,6 +576,54 @@ try {
     taperInfo.restoredBand === 12 && Math.abs(taperInfo.restoredAmp - 1) < 1e-9,
     JSON.stringify(taperInfo));
 
+  // 10d) Shift A (legible wave): the drawn displacement is a LABELLED SCHEMATIC.
+  //      The renderer exaggerates the real stroke (waveDrawAmpPx) and runs the shape
+  //      on a dilated clock (drawnOscillationHz), because a real 1 m stroke is 10 px
+  //      against a 2,270 px wavelength and true carrier frequency would alias. This
+  //      pins what the live renderer drew: the stroke slider scales the picture
+  //      (0.60 m < 1.00 m), the cap bounds it, and the schematic clock ADVANCES in
+  //      normal motion. The physics never reads any of it: waveSystem.time is the
+  //      real clock and stays untouched.
+  const drawAmp = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.paused = false; g.gameOver = false; g.running = true;
+    // Same ground-state reset the taper check (10c) uses: on a slow runner, a monkey
+    // left mid-air could fall into game-over and freeze both clocks, flaking the
+    // advance assertions below.
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    await wait();
+    const out = { atDefault: g._waveDrawAmpPx, shapeA: g._shapeTimeS };
+    const slider = document.getElementById('amplitude');
+    const before = slider.value;
+    slider.value = '0.6';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.atWessels = g._waveDrawAmpPx;
+    slider.value = '0.05';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.atMin = g._waveDrawAmpPx;
+    slider.value = '1.1';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.atMax = g._waveDrawAmpPx;
+    slider.value = before;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.restored = g._waveDrawAmpPx;
+    out.realClockA = g.waveSystem.time;
+    await wait();
+    out.shapeB = g._shapeTimeS;
+    out.realClockB = g.waveSystem.time;
+    return out;
+  });
+  record('legible wave: drawn amplitude scales with the stroke under the cap; shape clock runs dilated while the real clock is untouched',
+    drawAmp.atDefault === 80 && drawAmp.atWessels === 48 && drawAmp.atMin === 4 &&
+    drawAmp.atMax === 80 && drawAmp.restored === 80 &&
+    drawAmp.shapeB > drawAmp.shapeA && drawAmp.realClockB > drawAmp.realClockA,
+    JSON.stringify(drawAmp));
+
   // 11) M3.1 photosafety: the firing gradient is a SLOWED schematic. Each unit modulates
   //     at 1/period, which must stay under the 3 flashes/s photosensitive-seizure ceiling
   //     (a literal 92-1000 Hz firing animation would be a strobe), and the sweep FREEZES
@@ -613,6 +661,32 @@ try {
   record('firing sweep freezes to a static lit state under reduced motion',
     frozen.flag === true && frozen.a === frozen.b && frozen.pairs === 8 && frozen.frames >= 24, JSON.stringify(frozen));
   await rmContext.close();
+
+  // 11b) Shift A (legible wave): the drawn shape is the ONE motion channel that had no
+  //      reduced-motion guard before the schematic clock existed. On a reduced-motion
+  //      boot the shape clock must freeze outright (a static wave shape), while the
+  //      drawn amplitude stays visible - freezing means "no motion", never "no wave".
+  const waveRmContext = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } });
+  const waveRmPage = await waveRmContext.newPage();
+  await waveRmPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await waveRmPage.waitForFunction(
+    () => window.__smokeGame && typeof window.__smokeGame._waveDrawAmpPx === 'number',
+    null, { timeout: 20000, polling: 100 });
+  const waveFrozen = await waveRmPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    g.paused = false; g.gameOver = false; g.running = true;
+    let frames = 0; const orig = g._boundUpdate;
+    g._boundUpdate = (t) => { frames++; return orig(t); };
+    const t0 = Date.now();
+    const a = g._shapeTimeS;
+    while (frames < 24) { if (Date.now() - t0 > 20000) break; await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = orig;
+    return { a, b: g._shapeTimeS, flag: g._waveShapeFrozen, amp: g._waveDrawAmpPx, frames };
+  });
+  record('legible wave freezes to a static shape under reduced motion, still drawn at its schematic amplitude',
+    waveFrozen.flag === true && waveFrozen.a === waveFrozen.b &&
+    waveFrozen.amp === 80 && waveFrozen.frames >= 24, JSON.stringify(waveFrozen));
+  await waveRmContext.close();
 
   // 12) M3.4: the event schedule — the 12 km transverse reveal fires on the crossing
   //     (once per run, card queued), and the 70 km gigacycle-fatigue beat stays SILENT

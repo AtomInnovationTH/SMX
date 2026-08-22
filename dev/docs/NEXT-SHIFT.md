@@ -10,7 +10,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 141 unit tests, 30 smoke checks, 98 = 98 asset references, all green.
+  Currently 143 unit tests, 32 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -135,9 +135,87 @@ post-backlog candidates are all done now too:
   390x844), cross-build A/B-verified on staged frames. See "What last shift changed"
   in [`shift-log.md`](shift-log.md).
 
-What remains is presentation of state the game already owns; nothing is queued. When
-the next candidate is seen, it goes here with its section-0 bar (name the paper hook,
-or stay presentation-only with numbers the game already owns).
+What remains is presentation of state the game already owns. The queue below is
+ordered by how much a player would notice; each still owes its own section 0 before
+code (name the paper hook, or stay presentation-only with numbers the game already
+owns). Tooling items are exempt from section 0 by nature but not from the gate.
+
+### Queued candidates (UI/UX and reach)
+
+1. **Shareable run URLs.** Encode the settings snapshot plus the run result into a
+   URL (and a copy-link row on the report card) so a configuration that demonstrates
+   a paper insight can be sent as a challenge. Presentation-only: reads state the
+   game already persists in memory; no physics. Needs a versioned, bounded encoding
+   and a `?config=` boot path that routes through the sliders' own DOM events (the
+   preset rule: never a parallel write path).
+2. **(done) The legible wave.** Shipped this shift, with the temporal axis the
+   research added: proportional exaggeration under an 80 px cap plus the monotone
+   schematic clock, frozen under reduced motion (which also closed this channel's
+   old missing guard). Two pure helpers (63 total), two new smoke checks (32 total),
+   disclosed in the stroke hint and the README. Narrative in
+   [`shift-log.md`](shift-log.md). The findings below are kept for the record.
+   The drawn
+   film runs at real scale (`PX_PER_M = 10`), so even the 1 m default stroke is ~10 px
+   and the stroke lever barely moves the picture. Two findings from the implementation
+   research make this a two-axis change, not just an amplitude multiplier:
+   (a) SPATIAL: proportional exaggeration with a hard cap (new pure helper, labelled
+   in the stroke hint and the README's simplified-on-purpose list). Verified safe
+   geometrically: at capped 80 px over a 2,270 px wavelength the displacement slope
+   stays far below the segments' spacing, so stripes never pile up; the straight band
+   edges stay straight, which is CORRECT for a longitudinal wave (the silhouette does
+   not displace axially).
+   (b) TEMPORAL: the displacement channel animates at TRUE carrier frequency today,
+   sampled by the display refresh (92 Hz at 60 fps aliases unpredictably), and it is
+   the ONE motion channel with no `prefers-reduced-motion` guard (ripple, highlight,
+   crest and stack sweep all have one). Invisible at 10 px; a photosafety-violating
+   strobe at 80 px. The fix is a schematic CLOCK: shape time advances at a monotone
+   map of the carrier into a sub-1.25 Hz band (order-preserving, so 1000 Hz still
+   reads faster than 92 Hz), frozen outright under reduced motion. World-anchoring
+   survives intact: the shape stays tetherPhaseAt(altitude, tau) with tau dilated;
+   crests drift up at c x dilation. The coupling instruments (green film dot, slip
+   halo, crest chevron push) stay on REAL phase and u: they are the "what you see is
+   what couples" channel and must not inherit the schematic clock.
+   Render-only: updateContinuous untouched, balance trace cannot move. Costs two
+   pure helpers (count 61 -> 63), one new debug handle beside `_filmBandHalfPx`,
+   hint/readme/docs disclosure, and staged-frame A/B at 0.60 vs 1.00 m strokes.
+3. **Altitude rail at every instrument level.** A thin fixed rail (ground to Kármán)
+   with landmark ticks, the ghost-best tick and the descender markers gives the run
+   its shape and makes "how far to go" glanceable at minimal HUD, where altitude
+   awareness currently depends on catching the altimeter pill mid-scroll.
+   Canvas-drawn like every instrument, so it must read `_uxHudLevel` itself and claim
+   its own screen band.
+4. **aria-live mirror of the minimal strings.** Every instrument is canvas-drawn, so
+   assistive tech gets one `role="img"` label. Mirror `minimalScoreLine`, the beat
+   titles and the failure reasons into an offscreen `aria-live` region fed from the
+   same pure helpers, so it can never quote a figure the plate hides. Finishes the
+   inclusivity story the README leads with.
+5. **First-run rhythm hint.** One line ("hold to catch the wave, let go before the
+   bar empties") shown until the first catch-then-coast cycle completes, then never
+   again. Copy rules apply (encouragement layer, everyday words, fits the 390 px
+   plate); it is a hint the player can act on without leaving the game.
+6. **Desktop key-cap feedback.** The whole game is one held key; a small SPACE glyph
+   that lights while held closes the input loop for first-timers. Static while idle,
+   so photosafe by construction.
+7. **Settings projected-outcome readout.** Quote the analytic cruise point next to
+   the sliders: solve thrust(u*) = weight from the SAME shipped helpers
+   (`slipThrustMeanN` et al.) and show "projected cruise ~N km/h" updating live. No
+   parallel model may be introduced; if a full climb projection wants the harness's
+   integrator, that is a bigger design conversation and stays out until the owner
+   weighs in.
+
+### Queued candidates (tooling)
+
+8. **Automate the four-edit/five-edit rituals.** A script that scans the delimited
+   pure-helpers block and regenerates `EXPORTED_SYMBOLS` plus the test destructure
+   (leaving the count assertion to the existing guard) turns four manual edits into
+   one; same idea later for the slider five.
+9. **Advisory visual-regression gate.** Perceptual-hash comparison over
+   `capture.mjs`'s staged frames, advisory only (never gating, per "check.sh cannot
+   see invisible"), to catch accidental paint drift between human reviews.
+
+Bigger lifts parked pending owner sign-off: scenario mode (presets as goal-bearing
+lessons), localization, an in-game sources screen listing every citation, wind audio
+tied to air density (needs a decision on default-on sound).
 
 ### 2. (done) Phase 2 of the copy pass (presentation-only, no physics)
 

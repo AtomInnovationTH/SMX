@@ -369,6 +369,20 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   of the paper's 4 MW budget, and live extraction.
 - **What the player sees (M3 illustration layer)** — presentation only; none of it feeds
   back into the physics:
+  - **The legible wave** (`waveDrawAmpPx` / `drawnOscillationHz`, shift A): the drawn
+    displacement is a labelled schematic on BOTH axes, because a real 1 m stroke is
+    10 px against a 2,270 px wavelength — invisible — and true carrier frequency
+    sampled by the display refresh aliases. Spatial: ~8x proportional exaggeration,
+    capped at `WAVE_DRAW_MAX_AMP_PX` (the taper's thin-top factor can exceed it).
+    Temporal: the shape's clock runs at a monotone map of the carrier into
+    0.15-1.2 Hz (`drawnOscillationHz`), advanced in SIM time in `update()`, frozen
+    outright under `prefers-reduced-motion` — this was the one motion channel with
+    no guard before. The strain shimmer, the green film dot, the slip halo and the
+    crest chevrons stay on the REAL clock and real u: they are the "what you see is
+    what couples" instruments and must never inherit the schematic clock. Wavelength
+    stays true (nothing compresses c/f), and the straight band edges are correct for
+    a longitudinal wave. Debug handles `_waveDrawAmpPx` / `_waveShapeFrozen` sit
+    beside `_filmBandHalfPx`.
   - **The FG40 sandwich** (`renderFg40Stack`): 8 schematic opposed pairs flanking the
     film, drawn always (dim at rest), on a **fixed** span — a real-scale stack is 26–105 px
     next to a 240 px sprite that is itself not to scale, so the drawing is schematic and
@@ -541,9 +555,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **141 unit tests**
-  (pure 120, sliders 12, balance 9), **61 pure helpers** in the delimited block,
-  **98 = 98** asset references, **30 browser smoke checks**, `index.html` **435 KB**.
+- **Current gate numbers** (keep these updated when they move): **143 unit tests**
+  (pure 124, sliders 12, balance 9), **63 pure helpers** in the delimited block,
+  **98 = 98** asset references, **32 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in
