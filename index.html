@@ -662,6 +662,14 @@
         const WAVE_DRAW_EXAGGERATION = 8;
         const WAVE_DRAW_MAX_AMP_PX = 80;
 
+        // Shift B (altitude rail): a thin fixed rail on the right edge, under the EPM
+        // gauge (which owns x width-37..width-13, y 56..236 with its net-flow arrow).
+        // The rail starts below it and stops above the compact plate band, on the same
+        // x as the gauge's centre so the right edge reads as one instrument column.
+        const RAIL_X_FROM_RIGHT = 25;
+        const RAIL_TOP_PX = 252;
+        const RAIL_BOTTOM_MARGIN_PX = 78;
+
         // UX (M3.5, decision 19): descending climbers replace the arcade pickups. The
         // paper supplies them — p.5 sketches a Descender, p.14 proposes "powering from
         // the top ... with descending climbers", and Lofstrom notes descenders dissipate
@@ -1791,6 +1799,16 @@
             const lo = Math.log10(10), hi = Math.log10(1000);
             const x = (Math.log10(Math.max(10, Math.min(1000, freqHz))) - lo) / (hi - lo);
             return 0.15 + x * (1.2 - 0.15);
+        }
+
+        // Shift B (altitude rail): fraction up the rail for an altitude, on a SQRT axis.
+        // Linear crushes the whole low climb (every diegetic landmark but Everest sits
+        // under 12 % of the Kármán span) into a few pixels; sqrt spreads it while both
+        // endpoints stay exact and monotonicity holds. Watched surface: the compression
+        // is disclosed at full HUD ("sqrt scale") and in DEVELOPERS.md. Pinned by tests
+        // at the endpoints, the act boundary and for monotonicity.
+        function railAltitudeToFrac(altitudeM, deliverAltitudeM) {
+            return Math.sqrt(Math.max(0, Math.min(1, altitudeM / deliverAltitudeM)));
         }
 
         // SIM (§2.3 / M2.5): the slip-gate factor, i.e. the cycle-mean overtaking rate at
@@ -4693,7 +4711,8 @@
             }
             
             // SIM (thermal layer): update temperature + protective-suit tier from the current
-            // altitude, announce a new suit, and cache the cold coupling multiplier for the physics.
+            // altitude and announce a new suit. Presentation only: no term here feeds the
+            // physics (the suits are costume; see GameConfig.THERMAL).
             updateThermal() {
                 // NOTE (shift 7 §2): this call stays BEFORE updatePosition below. It
                 // intentionally consumes LAST frame's altitude — a one-frame intrinsic
@@ -6286,6 +6305,9 @@
                 // The brownout banner rides with the gauge, because a failure must always be
                 // able to explain itself.
                 this.renderEpmGauge(ctx, width, height);
+                // Shift B: the altitude rail, at minimal and full (it IS orientation);
+                // hidden at off via its own state method.
+                this.renderRailHud(ctx, width, height);
                 if (_uxHudLevel === HUD_FULL) {
                     this.renderControls(ctx, width, height);
                     this.renderMissionHud(ctx, width);
@@ -6603,6 +6625,114 @@
 
             // SIM (Stage 2 / B.5.1): fixed EPM charge gauge — always-legible battery bar with a
             // net-flow arrow (▲ regen >= drain, ▼ net-draining) plus a brownout warning.
+            // Shift B (altitude rail): one computed state, consumed by BOTH the renderer
+            // and the smoke suite, so the pin can never drift from the picture. Null at
+            // HUD off (the rail is an instrument; ?clean stays clean). frac is the live
+            // altitude, ghostFrac the persisted best, actFrac the 40 km act boundary,
+            // descenderFracs the two p.14 riders' crossing altitudes.
+            _railState() {
+                if (_uxHudLevel === HUD_OFF) return null;
+                const deliverM = GameConfig.MISSION.DELIVER_ALTITUDE_M;
+                const topPx = RAIL_TOP_PX;
+                const bottomPx = this.canvas.height - RAIL_BOTTOM_MARGIN_PX;
+                if (bottomPx - topPx < 40) return null;   // tiny viewports: skip, never cramp
+                return {
+                    level: _uxHudLevel,
+                    x: this.canvas.width - RAIL_X_FROM_RIGHT,
+                    topPx, bottomPx,
+                    frac: railAltitudeToFrac(this.monkey.altitude, deliverM),
+                    ghostFrac: this.ghostBestAltitude > 0
+                        ? railAltitudeToFrac(this.ghostBestAltitude, deliverM) : null,
+                    actFrac: railAltitudeToFrac(40000, deliverM),
+                    descenderFracs: DESCENDER_ALTITUDES_M.map((m) => railAltitudeToFrac(m, deliverM)),
+                };
+            }
+
+            renderRailHud(ctx, width, height) {
+                const s = this._railState();
+                if (!s) return;
+                const yFor = (frac) => s.bottomPx - frac * (s.bottomPx - s.topPx);
+                const full = s.level === HUD_FULL;
+                ctx.save();
+                // Backing plate first: every instrument in this game reads through a
+                // translucent black plate (gauge, compact plate, dashboard), because
+                // canvas marks alone wash out against bright cloud. The rail is no
+                // exception - without this it vanished above the cloud base.
+                ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                ctx.fillRect(s.x - 9, s.topPx - 12, 18, s.bottomPx - s.topPx + 24);
+                // Track: the act boundary is a SHADE, not a tick - "the air quits there"
+                // reads as the rail's own texture changing at 40 km (Act I blue below,
+                // vacuum dim above), which also keeps the boundary clear of the
+                // Baumgartner tick 1.2 % of the span beneath it.
+                const actY = yFor(s.actFrac);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'butt';
+                ctx.strokeStyle = 'rgba(150, 205, 255, 0.55)';
+                ctx.beginPath(); ctx.moveTo(s.x, s.bottomPx); ctx.lineTo(s.x, actY); ctx.stroke();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+                ctx.beginPath(); ctx.moveTo(s.x, actY); ctx.lineTo(s.x, s.topPx); ctx.stroke();
+                // Ground tick.
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(s.x - 6, s.bottomPx); ctx.lineTo(s.x + 6, s.bottomPx); ctx.stroke();
+                // Diegetic landmark ticks (the altimeter pill's own table; ground and the
+                // Kármán crown are drawn separately, ISS sits past the mission span).
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+                for (const lm of ALTIMETER_LANDMARKS) {
+                    if (lm.altitude <= 0 || lm.altitude >= GameConfig.MISSION.DELIVER_ALTITUDE_M) continue;
+                    const y = yFor(railAltitudeToFrac(lm.altitude, GameConfig.MISSION.DELIVER_ALTITUDE_M));
+                    ctx.beginPath(); ctx.moveTo(s.x - 4, y); ctx.lineTo(s.x + 4, y); ctx.stroke();
+                }
+                // Kármán crown: the terminus, brighter and wider than any waypoint.
+                ctx.strokeStyle = 'rgba(190, 240, 255, 0.95)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(s.x - 6, s.topPx); ctx.lineTo(s.x + 6, s.topPx); ctx.stroke();
+                // The p.14 descenders: small downward chevrons at their crossing altitudes.
+                ctx.strokeStyle = 'rgba(190, 240, 255, 0.6)';
+                ctx.lineWidth = 1.5;
+                for (const df of s.descenderFracs) {
+                    const y = yFor(df);
+                    ctx.beginPath();
+                    ctx.moveTo(s.x - 4, y - 2.5); ctx.lineTo(s.x, y + 2); ctx.lineTo(s.x + 4, y - 2.5);
+                    ctx.stroke();
+                }
+                // Ghost best: the gold dashed language of the world-space BEST line,
+                // echoed as a tick. Label at full HUD only.
+                if (s.ghostFrac !== null) {
+                    const y = yFor(s.ghostFrac);
+                    ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = 'rgba(255, 215, 0, 0.8)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(s.x - 6, y); ctx.lineTo(s.x + 6, y); ctx.stroke();
+                    ctx.setLineDash([]);
+                    if (full) {
+                        ctx.fillStyle = 'rgba(255, 215, 0, 0.75)';
+                        ctx.font = '9px monospace';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`best ${(this.ghostBestAltitude / 1000).toFixed(0)}`, s.x - 9, y + 3);
+                    }
+                }
+                // Full-HUD captions: the Kármán label and the sqrt-scale disclosure
+                // (watched surface: the compressed axis is labelled, per DESIGN.md).
+                if (full) {
+                    ctx.fillStyle = 'rgba(190, 240, 255, 0.85)';
+                    ctx.font = '9px monospace';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('Kármán · 100 km', s.x - 9, s.topPx + 3);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                    ctx.fillText('sqrt scale', s.x - 9, s.bottomPx - 2);
+                }
+                // Live marker: where the climber is NOW. Follows data, draws nothing
+                // animated - photosafe by construction, reduced-motion needs no guard.
+                const y = yFor(s.frac);
+                ctx.fillStyle = '#bef0ff';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = 'rgba(190, 240, 255, 0.8)';
+                ctx.beginPath(); ctx.arc(s.x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+
             renderEpmGauge(ctx, width, height) {
                 const w = 18, h = 150, x = width - w - 16, y = 72;
                 const charge = Math.max(0, Math.min(GameConfig.EPM.CAPACITY, this.epmCharge || 0));
