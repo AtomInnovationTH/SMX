@@ -48,6 +48,7 @@ const EXPORTED_SYMBOLS = [
   'freqDecadeColumn',
   'switchingPowerW',
   'slipThrustMeanN',
+  'slipCruiseU',
   'slipGateFactor',
   'safePersistedNumber',
   'throughputKgPerHour',

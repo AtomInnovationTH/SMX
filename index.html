@@ -410,6 +410,10 @@
             <small class="setting-hint" id="waveStressValue">Wave now: …</small>
         </div>
         <div class="slider-container">
+            <label>Projected cruise: <span id="cruiseValue">…</span></label>
+            <small class="setting-hint">Where thrust balance settles on the pad: the wave's push fades as you close on the film speed, and cruise is where what's left equals your weight. The film runs a few per cent slower aloft (the p.7 drag tax), so the real cruise sits just under this; and the push is only half the story - the switching bill above has to be earned back too, which is the wall the Lofstrom preset demonstrates.</small>
+        </div>
+        <div class="slider-container">
             <label>Switching: <span id="switchingValue">…</span></label>
             <small class="setting-hint">4·N·E_switch·f: flat in duty cycle, two transitions per cycle per FG40 unit. This is the skim the wave must earn back before your magnets brown out; the paper's whole delivery budget is 4 MW (p.2).</small>
         </div>
@@ -1159,6 +1163,32 @@
             }
             const bracket = 2 * Math.sqrt(1 - u * u) - u * (Math.PI - 2 * Math.asin(u));
             return (k * V / (2 * Math.PI)) * bracket;
+        }
+
+        // Shift C (projected cruise): the slip u where mean thrust equals weight - the
+        // cruise asymptote of the coupling. slipThrustMeanN is monotone decreasing in
+        // u on [0, 1), so bisection lands on double precision in ~50 steps. Pass
+        // filmVelocityAt for harmonic carriers exactly as calculateContinuousCoupling
+        // does (the numeric gate integral is shape-honest); omit it for the sine
+        // closed form. Returns null when even the open gate cannot lift the cargo
+        // (thrust at u = 0 below weight): the honest readout is "cannot lift", never
+        // a number. This is the PAD asymptote: ground taper (1), zero air column
+        // (drag factor 1). The damped film aloft cruises a few per cent under it -
+        // the balance trace's 1085 km/h against 1131 projected at the shipped
+        // defaults - and the switching budget is a separate wall (Lofstrom).
+        function slipCruiseU({ kPerPair, nPairs, vFilmPeakMps, massKg, gravityMult = 1, filmVelocityAt = null }) {
+            const weight = weightN(massKg, gravityMult);
+            if (!(kPerPair > 0) || !(nPairs > 0) || !(vFilmPeakMps > 0)) return null;
+            // The thrust call is inlined at both bisection sites rather than wrapped in
+            // a local arrow closure: the export-guard regex sweeps `const x = (...) =>`
+            // shapes, and an unexported inner closure would trip it (and the count).
+            if (!(slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps: 0, filmVelocityAt }) > weight)) return null;
+            let lo = 0, hi = 1;
+            for (let i = 0; i < 50; i++) {
+                const mid = (lo + hi) / 2;
+                if (slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps: mid * vFilmPeakMps, filmVelocityAt }) > weight) lo = mid; else hi = mid;
+            }
+            return (lo + hi) / 2;
         }
 
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
@@ -4431,6 +4461,38 @@
                 if (vEl) vEl.textContent = Math.round(vMax * 3.6) + ' km/h';
                 const capEl = document.getElementById('strokeCapValue');
                 if (capEl && this.waveSystem) capEl.textContent = this.strokeCapM().toFixed(2) + ' m @ ' + this.activeFreqHz().toFixed(1) + ' Hz';
+                // Shift C: the projected-cruise readout - slipCruiseU's thrust-balance
+                // asymptote at the CURRENT sliders, computed on the pad film (ground
+                // taper, zero air column) and mirroring calculateContinuousCoupling's
+                // plain branch chain for call: gap -> flux (with the same unloaded-stack
+                // guard) -> kPerPair, then the carrier's own shape for harmonic gates.
+                // Resonance overrides the carrier with cavity modes and caps the skim at
+                // the anchor's injection instead, so the honest plain-mode answer there
+                // is "supply-capped", not a solved number.
+                const pcEl = document.getElementById('cruiseValue');
+                if (pcEl && this.waveSystem) {
+                    if (this.resonanceOn) {
+                        pcEl.textContent = 'supply-capped while resonant';
+                    } else {
+                        const material = GameConfig.MATERIALS[this.materialIndex];
+                        let fluxT = gapFluxT(this.airGapMm, GameConfig.FG40.POLE_FLUX_T);
+                        if (this.airGapMm - flutterAmplitudeMm(this.vineTension) <= 0) fluxT = 0;
+                        const kPerPair = pairCouplingK({
+                            sigmaSPerM: material.sigmaSPerM, thicknessM: this.filmThicknessMm / 1000,
+                            fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2,
+                        });
+                        const omega = this.waveSystem.frequency * 2 * Math.PI;
+                        const filmVelAmpM = this.waveSystem.amplitude
+                            * taperVelocityFactorAt(0, this.taperRatio, GameConfig.MISSION.DELIVER_ALTITUDE_M);
+                        const shape = WAVE_CALCULATORS[this.waveSystem.type] || WAVE_CALCULATORS.sine;
+                        const uStar = slipCruiseU({ kPerPair, nPairs: this.nPairs, vFilmPeakMps: filmVelAmpM * omega,
+                            massKg: this.totalMassKg(), gravityMult: this.gravityMultiplier,
+                            filmVelocityAt: this.waveSystem.type === 'sine' ? null : (phi) => shape.velocity(filmVelAmpM, omega, phi) });
+                        pcEl.textContent = uStar === null
+                            ? 'cannot lift this cargo'
+                            : `~${Math.round(uStar * filmVelAmpM * omega * 3.6)} km/h near the ground`;
+                    }
+                }
                 // M3.7: the ground station's own cost, inline with its controls — the
                 // switching draw is what makes the carrier a two-sided trade (and what
                 // the Lofstrom preset demonstrates). M4 (p.10): while resonant this

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The projected-cruise readout: the settings panel's playground loop closes.** A
+  new panel row solves thrust(u*) = weight live at the current sliders
+  (`slipCruiseU`: bisection on the monotone closed form, shape-honest for harmonic
+  carriers through the same numeric gate the coupling integrates, mirroring
+  `calculateContinuousCoupling`'s plain-branch chain call for call: gap -> flux with
+  the unloaded-stack guard -> kPerPair). At the shipped defaults it quotes ~1131 km/h,
+  and the balance trace's damped cruise (1085.1) sits ~4 % under it: exactly the p.7
+  wave drag the pad asymptote excludes, a relationship pinned in BOTH directions (a
+  unit fixture reading the shipped constants chain, and smoke on the live row).
+  Resonance refuses to solve a second model ("supply-capped while resonant"); an
+  unliftable configuration reads "cannot lift this cargo" instead of a number. With
+  the legible wave and the altitude rail, the loop is complete: what am I riding,
+  where am I going, what will it do. One pure helper (65 total), one smoke check
+  (34 total), no parallel model anywhere.
 - **The altitude rail: the run's shape, always on screen.** A thin fixed rail on
   the right edge under the EPM gauge runs ground to Kármán on a sqrt axis (linear
   crushes every diegetic landmark but Everest under 12 % of the span; the

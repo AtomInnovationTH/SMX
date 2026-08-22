@@ -414,7 +414,15 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
     from the shared `flutterAmplitudeMm`) on the panel and the stack plate — reading
     "magnets let go" in plain words when flutter fills the gap — and the **brownout
     reason** captured at trip time (unloaded stack / slip closure at `u ≥ 0.8` /
-    low-speed extraction deficit).
+    low-speed extraction deficit). Shift C adds the **projected cruise** row
+    (`slipCruiseU`): a bisection on the monotone closed form solving thrust(u*) =
+    weight at the CURRENT sliders, shape-honest for harmonic carriers through the
+    same numeric gate the coupling integrates. It quotes the PAD asymptote (ground
+    taper, zero air column); the damped film aloft cruises ~4 % under it (the trace's
+    1085 km/h against ~1131 projected at defaults — smoke pins both ends of that
+    relationship), resonance refuses to solve a second model ("supply-capped while
+    resonant"), and an unliftable cargo reads "cannot lift this cargo" instead of a
+    number.
   - **The paper's p.11 table as the dashboard** (`renderFreqTable`, `FREQ_TABLE`,
     `freqDecadeColumn`): seven decade columns with the paper's wavelengths and consequence
     rows in the paper's own words, the ~0.01–1 Hz band shaded (the climber reflects 50 % of
@@ -572,9 +580,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **144 unit tests**
-  (pure 123, sliders 12, balance 9), **64 pure helpers** in the delimited block,
-  **98 = 98** asset references, **33 browser smoke checks**, `index.html` **435 KB**.
+- **Current gate numbers** (keep these updated when they move): **145 unit tests**
+  (pure 124, sliders 12, balance 9), **65 pure helpers** in the delimited block,
+  **98 = 98** asset references, **34 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

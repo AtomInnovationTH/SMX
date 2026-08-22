@@ -9,7 +9,43 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The altitude-rail shift (most recent)
+### The projected-cruise shift (most recent)
+
+Updated at the end of the projected-cruise shift: queued candidate 7 shipped, the
+third of the three planned UI shifts. The settings panel's playground loop is
+closed: the wave shows what you ride (shift A), the rail shows where you are
+(shift B), and the new row says what your configuration will do.
+
+The row solves thrust(u*) = weight with `slipCruiseU`: bisection on the monotone
+closed form, ~50 steps to double precision, returning the honest null when even
+the open gate cannot lift the cargo ("cannot lift this cargo", never a number).
+Two design rules kept it inside section 0: NO parallel model, and shape honesty.
+The orchestrator mirrors `calculateContinuousCoupling`'s plain-branch chain call
+for call (gap -> flux with the same unloaded-stack guard -> kPerPair), passes the
+carrier's own real-amplitude filmVelocityAt for harmonic gates exactly as the
+physics does, and while resonance is on it refuses to invent a second solve:
+"supply-capped while resonant". The hint names both limits: the damped film aloft
+cruises under this pad figure, and the switching bill is a separate wall.
+
+The gold fixture reads the shipped constants chain itself (gapFluxT -> pairCouplingK
+-> stackDryMassKg, no rounded copies) and pins the defaults at ~1131 km/h of pad
+asymptote; the balance trace's damped cruise (1085.1) sits ~4 % under it - exactly
+the p.7 drag the asymptote excludes, matching DEVELOPERS.md's own "few per cent
+lower" prose from the M4 shift. Both ends of that relationship are now pinned: the
+unit fixture for the solver, smoke 14b for the live row (the number in range, the
+resonant annotation, the restore). The square-carrier test found a genuinely
+instructive fact on its way in: at the default cargo the band-limited square gate
+cannot lift AT ALL (null), and at 1 kg it cruises at less than half the sine's
+fraction - shape matters more than coupling strength.
+
+One trap recorded for the export-guard regex: an inner `const thrustAt = (u) =>`
+closure inside a pure helper gets swept as an unexported helper (66 vs 65) and the
+guard test fails loudly, as designed. The bisection inlines its slipThrustMeanN
+calls instead, with a comment saying why. Gate numbers: 145 unit / 65 helpers /
+34 smoke. Render-adjacent only: updateContinuous byte-identical, balance trace
+untouched, no snapshot regen. Gate green end to end. Not yet pushed at shift end.
+
+### The altitude-rail shift
 
 Updated at the end of the altitude-rail shift: queued candidate 3 shipped, the
 second of the three planned UI shifts (after the legible wave, before the

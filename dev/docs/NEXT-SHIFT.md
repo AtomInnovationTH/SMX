@@ -10,7 +10,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 144 unit tests, 33 smoke checks, 98 = 98 asset references, all green.
+  Currently 145 unit tests, 34 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -204,7 +204,15 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
 6. **Desktop key-cap feedback.** The whole game is one held key; a small SPACE glyph
    that lights while held closes the input loop for first-timers. Static while idle,
    so photosafe by construction.
-7. **Settings projected-outcome readout.** Quote the analytic cruise point next to
+7. **(done) Settings projected-outcome readout.** Shipped this shift: the
+   **projected cruise** row solves thrust(u*) = weight at the current sliders via
+   `slipCruiseU` (bisection on the monotone closed form, shape-honest for harmonic
+   carriers through the same numeric gate the coupling integrates). Pad asymptote
+   with the honest relationship pinned both in a unit fixture (1131.5 projected vs
+   1085.1 traced, the excluded p.7 drag) and in smoke (the live row, plus the
+   "supply-capped while resonant" annotation and the "cannot lift" null).
+   One pure helper (65 total), one smoke check (34 total), no parallel model. The
+   original entry is kept for the record: Quote the analytic cruise point next to
    the sliders: solve thrust(u*) = weight from the SAME shipped helpers
    (`slipThrustMeanN` et al.) and show "projected cruise ~N km/h" updating live. No
    parallel model may be introduced; if a full climb projection wants the harness's

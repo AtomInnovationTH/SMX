@@ -1042,6 +1042,34 @@ try {
     Math.abs(presets.p.hz - 92) < 1 && presets.p.freqLabel.includes('92.0') && presets.p.sw.includes('12 kW'),
     JSON.stringify(presets));
 
+  // 14b) Shift C: the projected-cruise row. The solver runs the SAME chain the
+  //      coupling integrates (slipThrustMeanN bisection, shape-honest via the
+  //      numeric gate), so the pin is the honest relationship, not just a string:
+  //      at the paper baseline it quotes the pad asymptote (~1131 km/h, with the
+  //      balance trace's damped cruise sitting ~4 % under it - the excluded p.7
+  //      drag), and under resonance it refuses to solve a second model and says
+  //      so instead ("supply-capped").
+  const cruise = await page.evaluate(() => {
+    const read = () => document.getElementById('cruiseValue').textContent;
+    const atPaper = read();
+    const slider = document.getElementById('resonance');
+    const before = slider.value;
+    slider.value = '1';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    const resonant = read();
+    slider.value = before;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    const restored = read();
+    return { atPaper, resonant, restored };
+  });
+  {
+    const m = /^~(\d{3,4}) km\/h near the ground$/.exec(cruise.atPaper);
+    record('projected cruise: pad asymptote at defaults, supply-capped annotation while resonant, restores',
+      !!m && +m[1] >= 1120 && +m[1] <= 1145 &&
+      cruise.resonant === 'supply-capped while resonant' && cruise.restored === cruise.atPaper,
+      JSON.stringify(cruise));
+  }
+
   // 15) M3.8: every persistence key moved to .v2 (bestScore -> bestAltitude.v2 — it
   //     always stored altitude). v1 values are NOT migrated (units and meaning both
   //     changed); they are deleted on first v2 load. Shift 9 adds the two v2 SCORE keys

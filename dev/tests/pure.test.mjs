@@ -37,6 +37,7 @@ const {
   freqDecadeColumn,
   switchingPowerW,
   slipThrustMeanN,
+  slipCruiseU,
   slipGateFactor,
   safePersistedNumber,
   throughputKgPerHour,
@@ -108,7 +109,7 @@ test('extraction exposes the core pure symbols', () => {
     tetherWaveSpeed, tetherPhaseAt, filmCrossSectionM2, maxMaterialVelocityMps, maxAmplitudeM,
     taperSectionRatioAt, taperVelocityFactorAt,
     gapFluxT, pairCouplingK, stackDryMassKg, stackLengthM, stackPhaseOffset, flutterAmplitudeMm,
-    freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipGateFactor,
+    freqDecadeColumn, switchingPowerW, slipThrustMeanN, slipCruiseU, slipGateFactor,
     densityRatio, atmosphereAct, altimeterLandmarkAt, epmChargeStep,
     densityColumnKgM2, waveDragSpeedFactorAt, waveDragColumnPowerW, waveDragHeatingWM,
     resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
@@ -141,14 +142,15 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 64 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 65 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
   // 62 -> 61: coldGripFactor deleted with the invented cold-coupling term it fed.
   // 61 -> 63: waveDrawAmpPx + drawnOscillationHz, the legible-wave schematics.
   // 63 -> 64: railAltitudeToFrac, the altitude rail's sqrt axis.
-  assert.equal(declaredPureHelpers().length, 64);
+  // 64 -> 65: slipCruiseU, the projected-cruise readout's solver.
+  assert.equal(declaredPureHelpers().length, 65);
 });
 
 // ---------------------------------------------------------------------------
@@ -419,6 +421,53 @@ test('slipGateFactor follows harmonic carriers through the same numeric gate', (
   // Shape matters: the band-limited square's velocity peaks at the carrier edges and is
   // quiet mid-cycle, so at the same slip its gate window is NARROWER than the sine's.
   assert.ok(f < slipGateFactor(0.4), 'the square gate must fade faster than the sine gate at u = 0.4');
+});
+
+// Shift C: the projected-cruise readout's solver. Bisection on the monotone closed
+// form; shape-honest for harmonic carriers via the same numeric gate the physics
+// uses. The defaults cross-reading is the gold fixture: at the shipped settings
+// (8 pairs, 0.15 mm gap, 100 GPa, 1 m stroke @ 92 Hz, 3 kg + dry stack) the pad
+// asymptote lands at ~1131 km/h, and the balance trace's damped cruise (1085.1)
+// sits 4.1 % under it - exactly the wave drag the asymptote excludes, the same
+// "few per cent lower aloft" DEVELOPERS.md documents.
+test('slipCruiseU: null when the open gate cannot lift, monotone in kN, bisection exact', () => {
+  // Build the shipped chain exactly as the orchestrator and the balance harness do:
+  // gap -> flux -> kPerPair, pad film (1 m stroke @ 92 Hz), dry stack + 3 kg cargo.
+  const fluxT = gapFluxT(0.15, GameConfig.FG40.POLE_FLUX_T);
+  const kPerPair = pairCouplingK({ sigmaSPerM: 1e6, thicknessM: 0.2 / 1000, fluxT, poleAreaM2: GameConfig.FG40.POLE_AREA_M2 });
+  const V = 1.0 * 92 * 2 * Math.PI;
+  const massKg = stackDryMassKg(8) * (1 + GameConfig.FG40.STRUCTURE_MASS_FRACTION) + GameConfig.MONKEY.WEIGHT;
+  const base = { kPerPair, nPairs: 8, vFilmPeakMps: V, massKg, gravityMult: 1 };
+  // Cannot lift: zero coupling, or a cargo heavier than the whole wave can push.
+  assert.equal(slipCruiseU({ ...base, kPerPair: 0 }), null);
+  assert.equal(slipCruiseU({ ...base, massKg: 1e6 }), null);
+  assert.equal(slipCruiseU({ ...base, vFilmPeakMps: 0 }), null);
+  // The gold fixture: the shipped defaults land on ~1131 km/h of pad asymptote,
+  // with the balance trace's damped cruise (1085.1) sitting ~4 % under it.
+  const uDefault = slipCruiseU(base);
+  assert.ok(uDefault > 0 && uDefault < 1);
+  approx(uDefault * V * 3.6, 1131.5, 2);
+  // Monotone: more coupling lifts the cruise fraction toward the film speed.
+  const uHot = slipCruiseU({ ...base, kPerPair: kPerPair * 2 });
+  assert.ok(uHot > uDefault, 'more coupling must raise the cruise fraction');
+  const uHeavy = slipCruiseU({ ...base, massKg: 40 });
+  assert.ok(uHeavy < uDefault, 'more cargo must lower the cruise fraction');
+  // Shape-honest, both directions. With the DEFAULT cargo the band-limited square
+  // cannot lift at all (its gate integral is far thinner than the sine's) - the
+  // honest null, not a number. With a light cargo both shapes lift and the square's
+  // narrower gate window solves to a much lower asymptote, exactly as the
+  // slipGateFactor test's "square fades faster" finding predicts. The
+  // filmVelocityAt is the SAME real-amplitude call calculateContinuousCoupling
+  // integrates (displacement amplitude 1 m at the real omega).
+  const omega = 92 * 2 * Math.PI;
+  const filmVelocityAt = (phi) => WAVE_CALCULATORS.square.velocity(1, omega, phi);
+  assert.equal(slipCruiseU({ ...base, filmVelocityAt }), null,
+    'the square gate cannot lift the default cargo - null, never a number');
+  const uSineLight = slipCruiseU({ ...base, massKg: 1 });
+  const uSquareLight = slipCruiseU({ ...base, massKg: 1, filmVelocityAt });
+  assert.ok(uSineLight > 0 && uSineLight < 1 && uSquareLight > 0 && uSquareLight < 1);
+  assert.ok(uSquareLight < uSineLight * 0.5,
+    'the square gate must cruise far under the sine gate at the same kNV');
 });
 
 test('applyGravityAndDrag always applies gravity — there is no attached state', () => {
