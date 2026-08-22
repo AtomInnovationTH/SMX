@@ -10,7 +10,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 142 unit tests, 30 smoke checks, 98 = 98 asset references, all green.
+  Currently 141 unit tests, 30 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -22,23 +22,28 @@ traps that have already cost time. The per-shift narrative record lives in
   mode-conversion mechanism (p.12 offers a table and a question, no converter), and any
   temperature (no heat capacity, transfer coefficient or emissivity is published
   anywhere).
-- **Default climb**: unchanged by the phone-forms fix (render-only short forms at the
-  full level; `updateContinuous` byte-identical), by the bootstrap-progress shift
+- **Default climb**: MOVED by the 2026-08-22 integrity shift (deliberately, explained
+  in the snapshot diff and DESIGN.md: the invented cold-coupling penalty is deleted,
+  so the low climb runs 5 s faster; cruise never moved because the penalty never
+  reached vacuum). Unchanged by everything before it, most recently the phone-forms
+  fix (render-only short forms at the
+  full level; `updateContinuous` byte-identical), the bootstrap-progress shift
   (presentation-only: one
-  guarded clause on the existing delivered line; `updateContinuous` byte-identical), by
-  the bootstrap-pacing shift (presentation-only strings
-  on the existing score lines; `updateContinuous` byte-identical), by the
-  resonance-texture shift (render-only: the crest
-  overlay breathes while resonant, and resonance is off by default; `updateContinuous`
-  byte-identical), by the thermal shift (no physics at all: one helper, one
-  readout, one new card, one card extended, constants and docs), by the review pass
-  after it (display-only fix: the 30 km card's heating figure now mirrors the coupling's
-  film speed, nothing in the trace's path moved), by the mode-conversion shift (no
-  physics either), by the sharing shift (the toggle defaults to refuse) and by the
-  resonance shift before that (off by default): 100 km in 350.7 s, mean 1027 km/h,
-  cruise 1085 km/h = 0.48 v_max, no brownouts, 31 kg/h of throughput with 3 kg of cargo.
+  guarded clause on the existing delivered line), the bootstrap-pacing shift
+  (presentation-only strings on the existing score lines), the resonance-texture
+  shift (render-only, resonance off by default), the thermal shift, its review pass,
+  the mode-conversion shift, the sharing shift (toggle defaults to refuse) and the
+  resonance shift before that. The new trace: 100 km in 345.5 s, mean 1042 km/h,
+  cruise 1085 km/h = 0.48 v_max (unchanged), no brownouts, 31 kg/h of throughput with
+  3 kg of cargo.
 
 ## Priorities for this shift
+
+The most recent completed work is the **integrity shift** (2026-08-22): the
+invented cold-coupling penalty deleted from `updateContinuous` and the scored cargo
+frozen at liftoff (`_runCargoKg`), trace moved deliberately and explained. The
+narrative is in [`shift-log.md`](shift-log.md); the rules are pinned in
+[`DESIGN.md`](DESIGN.md). Nothing from it remains open.
 
 The thermal shift's priority 1 is **done**: the hot side of thermal shipped as the
 exact bookkeeping the sources support and nothing more (the section-0 verdict: the
@@ -243,7 +248,7 @@ rediscover the traps:
   from 256 pairs to 16 when the default stack shrank, or it browns out instantly and never
   leaves the ground. If you re-scale anything, re-check the fixtures.
 - **Adding a pure helper is four edits** (helper, `EXPORTED_SYMBOLS`, destructure plus sanity
-  object, count assertion, currently 62). **Adding or changing a slider is five** (id list,
+  object, count assertion, currently 61). **Adding or changing a slider is five** (id list,
   `sliders.test.mjs`, `scaleSettingValue`, `UI_CONFIG`, `initGame`'s `sliderDefaults`).
 - **Non-slider readouts update in `updateDerivedReadouts()`.** A new slider feeding one must
   call it.

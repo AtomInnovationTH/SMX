@@ -68,7 +68,6 @@ const EXPORTED_SYMBOLS = [
   'waveModeCell',
   'temperatureAtAltitude',
   'thermalSuitIndex',
-  'coldGripFactor',
   'altimeterLandmarkAt',
   'epmChargeStep',
   'milestoneMarkerAt',

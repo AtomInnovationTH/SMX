@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Score integrity: the delivery credits the cargo aboard at liftoff.** A new
+  `_runCargoKg` snapshot is taken when the climb starts and feeds `cargoDeliveryCredit`,
+  the mission block's goal/pace lines and the minimal score line (falling back to the
+  live slider before liftoff, where the values are identical). Previously every slider,
+  Weight included, applied live mid-run with no gate, so a run could climb at 3 kg and
+  be scored at 200 kg by retuning under the Kármán line. The sliders stay live sandbox
+  levers for the physics; only the SCORE freezes. DESIGN.md pins the rule.
 - **[`DESIGN.md`](DESIGN.md) records the settled design decisions** so they no
   longer live on one machine: the one principle, the physical setup agreed with the
   owner, why the stress slider means what it means, and the decisions whose reasons
@@ -18,6 +25,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The invented cold-coupling penalty is deleted; suits are costume.** The legacy
+  thermal layer scaled the coupling impulse by a temperature term (`coldGripFactor`,
+  up to −12 % below 19 km) that appears in no paper, no readout and no doc: exactly
+  the invented-constant class the section-0 audit removed elsewhere, still feeding
+  `updateContinuous` and the balance trace. Gone: the helper, the `PENALTY_*` /
+  `BARE_SHIVERING_AT` constants, the dead `shiveringAt` suit fields and the harness
+  mirror. What survives is presentation only: suit sprites, the toast, the
+  thermometer. The default trace moved deliberately and is explained in the snapshot
+  diff: 100 km in 345.5 s (was 350.7), mean 1042 km/h (was 1027), cruise unchanged at
+  1085 km/h = 0.48 v_max because the penalty never reached vacuum; all M2.11 target
+  bands still hold. The README's preset validation figures were re-measured against
+  the current sim in the same pass: they predated the shift-9 re-scale (max payload
+  quoted a 200 kg run; the Weight slider has capped at 24 kg since) and the Lofstrom
+  stall quote still carried the old 128-pair stack's 2 MW (the 8-pair preset draws
+  128 kW and stalls the same way: the stroke clamp pins the film at v_max, slip
+  closes, and the flat switching bill outlives the extraction). Gate: 141 unit tests
+  (was 142; the deleted helper takes its test),
+  61 pure helpers (was 62), 30/30 smoke.
 - **The five longest settings hints read like a person now.** The wave-budget,
   stack-heat, resonance, power-share and taper explanations were each a single
   150-220-word paragraph; the facts, formulas and page citations are unchanged, the

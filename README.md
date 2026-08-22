@@ -135,7 +135,7 @@ mass, battery size.
 100 GPa graphene, 92 Hz, 1 m stroke, 30% stress budget, 9 mm² film, 0.15 mm gap, 8 magnet pairs,
 3 kg cargo.
 
-That gets you 100 km in 5:51, averaging 1027 km/h and cruising at 1085. Cruise is 48% of
+That gets you 100 km in 5:46, averaging 1042 km/h and cruising at 1085. Cruise is 48% of
 `v_max`, which behaves as an asymptote here rather than a speed limit: the closer you get,
 the less thrust the wave can hand you. Switching the magnets costs 12 kW the whole way. The
 wave's drag bill through the entire air column is about 8 MW at this film speed, which
@@ -154,9 +154,10 @@ stays capped by `v_max`, so past roughly 200 Hz this film can no longer pay for 
 switching, and it stalls. The slider still reaches 1000 Hz, because finding that wall is
 the point.
 
-Presets, each one checked against the simulation before it shipped: paper baseline (6:28),
-Wessels 92 Hz and 60 cm (12:29), Lofstrom 1000 Hz (stalls on 2 MW of switching, which is
-the lesson), max speed (4:53 at 1447 km/h), max payload (200 kg in 8:15).
+Presets, each one re-measured against the simulation: paper baseline (5:46), Wessels
+92 Hz and 60 cm (11:09), Lofstrom 1000 Hz (stalls on 128 kW of switching it can never
+pay for, which is the lesson), max speed (4:13 at 1422 km/h), max payload (24 kg in
+7:02).
 
 Short callouts along the way each explain one page of the paper. Down low: a transverse
 wave would cap out at 45 km/h. By 20 km the stress budget is your ceiling. At 40 km the
@@ -169,7 +170,7 @@ a share-or-refuse decision the paper itself leaves unsolved.
 ## Run and build
 
 ```bash
-node --test dev/tests/*.test.mjs   # 142 tests, no dependencies
+node --test dev/tests/*.test.mjs   # 141 tests, no dependencies
 bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```

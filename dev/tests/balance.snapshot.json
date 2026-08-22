@@ -8,7 +8,9 @@
     "airGapMm": 0.15,
     "filmThicknessMm": 0.2,
     "cargoKg": 3,
-    "taperRatio": 1
+    "taperRatio": 1,
+    "resonanceOn": false,
+    "powerShareOn": false
   },
   "config": {
     "materialIndex": 1,
@@ -19,41 +21,44 @@
     "taperRatio": 1,
     "widthMm": 45,
     "thicknessMm": 0.2,
+    "resonanceOn": false,
+    "powerShareOn": false,
+    "startAltM": 0,
     "amplitudeM": 1,
     "materialGpa": 100,
     "stressBudget": 0.3,
     "capacityJ": 190000
   },
-  "doneAtS": 350.7,
+  "doneAtS": 345.5,
   "finalSpeedKmh": 1085.1,
   "trace": [
     {
       "t": 60,
-      "altM": 13257.6,
-      "speedKmh": 993,
+      "altM": 13966.5,
+      "speedKmh": 1072,
       "charge": 100
     },
     {
       "t": 120,
-      "altM": 30504.7,
-      "speedKmh": 1077.5,
+      "altM": 32021.8,
+      "speedKmh": 1085.7,
       "charge": 100
     },
     {
       "t": 180,
-      "altM": 48556.9,
-      "speedKmh": 1085,
+      "altM": 50111.7,
+      "speedKmh": 1085.2,
       "charge": 100
     },
     {
       "t": 240,
-      "altM": 66641.4,
+      "altM": 68197.3,
       "speedKmh": 1085.1,
       "charge": 100
     },
     {
       "t": 300,
-      "altM": 84726.4,
+      "altM": 86282.4,
       "speedKmh": 1085.1,
       "charge": 100
     }

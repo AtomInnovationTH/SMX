@@ -57,7 +57,6 @@ const {
   waveModeCell,
   temperatureAtAltitude,
   thermalSuitIndex,
-  coldGripFactor,
   altimeterLandmarkAt,
   epmChargeStep,
   milestoneMarkerAt,
@@ -138,11 +137,12 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 62 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 61 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
-  assert.equal(declaredPureHelpers().length, 62);
+  // 62 -> 61: coldGripFactor deleted with the invented cold-coupling term it fed.
+  assert.equal(declaredPureHelpers().length, 61);
 });
 
 // ---------------------------------------------------------------------------
@@ -846,17 +846,6 @@ test('thermalSuitIndex steps up at the configured altitudes', () => {
   assert.equal(thermalSuitIndex(s1.altitude), 1);        // pressure suit
   assert.equal(thermalSuitIndex(s2.altitude), 2);        // full space suit
   assert.equal(thermalSuitIndex(s2.altitude + 1e6), 2);  // stays at top tier
-});
-
-test('coldGripFactor is 1.0 when warm and capped when cold', () => {
-  const { PENALTY_CAP } = GameConfig.THERMAL;
-  assert.equal(coldGripFactor(0, -20), 1.0);        // warmer than threshold
-  assert.equal(coldGripFactor(-20, -20), 1.0);      // exactly at threshold
-  const cold = coldGripFactor(-100, -20);           // far below threshold
-  assert.ok(cold < 1.0 && cold >= 1.0 - PENALTY_CAP);
-  approx(cold, 1.0 - PENALTY_CAP);                  // saturates at the cap
-  // A better-rated suit (lower shiveringAt) restores grip at the same temperature.
-  assert.ok(coldGripFactor(-50, -60) > coldGripFactor(-50, -20));
 });
 
 // ---------------------------------------------------------------------------
@@ -1712,14 +1701,14 @@ test('thermalStep: descent never announces and same-tier never announces', () =>
   assert.equal(thermalStep(SUIT0.altitude, 0).announce, false);
 });
 
-test('thermalStep: below the first suit -> tier -1, no label, bare shivering floor', () => {
+test('thermalStep: below the first suit -> tier -1, no label, ground temperature', () => {
   const s = thermalStep(0, -1);
   assert.equal(s.tier, -1);
   assert.equal(s.label, null);
   assert.equal(s.tempC, temperatureAtAltitude(0)); // 15
-  // coldFactor uses BARE_SHIVERING_AT and sits in [1 - PENALTY_CAP, 1].
-  approx(s.coldFactor, coldGripFactor(temperatureAtAltitude(0), GameConfig.THERMAL.BARE_SHIVERING_AT), 1e-12);
-  assert.ok(s.coldFactor >= 1 - GameConfig.THERMAL.PENALTY_CAP && s.coldFactor <= 1);
+  // Presentation only: thermalStep carries no coupling term (the former cold-grip
+  // penalty was an invented physics input and is gone; suits are costume).
+  assert.deepEqual(Object.keys(s).sort(), ['announce', 'label', 'tempC', 'tier']);
 });
 
 test('thermalStep: a fresh run starting above the top suit announces only the top tier', () => {

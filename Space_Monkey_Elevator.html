@@ -1446,15 +1446,6 @@
             return idx;
         }
 
-        // Cold coupling multiplier in (0,1]: 1.0 when warmer than the gear's shivering threshold,
-        // otherwise a small capped penalty. Donning a better-rated suit raises the threshold and
-        // restores grip — the reason the climber suits up.
-        function coldGripFactor(tempC, shiveringAt) {
-            if (tempC >= shiveringAt) return 1.0;
-            const penalty = Math.min((shiveringAt - tempC) * GameConfig.THERMAL.PENALTY_PER_C, GameConfig.THERMAL.PENALTY_CAP);
-            return 1.0 - penalty;
-        }
-
         // UX: highest landmark whose altitude is <= the given altitude (m). The table is
         // sorted ascending; the first entry acts as the below-first clamp and the last as
         // the above-last clamp. Pure and DOM-free so the test harness can drive the real
@@ -1572,20 +1563,17 @@
             return 'arm';
         }
 
-        // SIM (thermal layer): the temperature/suit/announce/coldFactor decision for one
-        // frame, given the current altitude and the previous suit tier. Purely derived; the
+        // SIM (thermal layer): the temperature/suit/announce decision for one frame,
+        // given the current altitude and the previous suit tier. Purely derived; the
         // orchestrator keeps the presentation ('🧥 ' prefix) and the read-before-write of
-        // _thermalTier. Same contract as epmChargeStep (pure w.r.t. GameConfig).
+        // _thermalTier. Presentation only: no temperature term feeds the physics (§0,
+        // never invent — the coupling has no cold factor; suits are costume).
         function thermalStep(altitude, prevTier) {
             const tempC = temperatureAtAltitude(altitude);
             const tier = thermalSuitIndex(altitude);
             const announce = tier > prevTier && tier >= 0;
-            const shiveringAt = tier < 0
-                ? GameConfig.THERMAL.BARE_SHIVERING_AT
-                : GameConfig.THERMAL.SUITS[tier].shiveringAt;
             return { tempC, tier, announce,
-                     label: announce ? GameConfig.THERMAL.SUITS[tier].label : null,
-                     coldFactor: coldGripFactor(tempC, shiveringAt) };
+                     label: announce ? GameConfig.THERMAL.SUITS[tier].label : null };
         }
 
         // SIM (thermal layer): format the air-density HUD readout for an altitude. Pure and
@@ -2851,20 +2839,19 @@
             };
 
             // SIM (educational thermal layer): standard-atmosphere temperature + a protective-suit
-            // progression. The climber auto-dons warmer gear as it climbs; being under-dressed for
-            // the cold applies a small, capped coupling penalty (PENALTY_* are playtest-tunable and
-            // can be set to 0 to disable). Suit sprites are sleeveless full-body overlays with an
-            // open helmet ring (the monkey's face shows through; its bare reaching arms stay the
-            // only pair of hands); they load from "assets/" at runtime.
+            // progression. The climber auto-dons warmer gear as it climbs. Presentation only:
+            // the suits are costume and the thermometer is a readout; NO temperature term
+            // feeds the physics. The coupling is exactly the paper's slip integral (§0:
+            // never invent — the former cold-grip penalty was an invented term and was
+            // deleted; see DESIGN.md). Suit sprites are sleeveless full-body overlays with
+            // an open helmet ring (the monkey's face shows through; its bare reaching arms
+            // stay the only pair of hands); they load from "assets/" at runtime.
             static THERMAL = {
                 SUITS: [
-                    { sprite: 'space-suit-1.svg', altitude: 8000,  shiveringAt: -20,  label: 'Flight suit' },
-                    { sprite: 'space-suit-2.svg', altitude: 19000, shiveringAt: -60,  label: 'Pressure suit, past the Armstrong Limit' },
-                    { sprite: 'space-suit-3.svg', altitude: 50000, shiveringAt: -273, label: 'Full space suit' }
+                    { sprite: 'space-suit-1.svg', altitude: 8000,  label: 'Flight suit' },
+                    { sprite: 'space-suit-2.svg', altitude: 19000, label: 'Pressure suit, past the Armstrong Limit' },
+                    { sprite: 'space-suit-3.svg', altitude: 50000, label: 'Full space suit' }
                 ],
-                BARE_SHIVERING_AT: 10,   // °C below which the unsuited climber starts to shiver
-                PENALTY_PER_C: 0.006,    // coupling loss per °C colder than the current gear's rating
-                PENALTY_CAP: 0.12,       // max cold coupling loss (keeps the climb beatable)
                 OVERLAY_SCALE: 1.02,     // suit overlay height relative to the monkey draw box (visual tune)
                 OVERLAY_Y_OFFSET: -6     // vertical nudge (px) to seat the helmet ring over the head
                 // The suit sprites are SLEEVELESS overlays (see the assets' own comments):
@@ -3591,10 +3578,9 @@
                 this.milestonesPassed = new Set();
                 this.landmarksPassed = new Set();
                 this.ghostBestAltitude = 0;
-                // SIM (thermal layer): -1 = no suit yet; temperature/cold tracked for HUD + physics.
+                // SIM (thermal layer): -1 = no suit yet; temperature tracked for the HUD readout.
                 this._thermalTier = -1;
                 this.temperatureC = 15;
-                this._coldFactor = 1;
                 this.coyoteTimeLeft = 0;       // UX: coyote time (2b)
                 this.bufferedGrab = false;      // UX: input buffering (2b)
                 this.currentLandmarkName = '';
@@ -3981,6 +3967,11 @@
                 // the player's kg/h.
                 this._runTimeS = 0;
                 this._climbStartS = null;
+                // Score integrity: the delivery credits the cargo aboard at LIFTOFF, not
+                // whatever the Weight slider reads at 100 km. Null until liftoff, so every
+                // reader falls back to the live slider (identical values) pre-run. The
+                // sliders stay live sandbox levers for the physics; only the SCORE freezes.
+                this._runCargoKg = null;
                 this._deliveredInS = null;
                 this._topSpeedKmh = 0;
                 // M3.6 (decision 18): soft-failure stall state (see updateContinuous).
@@ -4014,7 +4005,6 @@
                 // SIM (thermal layer): start each run unsuited at ground temperature.
                 this._thermalTier = -1;
                 this.temperatureC = 15;
-                this._coldFactor = 1;
                 // M3.3: each run starts in Act I (atmosphere); the vacuum-threshold beat
                 // fires once per run at the 40 km crossing.
                 this._act = 1;
@@ -4659,13 +4649,12 @@
                 // NOTE (shift 7 §2): this call stays BEFORE updatePosition below. It
                 // intentionally consumes LAST frame's altitude — a one-frame intrinsic
                 // display lag when forces are integrated after position. Do NOT "fix" that
-                // lag by moving thermal later; it would only make updateContinuous's
-                // _coldFactor read staler, not fresher.
-                const { tempC, tier, announce, label, coldFactor } = thermalStep(this.monkey.altitude, this._thermalTier);
+                // lag by moving thermal later. Presentation only: no term here feeds the
+                // coupling (the suits are costume; see GameConfig.THERMAL).
+                const { tempC, tier, announce, label } = thermalStep(this.monkey.altitude, this._thermalTier);
                 if (announce) this.showToast('🧥 ' + label);
                 this._thermalTier = tier;
                 this.temperatureC = tempC;
-                this._coldFactor = coldFactor;
             }
 
             // SIM (Stage 2 / B.10): the "pulse/couple" integrator — the only coupling model.
@@ -4768,8 +4757,7 @@
                     });
                     const c = this.physics.calculateContinuousCoupling(this.waveSystem, this.monkey,
                         { kPerPair, nPairs: this.nPairs, massKg: this.totalMassKg(), dt, gravityMult: this.gravityMultiplier, taperRatio: this.taperRatio, widthMm: this.vineWidth * 10, thicknessMm: this.filmThicknessMm, vMaxMps: this.vMaxMps(), resonance, share });
-                    // Cold reduces coupling unless the climber is adequately suited (thermal layer).
-                    this.monkey.velocityY += c.impulse * this._coldFactor;
+                    this.monkey.velocityY += c.impulse;
                     thrustFrameN = c.thrustN;
 
                     this.lastGrabQuality = c.quality;
@@ -5248,6 +5236,8 @@
                 this._runTimeS += dt;
                 if (this._climbStartS === null && this.monkey.altitude > 0.5) {
                     this._climbStartS = this._runTimeS;
+                    // Score integrity: freeze the scored cargo at liftoff (see _runCargoKg).
+                    this._runCargoKg = this.cargoKg;
                 }
                 const speedKmhNow = climbSpeedKmh(this.monkey.velocityY);
                 if (speedKmhNow > this._topSpeedKmh) this._topSpeedKmh = speedKmhNow;
@@ -5298,11 +5288,13 @@
                 }
 
                 // SIM (Stage 2 / B.11): cargo delivery — credit cargo the first time the climber
-                // reaches Kármán, and add it to the cumulative bootstrap meter.
+                // reaches Kármán, and add it to the cumulative bootstrap meter. The credited
+                // cargo is the liftoff snapshot, never a mid-flight Weight change (score
+                // integrity; _runCargoKg is null only before liftoff, where it cannot fire).
                 const credit = cargoDeliveryCredit({
                     delivered: this.cargoDelivered,
                     altitude: this.monkey.altitude,
-                    cargoKg: this.cargoKg,
+                    cargoKg: this._runCargoKg ?? this.cargoKg,
                     bootstrapKg: this.bootstrapKg,
                 });
                 if (credit) {
@@ -6145,7 +6137,7 @@
                 const col = freqDecadeColumn(carrier);
                 const power = activeFreqCells(col).find((c) => c.tag === 'power');
                 const scoreLine = _uxHudLevel === HUD_MINIMAL ? minimalScoreLine({
-                    cargoKg: this.cargoKg || 0,
+                    cargoKg: (this._runCargoKg ?? this.cargoKg) || 0,
                     altitudeM: this.monkey.altitude,
                     climbElapsedS: this._climbStartS === null ? null : this._runTimeS - this._climbStartS,
                     delivered: this.cargoDelivered,
@@ -6270,7 +6262,10 @@
             // is one string at both widths. Desktop lines are byte-identical. The block
             // keeps its y 16/30 band: no wrap, no cascade into the thermal/act blocks.
             renderMissionHud(ctx, width) {
-                const cargoKg = this.cargoKg || 0;
+                // The mission block quotes the liftoff snapshot once a climb is underway, so
+                // the goal and pace lines can never promise cargo the delivery will not
+                // credit (score integrity; identical values before liftoff).
+                const cargoKg = (this._runCargoKg ?? this.cargoKg) || 0;
                 const bootPct = bootstrapPct(this.bootstrapKg);
                 const narrow = this._compactHud;
                 ctx.save();

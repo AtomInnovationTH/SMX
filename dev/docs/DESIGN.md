@@ -112,6 +112,18 @@ both impedances, all three power rows. With ρ = 1800 every one of them misses b
   The same rule holds for any future coupling change: never leave an in-between
   state with no ceiling, and keep the balance harness asserting that terminal speed
   stays finite and below `v_max`.
+- **No hidden terms in the coupling.** Every multiplier on the impulse is either in
+  the paper or a labelled sandbox lever. The legacy cold-grip penalty (an invented
+  temperature term that cost up to 12 % of thrust below 19 km) was deleted on
+  2026-08-22 for violating exactly this rule: it sat inside `updateContinuous`,
+  fed the balance trace, and no doc, readout or card disclosed it. Suits are
+  costume; the thermometer is a readout; nothing else.
+- **The score credits the cargo aboard at liftoff.** `_runCargoKg` snapshots the
+  Weight slider when the climb starts (2026-08-22). Before that, every slider was a
+  live lever including Weight, so a run could climb at 3 kg and be scored at 200 kg
+  by retuning under the Kármán line. The sliders stay live for the physics; only
+  the SCORE freezes. Never reintroduce a scored quantity that a mid-flight slider
+  can move.
 - **No altitude attenuation beyond wave drag.** The deleted `waveEnergyFactor` was
   an exponential fade keyed to tensile strength, in a game where stiffness is
   ~1 TPa across the whole material ladder. The only real attenuation is the p.7
@@ -150,6 +162,6 @@ review rounds in August 2026; breaking them gets reverted.
 
 Milestone specs (M1-M4 all shipped; see the changelog and the shift log), the test
 and tooling rituals (the old plan's machinery section is stale: it says 32 helpers
-and 97 tests, the real numbers are 62 and 142, and
+and 97 tests, the real numbers are 61 and 141, and
 [`DEVELOPERS.md`](DEVELOPERS.md) has the four-edit and five-edit rules), and the
 per-shift narratives, which live in [`shift-log.md`](shift-log.md).

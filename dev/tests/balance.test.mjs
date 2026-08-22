@@ -132,7 +132,6 @@ function runClimb(dt, wallS, over = {}) {
   const kPerPair = kPerPairFor(cfg);
   const massKg = totalMassKgFor(cfg.nPairs, cfg.cargoKg);
   let charge = GameConfig.EPM.START_CHARGE, brownout = false, thermalTier = -1;
-  let coldFactor = 1;
   // M4 (p.10): the resonance state, mirroring updateContinuous's block call for call.
   let resMode = null, resTransientS = 0, resonanceResets = 0;
   let lastExtractionW = 0, lastSupplyW = 0;
@@ -148,7 +147,7 @@ function runClimb(dt, wallS, over = {}) {
   for (let i = 0; i < steps; i++) {
     ws.time += dt;
     const th = thermalStep(monkey.altitude, thermalTier);
-    thermalTier = th.tier; coldFactor = th.coldFactor;
+    thermalTier = th.tier;
     const prevAlt = monkey.altitude;
     phys.applyGravityAndDrag(monkey, dt, DEFAULTS.gravityMultiplier);
     // M4 (p.10): the resonance block, mirroring updateContinuous call for call —
@@ -201,7 +200,7 @@ function runClimb(dt, wallS, over = {}) {
     if (engaged) {
       const c = phys.calculateContinuousCoupling(ws, monkey,
         { kPerPair, nPairs: cfg.nPairs, massKg, dt, gravityMult: DEFAULTS.gravityMultiplier, taperRatio: cfg.taperRatio, widthMm: cfg.widthMm, thicknessMm: cfg.thicknessMm, vMaxMps: resonance ? resonance.vMaxMps : 0, resonance, share });
-      monkey.velocityY += c.impulse * coldFactor;
+      monkey.velocityY += c.impulse;
       quality = c.quality;
       thrustFrameN = c.thrustN;
     }

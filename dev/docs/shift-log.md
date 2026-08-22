@@ -9,7 +9,61 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The climber-art shift and the phone-forms fix (most recent first)
+### The integrity shift: cold-grip deleted, scored cargo frozen (most recent)
+
+Updated at the end of the integrity shift: a code-level audit reading the integrator
+itself (not the docs) found two violations of the project's own rules, both fixed.
+
+(1) **The invented cold-coupling penalty existed and is now gone.** The legacy
+"educational thermal layer" multiplied the coupling impulse by `coldGripFactor`:
+below the current gear's shivering threshold, thrust lost up to PENALTY_CAP = 12 %.
+It appears in no paper, no readout, no card and no doc; DESIGN.md's "any temperature
+is absent" claim was written as if it did not exist. It sat inside
+`updateContinuous`, fed the balance harness call for call, and shaped every shipped
+default-climb figure. Deleted outright rather than zeroed (the slip-integral
+precedent: the model got smaller): the helper, the THERMAL penalty constants, the
+dead `shiveringAt` suit fields, the two `_coldFactor` init sites, the harness
+mirror. Suits stay costume (sprites + toast + thermometer); the thermal bullet in
+DEVELOPERS.md now says "no temperature term feeds the physics" and it is TRUE in
+both directions. The pure suite lost one test with its helper (142 -> 141; 61
+helpers), and thermalStep's contract test now pins the four-key shape so a coupling
+term cannot quietly grow back.
+
+(2) **The score was exploitable and now is not.** Every slider applied live mid-run
+with no gate — including Weight, the scored quantity. Climb at 3 kg, open the panel
+at 99 km, slide to 200 kg, coast across the line: `cargoDeliveryCredit` credited
+whatever the slider read. Now `_runCargoKg` snapshots Weight at liftoff (the same
+moment `_climbStartS` starts the clock) and feeds the credit, the mission block's
+goal/pace lines and the minimal score line, falling back to the live slider before
+liftoff where the values are identical (so every pinned smoke string survives). The
+sliders remain live sandbox levers for the PHYSICS; only the SCORE freezes.
+DESIGN.md carries both decisions under "decisions whose reasons are not in the
+code".
+
+**The trace moved, deliberately and explained**: doneAt 350.7 -> 345.5 s, mean
+1027 -> 1042 km/h, cruise 1085 km/h unchanged (= 0.48 v_max). The movement is
+exactly where the penalty lived: the low climb below 19 km, which had been paying
+5-12 % invented tax, while vacuum was never penalized (the pressure suit's
+threshold made the factor exactly 1 above it) — the cleanest possible confirmation
+that the deletion changed nothing the paper owns. All M2.11 target bands hold
+without touching them. The snapshot regeneration also folded in pre-existing format
+drift (`resonanceOn`/`powerShareOn`/`startAltM` config fields the harness gained in
+earlier shifts without a regen; HEAD itself regenerates those 6 lines), so the
+snapshot diff mixes the two; the trace rows are the honest part. The README's preset
+validation figures were swept in the same pass and were STALE twice over: they
+predated the shift-9 re-scale (max payload quoted a 200 kg run; the slider has
+capped at 24 kg since) and quoted Lofstrom's stall at the old 128-pair stack's 2 MW
+(today's 8-pair preset draws 128 kW). All five presets were re-measured through a
+balance-harness replica (validated first by reproducing the committed default trace
+exactly, 345.5 s): paper 5:46, Wessels 11:09, Lofstrom stalls (the stroke clamp pins
+the film at v_max, slip closes, switching outlives extraction), max speed 4:13,
+max payload 7:02.
+
+Gate green end to end: 141 unit / em-dash / rebuild in sync / 98 = 98 refs /
+30/30 smoke. No new staged-frame trap paid; no render change shipped, so no capture
+pass owed. Not yet pushed at shift end.
+
+### The climber-art shift and the phone-forms fix
 
 Updated at the end of the climber-art shift: a player review
 of the shipped game surfaced two presentation bugs and one honesty gap, all fixed.

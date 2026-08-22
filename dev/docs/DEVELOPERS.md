@@ -95,7 +95,7 @@ turns red instead of silently reading `undefined`. **Declare helpers with the `f
 keyword** — it is the guard-safe, module-convention form. The guard regex matches both
 `function name(` and `const/let name = … =>` arrow forms, so an inner `const f = (x) => …`
 *inside* a helper is swept in too and breaks the count; write straight calls instead.
-Keep the 62-helper count assertion in
+Keep the 61-helper count assertion in
 `pure.test.mjs` passing, as it guards against an over-broad regex sweeping in non-helper
 declarations (like array consts).
 
@@ -327,7 +327,12 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   (`GameConfig.FG40.MAX_INTERNAL_TEMP_C` / `MIN_AMBIENT_TEMP_C`, pinned by a unit
   test). What no source publishes is the heat capacity, convective transfer
   coefficient or emissivity that would turn watts into a temperature, so NO
-  temperature is modelled (section 0: never invented). What ships is the exact
+  temperature is modelled (section 0: never invented). Since the 2026-08-22
+  integrity pass that claim is true in BOTH directions: the legacy cold-grip
+  coupling penalty (an invented temperature term worth up to 12 % of thrust below
+  19 km) is deleted — suits are costume, the thermometer a readout, and the only
+  thermal physics is the exact watt bookkeeping this bullet already describes.
+  What ships is the exact
   bookkeeping: a Ground-station readout (Stack heat; NO slider, the levers are the
   carrier and pairs the player already has) refreshed per frame with the live
   switching dissipation against the ISA air figure (convection dies with the air;
@@ -439,9 +444,11 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   (The old `√(T/μ)` coupling-momentum proxy and the cylinder cross-section are deleted.)
 - **Shipped defaults after the M2.11 rebalance and the shift 9 demo re-scale**: 100 GPa
   Polycrystalline Graphene (the strongest non-speculative rung), carrier **92 Hz**, air gap
-  0.15 mm, **8 pairs**, 30% stress budget, 1.00 m stroke, **3 kg cargo** → 100 km in ~351 s at
-  a ~1027 km/h mean (the M4 wave-drag shift: the arcade cap on the low climb is gone, the
-  damped cruise sits a few per cent lower). Shift 9 cut the stack 128 → 8 and the payload 50 → 3 kg, which holds
+  0.15 mm, **8 pairs**, 30% stress budget, 1.00 m stroke, **3 kg cargo** → 100 km in ~346 s at
+  a ~1042 km/h mean (the M4 wave-drag shift: the arcade cap on the low climb is gone, the
+  damped cruise sits a few per cent lower; the 2026-08-22 integrity pass removed the
+  invented cold-coupling penalty, which is the whole 5 s and the faster low climb —
+  cruise is unchanged at 1085 km/h because the penalty never reached vacuum). Shift 9 cut the stack 128 → 8 and the payload 50 → 3 kg, which holds
   thrust-to-weight (and therefore the pace) while making the stack a size the renderer can draw
   literally — `STACK_MAX_DRAWN_PAIRS` is 16, so at the defaults the units on screen ARE the
   units in the model. Two things had to move with it: `EPM.CAPACITY_J` 3 MJ → 0.19 MJ, because
@@ -454,9 +461,11 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   whole band so a player can find the wall.
 - **Scoring** (`throughputKgPerHour`, M3.6): the Weight slider is cargo, and the score is
   **throughput — kg delivered to the Kármán Line per hour of climb** (the reference climb is
-  3 kg in 350.7 s ≈ 31 kg/h; it was 50 kg in 387.6 s ≈ 464 kg/h before the shift 9 demo scale,
+  3 kg in 345.5 s ≈ 31 kg/h; it was 50 kg in 387.6 s ≈ 464 kg/h before the shift 9 demo scale,
   which is why `cargoBest`/`bootstrapKg` moved to `.v3`). The clock is sim time from first
-  liftoff, locked at delivery.
+  liftoff, locked at delivery. Since the 2026-08-22 integrity pass the credited cargo is
+  `_runCargoKg`, snapshotted at liftoff: a mid-flight Weight change steers the physics but
+  can never change what a delivery credits (DESIGN.md pins this).
   A persisted best and the cumulative "bootstrap %" meter survive. `missionScore` (kg·km) is
   gone; do not reintroduce an altitude-weighted score.
   It is shown at **every** instrument level that draws instruments at all: the full mission
@@ -532,8 +541,8 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **142 unit tests**
-  (pure 121, sliders 12, balance 9), **62 pure helpers** in the delimited block,
+- **Current gate numbers** (keep these updated when they move): **141 unit tests**
+  (pure 120, sliders 12, balance 9), **61 pure helpers** in the delimited block,
   **98 = 98** asset references, **30 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
