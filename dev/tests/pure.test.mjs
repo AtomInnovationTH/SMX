@@ -69,6 +69,7 @@ const {
   restartPressDecision,
   GAME_OVER_INPUT_GATE_MS,
   RESTART_CONFIRM_MS,
+  LANDMARK_PILL_MS,
   thermalStep,
   airDensityReadout,
   cargoDeliveryCredit,
@@ -118,6 +119,7 @@ test('extraction exposes the core pure symbols', () => {
     couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
+    LANDMARK_PILL_MS, RESTART_CONFIRM_MS, GAME_OVER_INPUT_GATE_MS,
     filmBandHalfPx, minimalScoreLine, waveDrawAmpPx, drawnOscillationHz,
     railAltitudeToFrac,
   })) {

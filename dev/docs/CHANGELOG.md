@@ -140,6 +140,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Tether to match (the one card that named the group moved in the same edit).
   No physics, no test fixtures touched (142 unit, 30/30 smoke green).
 
+### Fixed
+
+- **The landmark pill goes dark again.** The altimeter plate at the top of the
+  screen ("📍 Cloud Base: 4 km") lit on the first new landmark crossing and never
+  went dark: its `classList.add('visible')` had no matching timer, the only removal
+  was the full-restart wipe, and a "4 km" plate hung over the Himalayas minutes
+  into a climb. It now gets the `showToast` treatment: `LANDMARK_PILL_MS` = 3 s,
+  re-crossings reset the timer (a fast fall past several landmarks stays lit while
+  it re-announces), and the restart wipe clears the pending timeout too. The chest
+  badge remains the permanent altitude readout; the pill is what it always should
+  have been, a transient celebration. An audit of every `classList.add('visible')`
+  in the game confirmed this was the only unbalanced one. Smoke pins the whole
+  lifecycle (35/35).
+
 ## [1.1.0] - 2026-08-18
 
 ### Simulation-fidelity rework

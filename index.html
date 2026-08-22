@@ -739,6 +739,13 @@
         // static toast text and showToast's reset text — all read this const.
         const RESTART_CONFIRM_MS = 2000;
         const RESTART_CONFIRM_MSG = 'Press R again to restart';
+
+        // UX (shift D): how long the altimeter landmark pill stays up after a NEW
+        // landmark crossing. The pill is a celebration, not an instrument - the chest
+        // badge owns permanent altitude - so it gets the same timer treatment as
+        // showToast. Without this it lit once and never went dark: a "Cloud Base:
+        // 4 km" plate still hanging over the Himalayas minutes later.
+        const LANDMARK_PILL_MS = 3000;
         
         // UX: reduced motion + colorblind settings (2f)
         const SETTINGS_STORAGE_KEY = 'spaceMonkey.settings.v2';
@@ -4122,7 +4129,7 @@
                 this.currentLandmarkName = '';
                 this.currentLandmarkAlt = 0;
                 if (this.gameOverOverlay) this.gameOverOverlay.style.display = 'none';
-                if (this.altimeterLabel) { this.altimeterLabel.textContent = ''; this.altimeterLabel.classList.remove('visible'); }
+                if (this.altimeterLabel) { this.altimeterLabel.textContent = ''; this.altimeterLabel.classList.remove('visible'); clearTimeout(this._altimeterTimer); }
 
                 // Reset HTML slider elements and labels to defaults
                 const sliderDefaults = {
@@ -5469,6 +5476,15 @@
                         const altStr = lm.altitude >= 1000 ? (lm.altitude / 1000).toFixed(0) + ' km' : lm.altitude + ' m';
                         this.altimeterLabel.textContent = '\u{1F4CD} ' + lm.name + ': ' + altStr;
                         this.altimeterLabel.classList.add('visible');
+                        // Shift D: transient, like every other announcement. The pill
+                        // lit once on the first crossing and never went dark (the only
+                        // removal was the full-restart wipe), so a "4 km" plate hung
+                        // over the Himalayas. Re-crossings reset the timer, so a fast
+                        // fall past several landmarks keeps it lit while re-announcing.
+                        clearTimeout(this._altimeterTimer);
+                        this._altimeterTimer = setTimeout(() => {
+                            this.altimeterLabel.classList.remove('visible');
+                        }, LANDMARK_PILL_MS);
                     }
                 }
 

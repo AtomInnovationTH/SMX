@@ -582,7 +582,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   gate.
 - **Current gate numbers** (keep these updated when they move): **145 unit tests**
   (pure 124, sliders 12, balance 9), **65 pure helpers** in the delimited block,
-  **98 = 98** asset references, **34 browser smoke checks**, `index.html` **435 KB**.
+  **98 = 98** asset references, **35 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

@@ -9,7 +9,45 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The projected-cruise shift (most recent)
+### The stale-pill shift (most recent)
+
+Updated at the end of the stale-pill shift: a player report ("the 4 km toast is
+still visible at the top of the Himalayas") led to a one-line-class bug with a
+whole-lifecycle fix.
+
+Diagnosis by audit, not guesswork: every `classList.add('visible')` in the game
+was checked for a matching removal. The restart toast pairs add/remove through
+showToast's timer; the settings panel closes; the grass ground toggles in and
+out. The altimeter landmark pill ("📍 Cloud Base: 4 km", top centre) was THE one
+unbalanced site: it lit on the first new landmark crossing and never went dark,
+because its only removal path was the full-restart wipe. Nearest-below landmark
+logic meant it updated content as you climbed (Cloud Base -> Everest), but between
+crossings it just hung there - minutes of climb with a "4 km" plate overhead.
+
+The pill was always meant to be a celebration, not an instrument: the chest badge
+owns permanent altitude. So it now gets the showToast treatment - a new
+LANDMARK_PILL_MS = 3000 const beside RESTART_CONFIRM_MS, clearTimeout +
+setTimeout on each crossing (re-crossings reset it, so a fast fall past several
+landmarks stays lit while re-announcing), and the restart wipe clears the pending
+timeout too. Reduced motion needs nothing new: the 0.5 s opacity fade already
+existed in the CSS.
+
+Smoke pins the whole lifecycle on a real page (35 checks): teleport above Cloud
+Base lights the pill with the right text, re-crossing above Everest resets it,
+and past LANDMARK_PILL_MS it goes dark. Two traps paid on the way in, both worth
+recording: (1) adding the constant to pure.test.mjs hit the destructure TWICE (a
+second edit's anchor matched inside the same block) - duplicate destructuring is
+a syntax error that kills the whole file, and the spec reporter shows it only as
+'test failed' at file scope, so run node --check on the file when a whole suite
+dies without naming a test; (2) smoke.mjs imports NO game symbols (it drives the
+live page), so the soak window is hardcoded 3000 with a sync comment - the check
+fails loudly if the source window moves. The soak itself PAUSES the sim first:
+wall-clock timer, paused update(), otherwise gravity drops the climber through a
+landmark mid-soak and re-lights the plate under test. Gate numbers: unit unchanged
+at 145 (no pure logic to test - the fix IS the DOM wiring), helpers 65, smoke 35.
+Gate green end to end. Not yet pushed at shift end.
+
+### The projected-cruise shift
 
 Updated at the end of the projected-cruise shift: queued candidate 7 shipped, the
 third of the three planned UI shifts. The settings panel's playground loop is

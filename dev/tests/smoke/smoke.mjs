@@ -1070,6 +1070,42 @@ try {
       JSON.stringify(cruise));
   }
 
+  // 14c) Shift D: the landmark pill is a TRANSIENT celebration. It used to light once
+  //      and never go dark (the only removal was the full-restart wipe), so a
+  //      "Cloud Base: 4 km" plate hung over the Himalayas minutes into a climb - the
+  //      one classList.add('visible') in the game with no matching timer. Pin the
+  //      whole lifecycle: a new crossing lights it with the right text, a re-crossing
+  //      resets the timer, and past LANDMARK_PILL_MS it goes dark again.
+  const pill = await page.evaluate(async (pillMs) => {
+    const g = window.__smokeGame;
+    const el = document.getElementById('ux-altimeter-label');
+    g.paused = false; g.gameOver = false; g.running = true;
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // A fresh page's currentLandmarkName is Sea Level; teleport above Cloud Base to
+    // fire a real crossing on the next update.
+    g.monkey.y = -50000; g.monkey.velocityY = 0; g.monkey.altitude = 5000;
+    await frame();
+    const lit = { visible: el.classList.contains('visible'), text: el.textContent };
+    // Re-cross before expiry (above Everest): re-announces and restarts the timer.
+    g.monkey.y = -95000; g.monkey.velocityY = 0; g.monkey.altitude = 9500;
+    await frame();
+    const recross = { visible: el.classList.contains('visible'), text: el.textContent };
+    // Pause before the soak so gravity can't drop the climber through landmarks and
+    // re-light the pill mid-wait: the timer under test is WALL clock by design (it is
+    // a DOM announcement), and pausing freezes update() but not the timeout.
+    g.paused = true;
+    const t0 = Date.now();
+    while (Date.now() - t0 < pillMs + 1500) await new Promise((r) => setTimeout(r, 100));
+    return { litText: lit.text, litVisible: lit.visible,
+             recrossVisible: recross.visible, recrossText: recross.text,
+             goneAfterWindow: !el.classList.contains('visible') };
+  }, 3000); // = LANDMARK_PILL_MS in the source; if the window moves, this soak misses and the check says so
+  record('landmark pill: transient - lights on a new landmark, re-cross resets, dark after its window',
+    pill.litVisible && pill.litText.includes('Cloud Base') &&
+    pill.recrossVisible && pill.recrossText.includes('Everest') &&
+    pill.goneAfterWindow,
+    JSON.stringify(pill));
+
   // 15) M3.8: every persistence key moved to .v2 (bestScore -> bestAltitude.v2 — it
   //     always stored altitude). v1 values are NOT migrated (units and meaning both
   //     changed); they are deleted on first v2 load. Shift 9 adds the two v2 SCORE keys

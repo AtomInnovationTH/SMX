@@ -80,6 +80,7 @@ const EXPORTED_SYMBOLS = [
   'restartPressDecision',
   'GAME_OVER_INPUT_GATE_MS',
   'RESTART_CONFIRM_MS',
+  'LANDMARK_PILL_MS',
   'thermalStep',
   'airDensityReadout',
   'cargoDeliveryCredit',
