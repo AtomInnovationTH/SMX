@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The rhythm is taught before it is failed.** The game's one decision (release
+  before the buffer empties) used to be learnable only by brownout. Two new
+  announcements make it visible in advance: the EPM gauge plate pulses a slow amber
+  border (1 Hz, half the flash ceiling; static bright border under reduced motion)
+  once charge falls under a quarter while engaged, and a one-time-per-profile hint
+  plate rides the gauge on the first low-charge grab ("let go before it empties ·
+  the trickle refills it"), retired forever by its own dismissal or by the first
+  brownout - whichever teaches first - and persisted so it never returns. The hint's
+  rule is a pure decision helper (`rhythmHintDue`, helper 66) with the four corners
+  pinned; both surfaces carry debug handles for smoke. Also closes the tune-loop
+  gap: the report card now carries a presets pointer ("the presets in Settings fly
+  the paper's own designs: Wessels' 60 cm · Lofstrom's 1000 Hz wall"), so the
+  verify layer hands the player back to the tune layer. Gate: 146 unit tests (was
+  145), 66 pure helpers (was 65), 38/38 smoke (was 35).
 - **The projected-cruise readout: the settings panel's playground loop closes.** A
   new panel row solves thrust(u*) = weight live at the current sliders
   (`slipCruiseU`: bisection on the monotone closed form, shape-honest for harmonic

@@ -1106,6 +1106,94 @@ try {
     pill.goneAfterWindow,
     JSON.stringify(pill));
 
+  // 14d) Shift E1: the low-charge warning. The game's one decision is "release before
+  //      the buffer empties", and nothing used to warn before the first brownout bit.
+  const lowCharge = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // Same ground-state reset the taper check (10c) uses: 14c left the monkey at
+    // 9500 m with the game paused, so restore the main loop before the renderers run.
+    // Pausing early-returns update(), which never reschedules its own rAF - fold in
+    // the game's own resume path (_startLoop, what the P key calls), and zero
+    // maxAltitude: 14c left it at 9500 m, and maxAltitude > MIN_ALT + altitude <= 0
+    // is the game-over condition, which would kill the loop the moment the monkey
+    // touches the ground.
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    g.maxAltitude = 0;
+    g._startLoop();
+    g.monkey.isGrabbing = true; g.epmCharge = 80;
+    await wait();
+    const warnAtHigh = g._gaugeLowChargeWarn;
+    g.epmCharge = 20;
+    await wait();
+    const warnAtLow = g._gaugeLowChargeWarn;
+    g.epmCharge = 80; g.monkey.isGrabbing = false;
+    await wait();
+    const warnAfterRelease = g._gaugeLowChargeWarn;
+    return { warnAtHigh, warnAtLow, warnAfterRelease };
+  });
+  record('low-charge warning: amber below a quarter of the buffer while engaged, silent above, clears on release',
+    lowCharge.warnAtHigh === false && lowCharge.warnAtLow === true && lowCharge.warnAfterRelease === false,
+    JSON.stringify(lowCharge));
+
+  // 14e) Shift E2: the one-time rhythm hint. The first low-charge grab draws it, a
+  //      release retires it for good (persisted per profile), so it never returns.
+  const rhythmHint = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    g.maxAltitude = 0;   // 14c left 9500 m; ground state would otherwise trip game-over
+    g._startLoop();      // resume the rAF chain 14c's pause early-return killed (P-key path)
+    localStorage.removeItem('spaceMonkey.rhythmHintDone.v1');
+    g._rhythmHintDone = false; g._rhythmHintWasDrawn = false;
+    g.monkey.isGrabbing = true; g.epmCharge = 45;
+    await wait();
+    const hintOn = g._rhythmHintDrawn;
+    g.monkey.isGrabbing = false;
+    await wait();
+    const doneAfterRelease = g._rhythmHintDone;
+    const persisted = localStorage.getItem('spaceMonkey.rhythmHintDone.v1');
+    g.monkey.isGrabbing = true; g.epmCharge = 45;
+    await wait();
+    const hintAfterRetired = g._rhythmHintDrawn;
+    g.monkey.isGrabbing = false; g.epmCharge = 80;
+    return { hintOn, doneAfterRelease, persisted, hintAfterRetired };
+  });
+  record('rhythm hint: one-time per profile - draws on first low-charge grab, retires on release, persists, never redrawn',
+    rhythmHint.hintOn === true && rhythmHint.doneAfterRelease === true &&
+    rhythmHint.persisted === '1' && rhythmHint.hintAfterRetired === false,
+    JSON.stringify(rhythmHint));
+
+  // 14f) Shift E3: the report-card presets pointer. The verify layer's report card
+  //      must point the tune layer where to go next, and only while the card shows.
+  const reportNote = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    g.maxAltitude = 0;   // 14c left 9500 m; ground state would otherwise trip game-over
+    await wait();
+    g.maxAltitude = 60000; g.monkey.altitude = 0; g.monkey.y = 0;
+    g.showGameOver();
+    await wait();
+    const el = document.getElementById('go-report-note');
+    const out = { display: el.style.display, text: el.textContent };
+    // showGameOver also persisted 60000 m as the new best (spaceMonkey.bestAltitude.v2)
+    // and its ghost; check 15 reloads THIS page and asserts bestAltitude === 0, so the
+    // run state and the persisted best must both be restored before we leave.
+    g.gameOver = false; g.running = true;
+    document.getElementById('game-over-overlay').style.display = 'none';
+    g.maxAltitude = 0; g.bestAltitude = 0; g.ghostBestAltitude = 0;
+    localStorage.removeItem('spaceMonkey.bestAltitude.v2');
+    localStorage.removeItem('spaceMonkey.bestRun.v2');
+    return out;
+  });
+  record('report-card presets pointer: shows with the card, names Wessels and Lofstrom',
+    reportNote.display === 'block' && reportNote.text.includes('Wessels') && reportNote.text.includes('Lofstrom'),
+    JSON.stringify(reportNote));
+
   // 15) M3.8: every persistence key moved to .v2 (bestScore -> bestAltitude.v2 — it
   //     always stored altitude). v1 values are NOT migrated (units and meaning both
   //     changed); they are deleted on first v2 load. Shift 9 adds the two v2 SCORE keys

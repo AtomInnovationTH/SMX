@@ -67,6 +67,7 @@ const {
   couplingColor,
   upgradeCrossed,
   restartPressDecision,
+  rhythmHintDue,
   GAME_OVER_INPUT_GATE_MS,
   RESTART_CONFIRM_MS,
   LANDMARK_PILL_MS,
@@ -116,7 +117,7 @@ test('extraction exposes the core pure symbols', () => {
     resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
     waveTransportedPowerW, waveSharedBudgetW, powerShareCapW, waveModeCell,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
-    couplingTier, couplingColor, upgradeCrossed, restartPressDecision, thermalStep,
+    couplingTier, couplingColor, upgradeCrossed, restartPressDecision, rhythmHintDue, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
     LANDMARK_PILL_MS, RESTART_CONFIRM_MS, GAME_OVER_INPUT_GATE_MS,
@@ -144,7 +145,7 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 65 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 66 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
@@ -152,7 +153,8 @@ test('the pure-helpers block contains exactly 65 declared helpers (guard against
   // 61 -> 63: waveDrawAmpPx + drawnOscillationHz, the legible-wave schematics.
   // 63 -> 64: railAltitudeToFrac, the altitude rail's sqrt axis.
   // 64 -> 65: slipCruiseU, the projected-cruise readout's solver.
-  assert.equal(declaredPureHelpers().length, 65);
+  // 65 -> 66: rhythmHintDue, the first-rhythm-hint decision.
+  assert.equal(declaredPureHelpers().length, 66);
 });
 
 // ---------------------------------------------------------------------------
@@ -470,6 +472,20 @@ test('slipCruiseU: null when the open gate cannot lift, monotone in kN, bisectio
   assert.ok(uSineLight > 0 && uSineLight < 1 && uSquareLight > 0 && uSquareLight < 1);
   assert.ok(uSquareLight < uSineLight * 0.5,
     'the square gate must cruise far under the sine gate at the same kNV');
+});
+
+// Shift E (first-rhythm hint): the game's only decision is "release before the bar
+// empties", and it used to be learned only by failing a brownout. The hint's rule is
+// a pure decision so the corners are pinned here: engaged AND under half AND not in
+// brownout AND not yet retired.
+test('rhythmHintDue: the four corners of the one-time hint rule', () => {
+  const due = (over) => rhythmHintDue({ chargePct: 0.4, engaged: true, brownout: false, hintDone: false, ...over });
+  assert.equal(rhythmHintDue({ chargePct: 0.4, engaged: true, brownout: false, hintDone: false }), true);
+  assert.equal(due({ engaged: false }), false);        // not holding
+  assert.equal(due({ chargePct: 0.6 }), false);        // bar above half
+  assert.equal(due({ chargePct: 0.5 }), false);        // exactly half is NOT under
+  assert.equal(due({ brownout: true }), false);        // the brownout plate is teaching
+  assert.equal(due({ hintDone: true }), false);        // retired forever
 });
 
 test('applyGravityAndDrag always applies gravity — there is no attached state', () => {

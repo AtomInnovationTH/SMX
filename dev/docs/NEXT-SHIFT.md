@@ -10,7 +10,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 145 unit tests, 35 smoke checks, 98 = 98 asset references, all green.
+  Currently 146 unit tests, 38 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -197,8 +197,13 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
    titles and the failure reasons into an offscreen `aria-live` region fed from the
    same pure helpers, so it can never quote a figure the plate hides. Finishes the
    inclusivity story the README leads with.
-5. **First-run rhythm hint.** One line ("hold to catch the wave, let go before the
-   bar empties") shown until the first catch-then-coast cycle completes, then never
+5. **(done) First-run rhythm hint.** Shipped this shift as the Shift E pair: the
+   low-charge gauge pulse (amber border, 1 Hz, static under reduced motion) warns
+   before the first brownout, and the one-time hint plate ("let go before it
+   empties · the trickle refills it") rides the gauge on the first low-charge grab,
+   retired forever on dismissal or first brownout and persisted per profile. The
+   original entry is kept for the record: One line ("hold to catch the wave, let go
+   before the bar empties") shown until the first catch-then-coast cycle completes, then never
    again. Copy rules apply (encouragement layer, everyday words, fits the 390 px
    plate); it is a hint the player can act on without leaving the game.
 6. **Desktop key-cap feedback.** The whole game is one held key; a small SPACE glyph

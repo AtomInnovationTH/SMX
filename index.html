@@ -230,6 +230,8 @@
         .go-report { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 560px; line-height: 1.6; text-align: left; font-family: monospace; }
         .go-report b { color: #ffe08a; }
         .go-report-key { color: #6bc8ff; display: inline-block; min-width: 74px; font-weight: bold; }
+        /* Shift E3: the presets pointer under the report card - quiet, same width */
+        .go-report-note { font: 11px monospace; color: #9bb6c9; max-width: 560px; margin: 0 auto 12px; line-height: 1.4; }
         .go-geo { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 460px; line-height: 1.5; text-align: left; }
         .go-geo b { color: #ffe08a; }
         .go-geo a { color: #6bc8ff; }
@@ -311,6 +313,10 @@
             <div class="go-cargo" id="go-cargo" style="display:none;"></div>
             <div class="go-bootstrap" id="go-bootstrap" style="display:none;"></div>
             <div class="go-report" id="go-report" style="display:none;"></div>
+            <!-- Shift E3: the pointer from the verify layer back to the tune layer -
+                 the report card says where you landed, this says where to play next.
+                 Shown with the report card, dismissed with it. -->
+            <div class="go-report-note" id="go-report-note" style="display:none;">the presets in Settings fly the paper's own designs: Wessels' 60 cm · Lofstrom's 1000 Hz wall</div>
             <div class="go-geo" id="go-geo" style="display:none;">
                 <b>You reached the Kármán Line (100 km), but that's only the start.</b><br>
                 A real space-elevator seed tether continues to <b>geostationary orbit (35,786 km)</b>,
@@ -581,6 +587,10 @@
         
         // UX: ghost line of previous best (2c)
         const GHOST_STORAGE_KEY = 'spaceMonkey.bestRun.v2';
+        // Shift E: the first-rhythm hint is one-time per profile (set on dismissal OR
+        // on the first brownout, whichever teaches first). Fresh .v1 key: nothing to
+        // purge, nothing to migrate.
+        const RHYTHM_HINT_DONE_KEY = 'spaceMonkey.rhythmHintDone.v1';
 
         // UX (M3.1): FG40 sandwich schematic tunables. The firing gradient is a SLOWED
         // schematic ON PURPOSE: the real firing band crosses the stack in L/c ≈ 0.25 ms
@@ -1196,6 +1206,19 @@
                 if (slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps: mid * vFilmPeakMps, filmVelocityAt }) > weight) lo = mid; else hi = mid;
             }
             return (lo + hi) / 2;
+        }
+
+        // Shift E (first-rhythm hint): should the one-time rhythm hint be up? The
+        // game's only decision is "release before the bar empties", and it used to be
+        // learned ONLY by failing a brownout. The hint appears once per profile when
+        // the bar first falls under half while engaged; it is retired forever by its
+        // own dismissal or by the first brownout (whose plate then teaches). Pure
+        // decision: the orchestrator owns the draw, the persistence and the
+        // retirement. chargePct is the gauge's 0..1 fraction; the strict < keeps the
+        // "exactly half" case off, so the hint never fires on a charge that just
+        // touched the threshold.
+        function rhythmHintDue({ chargePct, engaged, brownout, hintDone }) {
+            return engaged && !brownout && !hintDone && chargePct < 0.5;
         }
 
         // Defensive parse for persisted numeric values (F9): rejects NaN/Infinity and
@@ -3703,6 +3726,8 @@
                 try {
                     this.bestAltitude = safePersistedNumber(localStorage.getItem('spaceMonkey.bestAltitude.v2'));
                     this.ghostBestAltitude = safePersistedNumber(localStorage.getItem(GHOST_STORAGE_KEY));
+                    // Shift E: per-profile flag - loaded once, never reset by runs.
+                    this._rhythmHintDone = localStorage.getItem(RHYTHM_HINT_DONE_KEY) === '1';
                 } catch(e) {}
 
                 // SIM (Stage 2 / B.11): load persisted cargo best + cumulative bootstrap kg
@@ -4748,6 +4773,9 @@
                         rows.map(([k, v]) => `<span class="go-report-key">${k}</span> ${v}`).join('<br>');
                     reportEl.style.display = 'block';
                 }
+                // Shift E3: the presets pointer rides the report card's visibility.
+                const noteEl = document.getElementById('go-report-note');
+                if (noteEl) noteEl.style.display = reportEl && reportEl.style.display === 'block' ? 'block' : 'none';
                 // "What's above 100 km" teaching panel — shown once the player reaches Kármán.
                 const geoEl = document.getElementById('go-geo');
                 if (geoEl) geoEl.style.display = this.cargoDelivered ? 'block' : 'none';
@@ -4956,6 +4984,12 @@
                     // M3.1: capture WHY the loop browned out, in words, at the moment it
                     // bites — the gauge shows it for the whole episode.
                     this._brownoutWhy = this.brownoutReason();
+                    // Shift E: the first brownout retires the rhythm hint forever — from
+                    // here the brownout plate is the teacher. Persisted per profile.
+                    if (!this._rhythmHintDone) {
+                        this._rhythmHintDone = true;
+                        try { localStorage.setItem(RHYTHM_HINT_DONE_KEY, '1'); } catch(e) {}
+                    }
                 } else if (!step.brownout) {
                     this._brownoutWhy = null;   // latch released — clear the explainer
                 }
@@ -6844,6 +6878,45 @@
                 else { ctx.moveTo(ax, ay + 3); ctx.lineTo(ax - 6, ay - 7); ctx.lineTo(ax + 6, ay - 7); }
                 ctx.closePath();
                 ctx.fill();
+                // Shift E1: low-charge warning state. The game's one decision is "release
+                // before this empties", and nothing used to warn before the first
+                // brownout bit. Below a quarter of the buffer while engaged the plate
+                // pulses amber once per second (half the flash ceiling, and a thin
+                // border, not a fill); reduced motion gets a static bright border.
+                // Debug handle for the smoke suite: the warning state, not the pulse.
+                const lowWarn = this.monkey.isGrabbing && pct < 0.25;
+                this._gaugeLowChargeWarn = lowWarn;
+                if (lowWarn) {
+                    const pulse = _uxReducedMotion ? 0.9
+                        : 0.45 + 0.45 * Math.sin(this.waveSystem.time * 2 * Math.PI);
+                    ctx.strokeStyle = `rgba(241, 196, 15, ${pulse.toFixed(3)})`;
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(x - 5, y - 5, w + 10, h + 10);
+                }
+                // Shift E2: the first-rhythm hint, one-time per profile. The decision is
+                // pure (rhythmHintDue); the orchestrator owns the draw, the retirement
+                // (dismissal or first brownout, whichever teaches first) and the
+                // persistence. The plate rides the gauge like the brownout banner, in
+                // plain words per the copy rules.
+                const hintDue = rhythmHintDue({ chargePct: pct, engaged: this.monkey.isGrabbing,
+                    brownout: this.epmBrownout, hintDone: this._rhythmHintDone });
+                this._rhythmHintDrawn = hintDue;
+                if (hintDue) {
+                    this._rhythmHintWasDrawn = true;
+                    ctx.textAlign = 'right';
+                    ctx.font = 'bold 10px monospace';
+                    const hx = x - 8, hy = ay + 10;
+                    ctx.fillStyle = COLOR_PALETTE.UI_TRANSPARENT_BLACK;
+                    ctx.fillRect(hx - 140, hy, 142, 28);
+                    ctx.fillStyle = '#ffe08a';
+                    ctx.fillText('let go before it empties', hx, hy + 11);
+                    ctx.fillText('the trickle refills it', hx, hy + 23);
+                } else if (this._rhythmHintWasDrawn) {
+                    // The hint dismissed itself (released, or the bar refilled): retire.
+                    this._rhythmHintWasDrawn = false;
+                    this._rhythmHintDone = true;
+                    try { localStorage.setItem(RHYTHM_HINT_DONE_KEY, '1'); } catch(e) {}
+                }
                 // M2.8: the energy loop in real units — switching watts against the
                 // paper's 4 MW wave budget, and live extraction (F_mean · v_climber).
                 // Right-aligned at the screen edge: centred on the bar, these lines

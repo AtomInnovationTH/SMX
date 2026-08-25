@@ -366,7 +366,14 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   which happens naturally as `u → 1` (extraction collapses while drain holds flat), so the
   engage/release **rhythm is emergent, not scripted**. Ambient trickle recovers a latched
   brownout in `BROWNOUT_RECOVER / TRICKLE` = 5 s. The gauge shows switching kW, the share
-  of the paper's 4 MW budget, and live extraction.
+  of the paper's 4 MW budget, and live extraction. Shift E adds two teaching surfaces
+  to the same gauge: the **low-charge warning** (an amber border pulsing at 1 Hz once
+  charge drops under a quarter while engaged; a static bright border under reduced
+  motion - the rhythm is now announced before it is failed) and the **first-rhythm
+  hint** (`rhythmHintDue`, pure): a one-time-per-profile plate ("let go before it
+  empties · the trickle refills it") that retires forever on dismissal or the first
+  brownout, persisted as `spaceMonkey.rhythmHintDone.v1`. Both carry debug handles
+  (`_gaugeLowChargeWarn`, `_rhythmHintDrawn`) for the smoke pins.
 - **What the player sees (M3 illustration layer)** — presentation only; none of it feeds
   back into the physics:
   - **The legible wave** (`waveDrawAmpPx` / `drawnOscillationHz`, shift A): the drawn
@@ -580,9 +587,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **145 unit tests**
-  (pure 124, sliders 12, balance 9), **65 pure helpers** in the delimited block,
-  **98 = 98** asset references, **35 browser smoke checks**, `index.html` **435 KB**.
+- **Current gate numbers** (keep these updated when they move): **146 unit tests**
+  (pure 125, sliders 12, balance 9), **66 pure helpers** in the delimited block,
+  **98 = 98** asset references, **38 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

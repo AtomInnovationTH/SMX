@@ -9,7 +9,42 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The stale-pill shift (most recent)
+### The Shift E pedagogy shift (most recent)
+
+Updated at the end of Shift E: the two teaching gaps the UI audit found are closed,
+plus one tune-loop pointer. The game's one decision (release before the buffer
+empties) used to be learnable ONLY by failing a brownout; that is now announced in
+advance, twice.
+
+(1) **Low-charge warning** (E1): below a quarter of the buffer while engaged, the
+gauge plate pulses an amber border at 1 Hz (half the flash ceiling, a border not a
+fill; static bright border under reduced motion). The decision lives next to the
+gauge draw and exposes `_gaugeLowChargeWarn` for the pin. (2) **First-rhythm hint**
+(E2): a one-time-per-profile plate riding the gauge on the first low-charge grab,
+copy per the settled rules ("let go before it empties · the trickle refills it").
+The rule is a pure helper (`rhythmHintDue`, 66th in the block); the orchestrator
+owns the draw, the retirement (dismissal or the first brownout - `step.tripped` is
+the natural hook, the brownout plate teaches from then) and the persistence
+(`spaceMonkey.rhythmHintDone.v1`, fresh key, nothing to purge). (3) **Report-card
+presets pointer** (E3): one DOM line under the report card names the paper's own
+designs (Wessels 60 cm, Lofstrom 1000 Hz), closing the verify-to-tune loop. Shown
+with the card, dismissed with it.
+
+This shift was run with the work fanned out: the source stayed with the shift owner
+while two subagents took the test suites in parallel - extract/pure (four-edit
+ritual, corners test, count 65 -> 66) and smoke (three new checks 14d/14e/14f).
+Two traps the smoke side paid, both worth the record: `g.paused = true` (set by
+14c) early-returns `update()` and never reschedules its own rAF, so restoring
+paused=false alone leaves a dead loop - the checks resume via the game's own P-key
+path (`g._startLoop()`); and 14c also left `maxAltitude` at 9500 m, so the ground
+restore instantly tripped the game-over predicate and froze the renderer. The
+agent found and fixed both, and cleaned up 14f's persisted-best side effect so
+check 15's reload assertions still hold. The unit side caught the destructure/
+sanity-object duplication trap from the stale-pill shift in its prompt and
+avoided it. Gate numbers: 146 unit / 66 helpers / 38 smoke. Gate green end to end.
+Not yet pushed at shift end.
+
+### The stale-pill shift
 
 Updated at the end of the stale-pill shift: a player report ("the 4 km toast is
 still visible at the top of the Himalayas") led to a one-line-class bug with a
