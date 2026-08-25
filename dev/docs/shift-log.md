@@ -9,7 +9,47 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The Shift F reach-and-access shift (most recent)
+### The Shift G tooling shift (most recent)
+
+Updated at the end of Shift G: the two queued tooling candidates shipped, one source
+hook and two new tools, with the usual fan-out (a subagent built the ritual generator
+while the regress tool's determinism was debugged by hand).
+
+**The four-edit ritual is now one command.** `dev/tools/sync_test_exports.mjs` scans
+the pure-helpers block (reusing extract.mjs's own `extractPureBlock` /
+`declaredPureHelpers`) and lands the three mechanical edits (EXPORTED_SYMBOLS, the
+pure.test.mjs destructure and the sanity object) idempotently, with a check mode that
+exits 1 on any drift. The count assertion stays MANUAL on purpose: it is the guard
+against the generator's own regex going broad (the ATMO_DENSITY_KGM3 lesson). Its
+acceptance run was the real thing - `frozenSkyTimeS` had just landed in the block,
+and the script did the ritual live (count 70 -> 71). One judgment call worth keeping:
+the sanity object is CURATED (seven legacy helpers are omitted on purpose), so the
+script anchors on "declared but not exported" and never forces sanity completeness.
+The slider five stays manual; that surface is more irregular.
+
+**The advisory frame diff needed real debugging, not theory.** `dev/tools/regress.mjs`
+pixel-diffs fresh deterministic frames against the committed stills. The expected
+story - "the WebGL sky is wall-clock-fed, freeze it" - was necessary but NOT
+sufficient: the game's new `?debug&skyt=<s>` hook (the sky was the one wall-clock-fed
+visual) plus page stubs for Math.random and performance.now left hero bit-exact but
+climb STILL drifting, deterministically, at identical numbers every run. The probe
+bbox said sky band; the real cause was page HISTORY: the two stills shared one page,
+so the hero walker's state (altitude, landmark suppression, camera smoothing, wave
+clocks) leaked into the climb frame. One fresh page per still fixed it - and the
+frozen-sky proof then showed the sky time was a no-op at these altitudes anyway
+(REGRESS_SKYT moves nothing below 13 km; the sensitivity probe is REGRESS_TARGET_Y=8,
+which drifts 4 % of pixels at worst-channel 255). Both stills re-shot on the
+deterministic pipeline (compositions unchanged, centres capture-exact) and are now
+bit-exact reproducible. Wired into the gate as opt-in advisory: `VISUAL_REGRESS=1`
+prints the verdict and never fails, per "check.sh cannot see invisible" - the gate
+for a render change stays the capture itself.
+
+One thing to note for the next reader of capture.mjs: the CLIP keeps a live sky by
+choice (a frozen aurora in a video reads as a bug; nothing pixel-compares the clip).
+Gate numbers: 149 unit / 71 helpers / 41 smoke. Gate green end to end, and the
+advisory reports OK / OK on the final tree. Not yet pushed at shift end.
+
+### The Shift F reach-and-access shift
 
 Updated at the end of Shift F: queued candidates 1 (shareable runs) and 4
 (aria-live mirror) shipped in one commit, with the test suites fanned out to two

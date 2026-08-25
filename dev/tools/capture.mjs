@@ -1,8 +1,28 @@
-// Capture tool for Space Monkey Elevator: the README stills and the climb clip.
+// Capture tool for Space Monkey Elevator: the README stills, the climb clip, and
+// the one-frame regress shots.
 //
-//   node dev/tools/capture.mjs           # stills + clip
-//   node dev/tools/capture.mjs stills    # screenshots/hero.png + screenshots/climb.png
-//   node dev/tools/capture.mjs clip      # screenshots/climb.mp4
+//   node dev/tools/capture.mjs                      # stills + clip
+//   node dev/tools/capture.mjs stills               # screenshots/hero.png + screenshots/climb.png
+//   node dev/tools/capture.mjs clip                 # screenshots/climb.mp4
+//   node dev/tools/capture.mjs frame <n> <out> [skytS] [targetYD]
+//                                                   # one named composition ('hero' or 'climb')
+//                                                   # to <out>, defaults skyt 1719, targetY shift 0
+//
+// frame is the deterministic single-shot mode the advisory regress tool
+// (dev/tools/regress.mjs) drives. It is the SAME recipe as stills - the walker,
+// the seeded beats and the by-hand stepped loop are one shared implementation
+// (shootOne below) - with two capture-run fixes that make a rerun bit-exact:
+//
+//   - The page boots with ?clean&debug&skyt=<s> so the WebGL sky's wall-clock
+//     is frozen (the game's own Shift G hook, inert in normal play).
+//   - page.addInitScript runs BEFORE the game script and stubs Math.random with
+//     a tiny deterministic LCG plus performance.now with a fixed value, so the
+//     boot-time star field and the hands-glow pulse are constants instead of
+//     per-run noise. The whole bundle - frozen sky, seeded beats, stubbed
+//     random/clock, sim-stepped loop - is what makes two captures identical.
+//
+// stills and clip keep their CLI contract exactly; they simply inherit the same
+// determinism from boot (their pixels get stronger, nothing reads differently).
 //
 // Like tests/smoke/smoke.mjs this adds NO committed dependency: playwright-core and a
 // Chromium binary are resolved at runtime and the script SKIPS CLEANLY (exit 0) when
@@ -61,6 +81,9 @@ const SHOTS = path.join(ROOT, 'screenshots');
 // them, which is why the targets are tuned by eye (box kite and osprey captions must
 // stay inside the frame).
 const VIEW = { width: 1280, height: 800 };
+// Frozen sky seconds for frame mode (?debug&skyt=<s>). The value is arbitrary;
+// 1719 is the constant the regress pipeline was verified at.
+const FRAME_SKYT = 1719;
 const STILLS = [
   { name: 'Hot Air Balloon', targetY: 510, guessAlt: 255, out: 'hero.png' },
   { name: 'Bald Eagle', targetY: 330, guessAlt: 360, out: 'climb.png' },
@@ -192,6 +215,17 @@ try {
 async function boot(query) {
   const page = await browser.newPage({ viewport: VIEW });
   page.on('pageerror', (e) => failures.push('pageerror: ' + e.message));
+  // Deterministic capture run: stub Math.random (LCG) and performance.now (fixed)
+  // BEFORE the game script parses, so the boot-time star field and the hands-glow
+  // pulse are constants. Inert for a real player; only the capture pages boot here.
+  await page.addInitScript(() => {
+    let _rng = 424242;
+    Math.random = () => {
+      _rng = (Math.imul(_rng, 1664525) + 1013904223) >>> 0;
+      return _rng / 4294967296;
+    };
+    performance.now = () => 7200000;
+  });
   await page.goto(`${BASE}/index.html?debug${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__smokeGame && window.__smokeGame.monkey, null, { timeout: 20000 });
   // State, not clock: the loop starts on loadingManager.onComplete AFTER the overlay's
@@ -223,6 +257,14 @@ async function boot(query) {
     // moment a shot is placed, and renderEffects draws the label even at HUD off.
     g.currentLandmarkName = 'Treetops'; g.currentLandmarkAlt = 0;
     if (g.altimeterLabel) { g.altimeterLabel.classList.remove('visible'); g.altimeterLabel.textContent = ''; }
+    // Freeze the sim clock baseline: lastTime=0 makes update() take the dt=0 guard
+    // (`this.lastTime === 0 ? 0 : ...`) on the FIRST manual step too, so the real
+    // RAF boot timestamp never leaks into waveSystem.time and the film band's phase
+    // and highlight are identical on every page. Zero the wave clocks outright so no
+    // pre-cancel RAF frame can leave residue.
+    g.lastTime = 0;
+    g.waveSystem.time = 0;
+    g._shapeTimeS = 0;
     window.__simT = Math.max(1000, g.lastTime || 0);
     window.__step = (n, dtMs) => {
       for (let i = 0; i < n; i++) {
@@ -266,25 +308,59 @@ async function boot(query) {
   return page;
 }
 
+// --- the shot recipe (shared by stills and frame; never duplicate) ----------------------
+// One named composition: walk the altitude until the landmark's image centre sits
+// on targetY, re-place the climber immediately before the shot, then screenshot.
+async function shootOne(page, spec, outPath) {
+  const info = await page.evaluate(({ name, targetY, guessAlt }) => {
+    const g = window.__smokeGame;
+    g.monkey.isGrabbing = true;
+    window.__place(guessAlt);
+    const out = window.__align(name, targetY);
+    // Re-place immediately before the shot and re-render without advancing anything.
+    window.__place(g.monkey.altitude);
+    window.__step(2, 0);
+    return out;
+  }, spec);
+  await page.screenshot({ path: outPath });
+  const kb = Math.round((await stat(outPath)).size / 1024);
+  console.log(`  ${path.basename(outPath)}: ${spec.name} at ${info.alt.toFixed(1)} m, `
+    + `centre y=${info.centerY.toFixed(0)} (${kb} KB)`);
+  return info;
+}
+
 // --- stills (HUD off, the social card must stay a still PNG) ---------------------------
+// One fresh page PER still, the same frozen sky as frame mode (skyt=FRAME_SKYT), so the
+// committed PNGs and the regress tool's probes are the same shots: before this, the two
+// stills shared one page and the hero walker's state (altitude, landmark suppression,
+// camera smoothing, wave clocks) leaked into the climb frame - deterministic, but a
+// DIFFERENT picture than a fresh-page probe of the same composition. The clip keeps a
+// live sky: it is a video, a frozen aurora would read as a bug there, and nothing
+// compares it pixel-wise.
 async function shootStills() {
-  const page = await boot('&clean');
   for (const s of STILLS) {
-    const info = await page.evaluate(({ name, targetY, guessAlt }) => {
-      const g = window.__smokeGame;
-      g.monkey.isGrabbing = true;
-      window.__place(guessAlt);
-      const out = window.__align(name, targetY);
-      // Re-place immediately before the shot and re-render without advancing anything.
-      window.__place(g.monkey.altitude);
-      window.__step(2, 0);
-      return out;
-    }, s);
-    const out = path.join(SHOTS, s.out);
-    await page.screenshot({ path: out });
-    const kb = Math.round((await stat(out)).size / 1024);
-    console.log(`  ${s.out}: ${s.name} at ${info.alt.toFixed(1)} m, centre y=${info.centerY.toFixed(0)} (${kb} KB)`);
+    const page = await boot(`&clean&skyt=${FRAME_SKYT}`);
+    await shootOne(page, s, path.join(SHOTS, s.out));
+    await page.close();
   }
+}
+
+// --- one named frame (the regress tool's probe) -----------------------------------------
+async function shootFrame() {
+  const name = process.argv[3];
+  const outPath = process.argv[4];
+  const skytS = process.argv[5] === undefined || process.argv[5] === ''
+    ? String(FRAME_SKYT) : process.argv[5];
+  const targetYD = process.argv[6] === undefined || process.argv[6] === ''
+    ? 0 : Number(process.argv[6]);
+  const skyt = parseFloat(skytS);
+  if (!Number.isFinite(skyt) || skyt < 0) throw new Error('frame: skyt must be a number');
+  if (Number.isNaN(targetYD)) throw new Error('frame: targetY offset must be a number');
+  const spec = STILLS.find((s) => s.out.slice(0, -'.png'.length) === name);
+  if (!spec) throw new Error(`frame: unknown composition "${name}" - use hero or climb`);
+  if (path.extname(outPath).toLowerCase() !== '.png') throw new Error('frame: outPath must end in .png');
+  const page = await boot(`&clean&skyt=${skytS}`);
+  await shootOne(page, { ...spec, targetY: spec.targetY + targetYD }, outPath);
   await page.close();
 }
 
@@ -357,8 +433,9 @@ console.log(`capture: ${what} (browser: ${path.basename(executablePath)}, ffmpeg
 try {
   if (what === 'stills' || what === 'all') await shootStills();
   if (what === 'clip' || what === 'all') await shootClip();
-  if (what !== 'stills' && what !== 'clip' && what !== 'all') {
-    console.error(`unknown mode "${what}" - use stills, clip or all`);
+  if (what === 'frame') await shootFrame();
+  if (what !== 'stills' && what !== 'clip' && what !== 'all' && what !== 'frame') {
+    console.error(`unknown mode "${what}" - use stills, clip, frame or all`);
     process.exitCode = 1;
   }
 } catch (err) {

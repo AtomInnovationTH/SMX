@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tooling: the ritual and the frame-diff (Shift G).** `dev/tools/sync_test_exports.mjs`
+  turns the four-edit helper ritual into one command: it scans the pure-helpers block and
+  lands the three mechanical edits (export, destructure, sanity object) idempotently, with
+  a check mode (exit 1 on drift) for the gate's use later; the helper-count assertion
+  stays manual by design, as the guard against the generator's own regex. And
+  `dev/tools/regress.mjs` is the advisory visual-regression layer: it shoots fresh
+  deterministic frames of the two committed stills and pixel-diffs them with a
+  zero-dependency PNG decoder, reporting OK / DRIFT (mean abs diff + changed-pixel
+  fraction). Determinism came from debugging, not theory: the game's new `?debug&skyt=<s>`
+  frozen-sky hook (the WebGL sky was the one wall-clock-fed visual), page stubs for
+  Math.random and performance.now, and one fresh page per still - the hero walker's state
+  used to leak into the climb frame, a deterministic-but-wrong picture that read like sky
+  noise. The stills are now bit-exact reproducible; `REGRESS_TARGET_Y=8` is the
+  sensitivity probe (DRIFT at 4 % of pixels, worst channel 255). The stills' pixels moved
+  once to land on the deterministic pipeline; compositions are unchanged
+  (centre-verified). Opt the advisory into the gate with
+  `VISUAL_REGRESS=1 bash dev/tools/check.sh`; DRIFT never fails it. Gate: 149 unit tests
+  (was 149), 71 pure helpers (was 70; the frozenSkyTimeS hook took its ritual), 41/41
+  smoke (unchanged), 98 = 98 refs.
 - **Shareable runs and a screen-reader mirror (Shift F).** The report card now
   carries a share row: one URL encodes the run's whole configuration (the panel's
   raw slider values plus the wave type, version-prefixed) and, on a delivery, the

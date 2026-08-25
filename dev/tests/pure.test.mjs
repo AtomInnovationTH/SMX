@@ -99,6 +99,7 @@ const {
   CLAMP_JAW_HALF_PX,
   FILM_BAND_MIN_HALF_PX,
   FILM_BAND_MAX_HALF_PX,
+  frozenSkyTimeS,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -128,6 +129,7 @@ test('extraction exposes the core pure symbols', () => {
     LANDMARK_PILL_MS, RESTART_CONFIRM_MS, GAME_OVER_INPUT_GATE_MS,
     filmBandHalfPx, minimalScoreLine, waveDrawAmpPx, drawnOscillationHz,
     railAltitudeToFrac,
+    frozenSkyTimeS,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -150,7 +152,7 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 70 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 71 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
@@ -160,7 +162,8 @@ test('the pure-helpers block contains exactly 70 declared helpers (guard against
   // 64 -> 65: slipCruiseU, the projected-cruise readout's solver.
   // 65 -> 66: rhythmHintDue, the first-rhythm-hint decision.
   // 66 -> 70: the Shift F share codec (encode/decode/urlParse) + ariaLiveLine.
-  assert.equal(declaredPureHelpers().length, 70);
+  // 70 -> 71: frozenSkyTimeS, the deterministic-sky capture hook.
+  assert.equal(declaredPureHelpers().length, 71);
 });
 
 // ---------------------------------------------------------------------------

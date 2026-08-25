@@ -18,4 +18,8 @@ echo "== 4/5 asset references =="   ; python3 dev/tools/check_refs.py
 if [ "${SKIP_SMOKE:-0}" = "1" ]; then echo "== 5/5 smoke: skipped =="
 else echo "== 5/5 browser smoke =="  ; node dev/tests/smoke/smoke.mjs
 fi
+# Shift G: advisory visual regression. Opt-in (VISUAL_REGRESS=1) and never gating:
+# a DRIFT verdict is an observation to be read against the frames, per "check.sh
+# cannot see invisible" - the gate for a render change is the capture itself.
+if [ "${VISUAL_REGRESS:-0}" = "1" ]; then echo "== advisory: visual regression ==" ; node dev/tools/regress.mjs || echo "advisory: regress tool reported a problem (see above; verdicts never fail the gate)"; fi
 echo "GATE PASS"

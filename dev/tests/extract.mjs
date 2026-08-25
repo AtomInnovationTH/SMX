@@ -110,6 +110,7 @@ const EXPORTED_SYMBOLS = [
   'CLAMP_JAW_HALF_PX',
   'FILM_BAND_MIN_HALF_PX',
   'FILM_BAND_MAX_HALF_PX',
+  'frozenSkyTimeS',
 ];
 
 // Pull out the body of the single largest <script> block.

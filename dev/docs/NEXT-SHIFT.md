@@ -9,8 +9,9 @@ traps that have already cost time. The per-shift narrative record lives in
 - **Live**: <https://atominnovationth.github.io/SMX/>, deployed from `main` by
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
-- **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 149 unit tests, 41 smoke checks, 98 = 98 asset references, all green.
+- **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half;
+  `VISUAL_REGRESS=1` to add the advisory frame diff). Currently 149 unit tests,
+  41 smoke checks, 98 = 98 asset references, 71 pure helpers, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -239,13 +240,21 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
 
 ### Queued candidates (tooling)
 
-8. **Automate the four-edit/five-edit rituals.** A script that scans the delimited
-   pure-helpers block and regenerates `EXPORTED_SYMBOLS` plus the test destructure
-   (leaving the count assertion to the existing guard) turns four manual edits into
-   one; same idea later for the slider five.
-9. **Advisory visual-regression gate.** Perceptual-hash comparison over
-   `capture.mjs`'s staged frames, advisory only (never gating, per "check.sh cannot
-   see invisible"), to catch accidental paint drift between human reviews.
+8. **(done) Ritual automation.** Shipped this shift: `dev/tools/sync_test_exports.mjs`
+   scans the pure-helpers block and lands the three mechanical edits (EXPORTED_SYMBOLS,
+   the pure.test.mjs destructure and sanity object) idempotently and check-modes the
+   drift. The count assertion stays manual BY DESIGN (it guards the generator's own
+   regex). The slider five stays manual for now (the config surface is more irregular).
+9. **(done) Advisory visual regression.** Shipped this shift: `dev/tools/regress.mjs`
+   pixel-diffs fresh deterministic frames against the committed stills (OK / DRIFT,
+   never gating; opt into the gate with `VISUAL_REGRESS=1 bash dev/tools/check.sh`).
+   Determinism needed four things, found by debugging not theory: the game's frozen-sky
+   hook (`?debug&skyt=<s>` - the WebGL sky was the one wall-clock-fed visual), page stubs
+   for Math.random and performance.now, AND one fresh page per still (the hero walker's
+   state leaked into the climb frame - the drift that looked like sky noise was actually
+   page history). The committed stills were re-shot on the deterministic pipeline and
+   are now bit-exact reproducible; `REGRESS_TARGET_Y` is the sensitivity probe (a sky
+   change is a no-op at the stills' low altitudes).
 
 Bigger lifts parked pending owner sign-off: scenario mode (presets as goal-bearing
 lessons), localization, an in-game sources screen listing every citation, wind audio

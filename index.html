@@ -860,6 +860,9 @@
         let _touchPlay = false;
         const HUD_MINIMAL = 0, HUD_FULL = 1, HUD_OFF = 2;
         let _uxHudLevel = HUD_MINIMAL;
+        // Shift G: null in normal play; a frozen sky wall-clock seconds for capture
+        // runs (?debug&skyt=<s>). Set once at boot, read once per frame by update().
+        let _frozenSkyTimeS = null;
 
         // SIM (M3.6, decision 11): throughput scoring + cumulative bootstrap progress.
         // Shift 9 bumped both to .v3 because the demo scale changed what they MEAN: the
@@ -1830,6 +1833,21 @@
         // clean=0 is off and ?cleanup is not a match — so a capture run has to ask for it.
         function cleanModeRequested(search, hash) {
             return /(?:^|[?&#])clean(?:=1|=true)?(?:$|[&#])/.test(String(search || '') + String(hash || ''));
+        }
+
+        // Shift G (deterministic captures): the sky's frozen wall-clock seconds for a
+        // ?debug&skyt=<s> capture run, or null. The WebGL sky is the ONE visual channel
+        // fed by the RAF wall clock (webglBg.update(altitude, time/1000)) instead of sim
+        // time, so the committed stills carry per-run sky noise and the capture A/B
+        // loops above can never be pixel-compared. Freezing the sky time (debug-only,
+        // inert in normal play) makes two captures of the same sim state comparable.
+        // Mirrored on cleanModeRequested's shape; honored only alongside ?debug, like
+        // the __smokeGame hook.
+        function frozenSkyTimeS(search, hash) {
+            const str = String(search || '') + String(hash || '');
+            if (!/[?&#]debug\b/.test(str)) return null;
+            const m = /[?&#]skyt=([0-9]+(?:\.[0-9]+)?)\b/.exec(str);
+            return m ? parseFloat(m[1]) : null;
         }
 
         // H cycles the instrument detail: minimal (the default a visitor lands on) ->
@@ -5754,8 +5772,10 @@
                 this.camera.smoothing = nearLandmark ? 0.08 : baseSmoothing; // Slower near landmarks
                 this.camera.follow(this.monkey.y - this.canvas.height * GameConfig.CAMERA.VERTICAL_OFFSET, dt);
                 
-                // Update visual systems
-                this.webglBg.update(this.monkey.altitude, time / 1000);
+                // Update visual systems. Shift G: the sky is the ONE wall-clock-fed
+                // visual - freeze it for capture runs (?debug&skyt=<s>), inert otherwise.
+                const skyTimeS = _frozenSkyTimeS !== null ? _frozenSkyTimeS : time / 1000;
+                this.webglBg.update(this.monkey.altitude, skyTimeS);
                 this.cloudSystem.update(this.monkey.altitude, this.canvas.height);
                 this.landmarkSystem.update(this.monkey.altitude, this.canvas.height, this.monkey.velocityY);
                 
@@ -7282,6 +7302,8 @@
             // Screenshot mode can be asked for on the URL, for capture runs that must not
             // depend on a keypress landing before the first frame.
             _uxHudLevel = cleanModeRequested(window.location.search, window.location.hash) ? HUD_OFF : HUD_MINIMAL;
+            // Shift G: freeze the sky's wall-clock for deterministic captures (debug-only).
+            _frozenSkyTimeS = frozenSkyTimeS(window.location.search, window.location.hash);
             syncHudChrome();
 
             const mobileNotice = document.getElementById('mobile-notice');

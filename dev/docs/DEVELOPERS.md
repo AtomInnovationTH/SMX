@@ -588,18 +588,31 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
 - **Current gate numbers** (keep these updated when they move): **149 unit tests**
-  (pure 128, sliders 12, balance 9), **70 pure helpers** in the delimited block,
+  (pure 128, sliders 12, balance 9), **71 pure helpers** in the delimited block,
   **98 = 98** asset references, **41 browser smoke checks**, `index.html` **435 KB**.
-- Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
-  `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
-  and the helper-count assertion. Adding or changing a slider is five: the id list in
+- Adding a pure helper: write it in the block, then run `node dev/tools/sync_test_exports.mjs
+  --write` (Shift G). The script scans the delimited block and lands the three
+  mechanical edits (`EXPORTED_SYMBOLS`, the pure.test.mjs destructure and sanity
+  object) idempotently, failing loudly if any surface is ambiguous. The fourth edit
+  is yours and stays manual by design: bump the helper-count assertion (the count is
+  the guard against the generator's own regex drifting). `sync_test_exports.mjs` with
+  no flag is check mode (exit 1 on any drift). Adding or changing a slider is five: the id list in
   `extract.mjs`, `dev/tests/sliders.test.mjs`, a `scaleSettingValue` case, a `UI_CONFIG`
   entry, and `initGame`'s `sliderDefaults` literal.
 - **A render change is not verified until you have shot the frame.** `check.sh` cannot see
   "invisible": it has caught a correct overlay that no player could make out, twice. The
   capture tool is [`dev/tools/capture.mjs`](../tools/capture.mjs); the recipe behind it,
   including the headless WebGL flags and the parallax and teleport traps, is in
-  [`NEXT-SHIFT.md`](NEXT-SHIFT.md).
+  [`NEXT-SHIFT.md`](NEXT-SHIFT.md). Shift G adds the advisory layer:
+  [`dev/tools/regress.mjs`](../tools/regress.mjs) shoots fresh deterministic frames of the
+  two committed stills and pixel-diffs them (zero-dependency PNG decode; OK vs DRIFT with
+  mean abs diff and changed-pixel fraction). Determinism comes from the whole bundle:
+  the by-hand stepped loop, the seeded beats, the game's own `?debug&skyt=<s>` frozen-sky
+  hook (the WebGL sky was the one wall-clock-fed visual), page stubs for Math.random and
+  performance.now, and one fresh page per still (the hero walker's state used to leak
+  into the climb frame). Run it by hand, or opt in to the advisory in the gate with
+  `VISUAL_REGRESS=1 bash dev/tools/check.sh` - DRIFT never fails the gate, it is the
+  observation you read against the frames.
 
 See [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md) for PR process and
 [`CHANGELOG.md`](CHANGELOG.md) for release history.
