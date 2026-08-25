@@ -10,7 +10,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half).
-  Currently 146 unit tests, 38 smoke checks, 98 = 98 asset references, all green.
+  Currently 149 unit tests, 41 smoke checks, 98 = 98 asset references, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -142,12 +142,19 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
 
 ### Queued candidates (UI/UX and reach)
 
-1. **Shareable run URLs.** Encode the settings snapshot plus the run result into a
-   URL (and a copy-link row on the report card) so a configuration that demonstrates
-   a paper insight can be sent as a challenge. Presentation-only: reads state the
-   game already persists in memory; no physics. Needs a versioned, bounded encoding
-   and a `?config=` boot path that routes through the sliders' own DOM events (the
-   preset rule: never a parallel write path).
+1. **(done) Shareable run URLs.** Shipped this shift (Shift F): the report card's
+   share row carries one URL with the panel's raw slider values plus wave type
+   (version-prefixed codec) and the result as a challenge on delivery; boot applies
+   through the sliders' own DOM events (fireSliderDom, the preset rule hoisted).
+   The codec rejects blank fields as well as NaN (Number('') === 0 would silently
+   zero a setting - found by the tests). Three smoke checks pin boot, round-trip
+   and the toast. The original entry is kept for the record: Encode the settings
+   snapshot plus the run result into a URL (and a copy-link row on the report card)
+   so a configuration that demonstrates a paper insight can be sent as a challenge.
+   Presentation-only: reads state the game already persists in memory; no physics.
+   Needs a versioned, bounded encoding and a `?config=` boot path that routes
+   through the sliders' own DOM events (the preset rule: never a parallel write
+   path).
 2. **(done) The legible wave.** Shipped this shift, with the temporal axis the
    research added: proportional exaggeration under an 80 px cap plus the monotone
    schematic clock, frozen under reduced motion (which also closed this channel's
@@ -192,11 +199,17 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
    awareness currently depends on catching the altimeter pill mid-scroll.
    Canvas-drawn like every instrument, so it must read `_uxHudLevel` itself and claim
    its own screen band.
-4. **aria-live mirror of the minimal strings.** Every instrument is canvas-drawn, so
-   assistive tech gets one `role="img"` label. Mirror `minimalScoreLine`, the beat
-   titles and the failure reasons into an offscreen `aria-live` region fed from the
-   same pure helpers, so it can never quote a figure the plate hides. Finishes the
-   inclusivity story the README leads with.
+4. **(done) aria-live mirror.** Shipped this shift (Shift F, same commit as the
+   share URLs): an offscreen polite region (`#ux-live`) carries a plain steady-state
+   sentence on a 2 s throttle (`ariaLiveLine`, a NEW sentence - the plate's pacing
+   shorthand reads as noise spoken aloud) plus the event pushes: brownout reasons,
+   delivery, beat-card titles, the run's end. Smoke 14i pins the throttle cadence
+   and the brownout explanation. The original entry is kept for the record: Every
+   instrument is canvas-drawn, so assistive tech gets one `role="img"` label.
+   Mirror `minimalScoreLine`, the beat titles and the failure reasons into an
+   offscreen `aria-live` region fed from the same pure helpers, so it can never
+   quote a figure the plate hides. Finishes the inclusivity story the README leads
+   with.
 5. **(done) First-run rhythm hint.** Shipped this shift as the Shift E pair: the
    low-charge gauge pulse (amber border, 1 Hz, static under reduced motion) warns
    before the first brownout, and the one-time hint plate ("let go before it

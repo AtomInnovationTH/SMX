@@ -68,6 +68,10 @@ const {
   upgradeCrossed,
   restartPressDecision,
   rhythmHintDue,
+  shareConfigEncode,
+  shareConfigDecode,
+  shareUrlParse,
+  ariaLiveLine,
   GAME_OVER_INPUT_GATE_MS,
   RESTART_CONFIRM_MS,
   LANDMARK_PILL_MS,
@@ -117,7 +121,8 @@ test('extraction exposes the core pure symbols', () => {
     resonanceModeAt, resonanceBoostFactor, resonanceSupplyW, resonantFilmPeakMps,
     waveTransportedPowerW, waveSharedBudgetW, powerShareCapW, waveModeCell,
     milestoneMarkerAt, shouldTriggerGameOver, scaleSettingValue,
-    couplingTier, couplingColor, upgradeCrossed, restartPressDecision, rhythmHintDue, thermalStep,
+    couplingTier, couplingColor, upgradeCrossed, restartPressDecision, rhythmHintDue,
+    shareConfigEncode, shareConfigDecode, shareUrlParse, ariaLiveLine, thermalStep,
     airDensityReadout, cargoDeliveryCredit, weightN, activeFreqCells,
     grabHintText, compactHudLayout, clampPlateX, viewportTooSmall, cleanModeRequested,
     LANDMARK_PILL_MS, RESTART_CONFIRM_MS, GAME_OVER_INPUT_GATE_MS,
@@ -145,7 +150,7 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 66 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 70 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
@@ -154,7 +159,8 @@ test('the pure-helpers block contains exactly 66 declared helpers (guard against
   // 63 -> 64: railAltitudeToFrac, the altitude rail's sqrt axis.
   // 64 -> 65: slipCruiseU, the projected-cruise readout's solver.
   // 65 -> 66: rhythmHintDue, the first-rhythm-hint decision.
-  assert.equal(declaredPureHelpers().length, 66);
+  // 66 -> 70: the Shift F share codec (encode/decode/urlParse) + ariaLiveLine.
+  assert.equal(declaredPureHelpers().length, 70);
 });
 
 // ---------------------------------------------------------------------------
@@ -486,6 +492,61 @@ test('rhythmHintDue: the four corners of the one-time hint rule', () => {
   assert.equal(due({ chargePct: 0.5 }), false);        // exactly half is NOT under
   assert.equal(due({ brownout: true }), false);        // the brownout plate is teaching
   assert.equal(due({ hintDone: true }), false);        // retired forever
+});
+
+// Shift F (shareable runs): the codec is the contract that a share URL carries the
+// PANEL's raw slider values (never game internals), version-prefixed, and malformed
+// payloads are ignored, never fatal.
+test('shareConfig codec: round-trips the raw slider state, rejects malformed payloads', () => {
+  const raws = [0, 1, 450, 0.6, 450, 0.2, 400, 30, 0.15, 1, 0, 0, 8, 1, 5];
+  const enc = shareConfigEncode(raws);
+  assert.equal(enc, '1:0,1,450,0.6,450,0.2,400,30,0.15,1,0,0,8,1,5');
+  const dec = shareConfigDecode(enc);
+  assert.equal(dec.amplitude, 0.6);
+  assert.equal(dec.tension, 400);
+  assert.equal(dec.weight, 5);
+  assert.equal(dec.frequency, 450);   // the RAW log-slider value, not Hz
+  // Malformed payloads decode to null: wrong version, wrong length, non-numeric, junk.
+  assert.equal(shareConfigEncode([1, 2]), null);
+  // Non-finite entries kill the encode outright, and blank fields kill the decode:
+  // Number('') === 0 would otherwise silently zero a setting (found by the tests).
+  assert.equal(shareConfigEncode(raws.map(() => NaN)), null);
+  assert.equal(shareConfigDecode('1:,,,,,,,,,,,,,,'), null);
+  assert.equal(shareConfigDecode('1:0,1,,3'), null);
+  assert.equal(shareConfigDecode('2:0,1,2'), null);          // wrong version
+  assert.equal(shareConfigDecode('1:0,1'), null);            // short payload
+  assert.equal(shareConfigDecode('1:0,1,2,3,4,5,6,7,8,9,10,11,12,x,5'), null);
+  assert.equal(shareConfigDecode(null), null);
+});
+
+test('shareUrlParse: config plus optional result; missing or bad parts are dropped, never fatal', () => {
+  const enc = shareConfigEncode([0, 1, 450, 0.6, 450, 0.2, 400, 30, 0.15, 1, 0, 0, 8, 1, 5]);
+  const full = shareUrlParse(`?config=${enc}&time=345.5&kgh=31`);
+  assert.equal(full.config.amplitude, 0.6);
+  assert.equal(full.result.timeS, 345.5);
+  assert.equal(full.result.kgH, 31);
+  // Config alone parses; no result key.
+  const bare = shareUrlParse(`?config=${enc}`);
+  assert.equal(bare.config.weight, 5);
+  assert.equal(bare.result, null);
+  // A present-but-bad result field is dropped; the config still parses.
+  const badRes = shareUrlParse(`?config=${enc}&time=abc`);
+  assert.equal(badRes.result, null);
+  // No config at all, or a bad one: null overall.
+  assert.equal(shareUrlParse('?debug'), null);
+  assert.equal(shareUrlParse('?config=9:broken'), null);
+});
+
+// Shift F (aria-live): one plain sentence a screen reader can speak. Numbers are the
+// same ones the minimal plate reads; the shorthand pacing line is deliberately NOT
+// reused (it reads as noise spoken aloud).
+test('ariaLiveLine: plain steady-state sentences, delivered and mid-climb', () => {
+  assert.equal(ariaLiveLine({ altitudeM: 4100, speedKmh: 186, chargePct: 0.6, delivered: false }),
+    'Altitude 4.1 km, speed 186 km/h, buffer 60 percent.');
+  assert.equal(ariaLiveLine({ altitudeM: 300, speedKmh: 54, chargePct: 0.25, delivered: false }),
+    'Altitude 300 m, speed 54 km/h, buffer 25 percent.');
+  assert.equal(ariaLiveLine({ altitudeM: 100000, speedKmh: 0, chargePct: 1, delivered: true, deliveredKg: 3 }),
+    'Delivered 3 kg to the Kármán line.');
 });
 
 test('applyGravityAndDrag always applies gravity — there is no attached state', () => {

@@ -30,12 +30,16 @@ magnets run flat, then catch it again. Get 3 kg to the Kármán line as fast as 
 ![Climbing past a bald eagle at 355 m with the magnets engaged](screenshots/climb.png)
 
 Stalling costs time and tells you why. It never ends the run. The run ends on a report card that
-puts your speed, switching loss, stroke and carrier next to the paper's own figures. Score is
+puts your speed, switching loss, stroke and carrier next to the paper's own figures - and now a
+copy-link row, so you can send your exact configuration (and your result, as a challenge) as one
+URL. Score is
 throughput: kilograms to the Kármán line per hour.
 
 Nothing flashes above 3 Hz, `prefers-reduced-motion` is honoured, and an Okabe-Ito palette keeps
 colour from being the only signal. It plays on a phone: the game takes exactly one input, so the
-whole screen is the button, so hold anywhere.
+whole screen is the button, so hold anywhere. And because everything on screen is canvas, a quiet
+aria-live region carries the same run to a screen reader: a plain sentence every two seconds,
+plus the moments that matter (why the brownout bit, the delivery, the report).
 
 ---
 

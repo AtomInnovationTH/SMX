@@ -9,7 +9,48 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The Shift E pedagogy shift (most recent)
+### The Shift F reach-and-access shift (most recent)
+
+Updated at the end of Shift F: queued candidates 1 (shareable runs) and 4
+(aria-live mirror) shipped in one commit, with the test suites fanned out to two
+subagents again (pure ritual for four helpers; three new smoke checks).
+
+**Shareable runs.** The report card gained a share row: a readonly URL input (the
+visible, selectable source of truth) plus a copy button whose clipboard write is
+explicitly best-effort. The URL encodes the panel's RAW slider values plus the
+wave type through a version-prefixed codec (shareConfigEncode/Decode/UrlParse),
+and on a delivery the result rides as &time=&kgh=. A shared link boots through
+`_applyShareUrl`, which fires each slider's own DOM event (the preset rule; the
+fire helper was hoisted out of the preset handler into fireSliderDom for exactly
+this) and then toasts the challenge. Design decisions kept: the payload is panel
+state, never game internals; a malformed payload decodes to null and is ignored,
+never fatal; the wave type applies via the same setType the 1-3 keys call, since
+it has no slider to drift from.
+
+**The codec hole the tests caught.** The first cut let Array.join turn a
+non-finite entry into a BLANK field, and Number('') === 0 then silently zeroed
+that setting on decode - a hand-crafted URL could corrupt the config it claimed
+to carry. The encode now rejects non-finite entries outright and the decode
+rejects blank fields; the pure tests pin both directions. Recorded because it is
+the second time this month a "malformed is ignored, never fatal" contract had a
+silent corruption path until a test said otherwise.
+
+**Aria-live mirror.** Everything on screen is canvas, so assistive tech used to
+get one role="img" label. An offscreen polite region (#ux-live) now carries a
+plain steady-state sentence on a 2 s throttle (ariaLiveLine - a NEW sentence,
+because the plate's pacing shorthand reads as noise spoken aloud) plus the event
+pushes at their own sites: brownout reasons, delivery, beat-card titles, the
+run's end. Smoke 14i pins the throttle cadence and the brownout explanation.
+
+Two smaller traps for the record: the smoke payload's frequency raw was first
+written as 450 - the slider is 0-100 mapping 92-1000 Hz, so 450 clamped to the
+max and turned the amplitude assertion into an accident of the stress-cap clamp;
+the payload now uses in-range values that apply cleanly (raw 50 / 0.3 m). And
+14i's first sample raced a leftover game-over push; it now waits state-not-clock
+for the next steady sentence. Gate numbers: 149 unit / 70 helpers / 41 smoke.
+Gate green end to end. Not yet pushed at shift end.
+
+### The Shift E pedagogy shift
 
 Updated at the end of Shift E: the two teaching gaps the UI audit found are closed,
 plus one tune-loop pointer. The game's one decision (release before the buffer

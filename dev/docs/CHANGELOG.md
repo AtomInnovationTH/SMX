@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shareable runs and a screen-reader mirror (Shift F).** The report card now
+  carries a share row: one URL encodes the run's whole configuration (the panel's
+  raw slider values plus the wave type, version-prefixed) and, on a delivery, the
+  result (`&time=&kgh=`) as a challenge. A shared link boots the payload through
+  the sliders' OWN DOM events (the preset rule: no parallel write path), overrides
+  defaults after initGame, and toasts the challenge on arrival. The codec rejects
+  malformed payloads loudly - wrong version, wrong length, non-numeric, blank
+  fields (Number('') === 0 would otherwise silently zero a setting) - and never
+  fatal. The aria-live mirror finishes the inclusivity story the README leads
+  with: everything on screen is canvas, so an offscreen polite region
+  (`#ux-live`) now carries a plain steady-state sentence on a 2 s throttle
+  (`ariaLiveLine`) plus the event pushes - brownout reasons, delivery, beat-card
+  titles, the run's end. Four pure helpers (70 total), three new smoke checks
+  (41 total). Gate: 149 unit tests (was 146), 98 = 98 refs, 41/41 smoke.
 - **The rhythm is taught before it is failed.** The game's one decision (release
   before the buffer empties) used to be learnable only by brownout. Two new
   announcements make it visible in advance: the EPM gauge plate pulses a slow amber

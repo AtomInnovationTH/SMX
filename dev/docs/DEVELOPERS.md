@@ -587,9 +587,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **146 unit tests**
-  (pure 125, sliders 12, balance 9), **66 pure helpers** in the delimited block,
-  **98 = 98** asset references, **38 browser smoke checks**, `index.html` **435 KB**.
+- **Current gate numbers** (keep these updated when they move): **149 unit tests**
+  (pure 128, sliders 12, balance 9), **70 pure helpers** in the delimited block,
+  **98 = 98** asset references, **41 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper is four edits: the helper itself, `EXPORTED_SYMBOLS` in
   `dev/tests/extract.mjs`, the destructure and sanity object in `dev/tests/pure.test.mjs`,
   and the helper-count assertion. Adding or changing a slider is five: the id list in

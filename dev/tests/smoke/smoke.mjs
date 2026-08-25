@@ -1194,6 +1194,118 @@ try {
     reportNote.display === 'block' && reportNote.text.includes('Wessels') && reportNote.text.includes('Lofstrom'),
     JSON.stringify(reportNote));
 
+  // 14g) Shift F: a share-config URL boots the WHOLE payload through the sliders' OWN DOM
+  //      events (the preset rule), and the finished run's numbers ride the restart toast
+  //      as a challenge. Fresh page in this browser, torn down afterwards.
+  const shareCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const sharePage = await shareCtx.newPage();
+  await sharePage.goto(`${BASE}/index.html?debug&config=1:0,1,50,0.3,450,0.2,400,30,0.15,1,0,0,8,1,5&time=345&kgh=31`, { waitUntil: 'load' });
+  // State, not clock: the payload applies synchronously in the constructor (_applyShareUrl,
+  // right before __smokeGame is exposed), so the flag is true the moment the game exists,
+  // and the toast was already set right after the sliders fired.
+  await sharePage.waitForFunction(
+    () => window.__smokeGame && window.__smokeGame._sharedConfigFromUrl === true,
+    null, { timeout: 20000, polling: 100 });
+  const shareBoot = await sharePage.evaluate(() => {
+    const g = window.__smokeGame;
+    // The payload's raw values land in range on purpose: frequency 50 (~303 Hz) keeps
+    // the 0.3 m stroke under the ~0.33 m stress cap, so the MODEL value and the slider
+    // value agree. (The first draft of this payload used raw 450 - the 0-100 slider
+    // clamps that to the max, and the amplitude assertion became an accident of the
+    // cap. In-range values keep the check honest.)
+    return { ampModel: g.waveSystem.amplitude,
+             ampSlider: parseFloat(document.getElementById('amplitude').value),
+             tension: g.vineTension, cargo: g.cargoKg,
+             toast: document.getElementById('restart-toast').textContent };
+  });
+  await shareCtx.close();
+  record('share-config boot: payload lands via the sliders, the run result rides the toast',
+    Math.abs(shareBoot.ampSlider - 0.3) < 1e-9 && Math.abs(shareBoot.ampModel - 0.3) < 1e-9 &&
+    Math.abs(shareBoot.tension - 400) < 1e-9 && Math.abs(shareBoot.cargo - 5) < 1e-9 &&
+    shareBoot.toast.includes('shared run'),
+    JSON.stringify(shareBoot));
+
+  // 14h) Shift F: the report card's share row. Game over publishes a selectable share URL
+  //      whose config payload round-trips the panel's CURRENT raw slider values (15 fields,
+  //      weight last) and shows the row on the card.
+  const shareRow = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // Canonical ground restore (the 14d/14e/14f shape): zero maxAltitude, or the next
+    // frame trips game-over on the ground state.
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    g.maxAltitude = 0;
+    g._startLoop();
+    await wait();
+    g.maxAltitude = 60000; g.monkey.altitude = 0; g.monkey.y = 0;
+    g.showGameOver();
+    await wait();
+    const out = {
+      display: document.getElementById('go-share').style.display,
+      url: document.getElementById('go-share-url').value,
+      weightSlider: parseFloat(document.getElementById('weight').value),
+      origin: location.origin,
+    };
+    const q = new URL(out.url).searchParams;
+    const cfg = q.get('config');
+    out.cfg = cfg;
+    out.parts = cfg ? cfg.split(':')[1].split(',') : [];
+    // Clean up exactly like 14f: showGameOver persisted 60000 m as the new best and its
+    // ghost, and check 15 reloads THIS page asserting bestAltitude === 0. Restore both the
+    // run state and the persisted best before we leave.
+    g.gameOver = false; g.running = true;
+    document.getElementById('game-over-overlay').style.display = 'none';
+    g.maxAltitude = 0; g.bestAltitude = 0; g.ghostBestAltitude = 0;
+    localStorage.removeItem('spaceMonkey.bestAltitude.v2');
+    localStorage.removeItem('spaceMonkey.bestRun.v2');
+    return out;
+  });
+  record('report-card share row: game over publishes a round-tripping config URL (weight last)',
+    shareRow.display === 'flex' && shareRow.cfg &&
+    shareRow.url.startsWith(shareRow.origin) &&
+    shareRow.cfg.startsWith('1:') && shareRow.parts.length === 15 &&
+    parseFloat(shareRow.parts[14]) === shareRow.weightSlider,
+    JSON.stringify({ display: shareRow.display, cfg: shareRow.cfg,
+                     weightSlider: shareRow.weightSlider, origin: shareRow.origin }));
+
+  // 14i) Shift F: the aria-live mirror. Everything on screen is canvas, so a screen reader
+  //      gets only the static shell; #ux-live receives a short plain steady-state sentence
+  //      on a ~2 s throttle while the game runs, and a brownout trip announces itself in
+  //      words. Smoke asserts all three stages on the live region.
+  const ariaLive = await page.evaluate(async () => {
+    const g = window.__smokeGame;
+    const wait = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // State, not clock for stage A too: 14h's showGameOver left a 'Run over...' push in
+    // the region, so wait for the next steady-state sentence (the mirror's ~2 s sim-time
+    // throttle) instead of sampling whatever 14h last announced.
+    const until = async (fn, maxMs = 10000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
+    const re = /^Altitude .*, speed \d+ km\/h, buffer \d+ percent\.$/;
+    const el = document.getElementById('ux-live');
+    g.paused = false; g.gameOver = false; g.running = true;
+    g.monkey.y = 0; g.monkey.velocityY = 0; g.monkey.altitude = 0;
+    g.maxAltitude = 0;
+    g._startLoop();
+    g.monkey.isGrabbing = true; g.epmCharge = 60;
+    const aSeen = await until(() => re.test(el.textContent));
+    const aText = el.textContent;
+    await new Promise((r) => setTimeout(r, 2300));
+    const bText = el.textContent;
+    g.epmCharge = 0;                     // pulse the charge away: the latch trips and speaks
+    const cSeen = await until(() => el.textContent.includes('Brownout.'), 5000);
+    const brownout = el.textContent;
+    g.monkey.isGrabbing = false; g.epmCharge = 80; g.epmBrownout = false;
+    return { aSeen, aText, aOk: re.test(aText), bText, bOk: re.test(bText), cSeen, brownout };
+  });
+  record('aria-live mirror: steady sentence on the ~2 s throttle, brownout explains itself in words',
+    ariaLive.aSeen === true && ariaLive.aOk === true && ariaLive.bOk === true &&
+    ariaLive.cSeen === true && ariaLive.brownout.includes('Brownout.'),
+    JSON.stringify(ariaLive));
+
   // 15) M3.8: every persistence key moved to .v2 (bestScore -> bestAltitude.v2 — it
   //     always stored altitude). v1 values are NOT migrated (units and meaning both
   //     changed); they are deleted on first v2 load. Shift 9 adds the two v2 SCORE keys

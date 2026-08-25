@@ -224,6 +224,13 @@
         .go-report-key { color: #6bc8ff; display: inline-block; min-width: 74px; font-weight: bold; }
         /* Shift E3: the presets pointer under the report card - quiet, same width */
         .go-report-note { font: 11px monospace; color: #9bb6c9; max-width: 560px; margin: 0 auto 12px; line-height: 1.4; }
+        /* Shift F: the share row - quiet, one line, the URL visible and selectable */
+        .go-share { display: flex; gap: 8px; justify-content: center; align-items: center; max-width: 560px; margin: 0 auto 12px; }
+        .go-share-url { flex: 1; min-width: 0; font: 10px monospace; color: #bef0ff; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 4px 6px; }
+        .go-share-copy { font: bold 11px monospace; color: #ffd97a; background: rgba(255,217,122,0.12); border: 1px solid rgba(255,217,122,0.5); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+        .go-share-copy:hover { background: rgba(255,217,122,0.25); }
+        /* Shift F: the aria-live mirror - present for screen readers, invisible on screen */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
         .go-geo { font-size: 12px; color: #cfe6f5; background: rgba(0, 60, 100, 0.35); border: 1px solid rgba(0,180,230,0.4); border-radius: 6px; padding: 10px 14px; margin: 0 auto 16px; max-width: 460px; line-height: 1.5; text-align: left; }
         .go-geo b { color: #ffe08a; }
         .go-geo a { color: #6bc8ff; }
@@ -309,6 +316,12 @@
                  the report card says where you landed, this says where to play next.
                  Shown with the report card, dismissed with it. -->
             <div class="go-report-note" id="go-report-note" style="display:none;">the presets in Settings fly the paper's own designs: Wessels' 60 cm · Lofstrom's 1000 Hz wall</div>
+            <!-- Shift F: share this exact run - config plus result, one URL. The input
+                 carries the URL visibly (selectable fallback); the button copies it. -->
+            <div class="go-share" id="go-share" style="display:none;">
+                <input id="go-share-url" class="go-share-url" type="text" readonly value="">
+                <button id="go-share-copy" class="go-share-copy" type="button">copy link</button>
+            </div>
             <div class="go-geo" id="go-geo" style="display:none;">
                 <b>You reached the Kármán Line (100 km), but that's only the start.</b><br>
                 A real space-elevator seed tether continues to <b>geostationary orbit (35,786 km)</b>,
@@ -331,6 +344,10 @@
     
     <!-- UX: Altimeter landmark label (2d) -->
     <div id="ux-altimeter-label"></div>
+    <!-- Shift F: the aria-live mirror. Everything on screen is canvas; this offscreen
+         polite region carries the steady-state line plus the event pushes (brownout
+         reason, delivery, report) so a screen reader follows the run. -->
+    <div id="ux-live" class="sr-only" role="status" aria-live="polite"></div>
     
     <!-- UX: Settings gear button (2f) -->
     <button id="ux-settings-btn" title="Settings (S)">⚙</button>
@@ -1198,6 +1215,71 @@
                 if (slipThrustMeanN({ kPerPair, nPairs, vFilmPeakMps, vClimberMps: mid * vFilmPeakMps, filmVelocityAt }) > weight) lo = mid; else hi = mid;
             }
             return (lo + hi) / 2;
+        }
+
+        // Shift F (shareable runs): the config codec. A share URL carries the SETTINGS
+        // PANEL's raw slider values (plus the wave type), never game internals: the
+        // loader sets each slider's DOM value and dispatches its own input event, so a
+        // shared run boots through exactly the path a player's fingers take (the preset
+        // rule: no parallel write path to drift). ORDER pins the payload's field order;
+        // the version prefix leaves room to grow. Malformed or short payloads decode to
+        // null - a bad link is ignored, never fatal.
+        const SHARE_URL_VERSION = 1;
+        const SHARE_SETTINGS_ORDER = ['waveType', 'material', 'frequency', 'amplitude', 'width',
+            'thickness', 'tension', 'stressBudget', 'airGap', 'taper', 'resonance', 'powerShare',
+            'nPairs', 'gravity', 'weight'];
+
+        function shareConfigEncode(rawValues) {
+            if (!Array.isArray(rawValues) || rawValues.length !== SHARE_SETTINGS_ORDER.length) return null;
+            // A non-finite entry must kill the whole payload: joining NaN/Infinity would
+            // leave a BLANK field, and decode reads blank fields as 0 (Number('')===0),
+            // silently zeroing a setting. Reject loudly instead.
+            if (rawValues.some((v) => !Number.isFinite(Number(v)))) return null;
+            return SHARE_URL_VERSION + ':' + rawValues.map((v) => String(Math.round(Number(v) * 100) / 100)).join(',');
+        }
+
+        function shareConfigDecode(payload) {
+            if (typeof payload !== 'string') return null;
+            const m = /^(\d+):(.+)$/.exec(payload);
+            if (!m || parseInt(m[1], 10) !== SHARE_URL_VERSION) return null;
+            const parts = m[2].split(',');
+            if (parts.length !== SHARE_SETTINGS_ORDER.length) return null;
+            // Blank fields must not decode to 0 (Number('')===0 is the trap above).
+            if (parts.some((p) => p.trim() === '')) return null;
+            const raws = parts.map(Number);
+            if (raws.some((v) => !Number.isFinite(v))) return null;
+            const out = {};
+            SHARE_SETTINGS_ORDER.forEach((key, i) => { out[key] = raws[i]; });
+            return out;
+        }
+
+        // Shift F: the whole share URL, config plus an optional result (the finished
+        // run's numbers, so the link carries its own challenge). parse succeeds on the
+        // config alone; a present-but-malformed result is dropped, never fatal.
+        function shareUrlParse(search) {
+            const q = (search || '').replace(/^\?/, '');
+            const params = new URLSearchParams(q);
+            const raw = params.get('config');
+            if (!raw) return null;
+            const config = shareConfigDecode(raw);
+            if (!config) return null;
+            const result = {};
+            const timeS = Number(params.get('time'));
+            if (Number.isFinite(timeS) && timeS > 0) result.timeS = timeS;
+            const kgH = Number(params.get('kgh'));
+            if (Number.isFinite(kgH) && kgH > 0) result.kgH = kgH;
+            return { config, result: Object.keys(result).length ? result : null };
+        }
+
+        // Shift F (aria-live): the one sentence a screen reader gets. Same fields the
+        // minimal plate reads, short and plain (the copy rules: everyday words, no
+        // numbers that need the canvas). Brownout and delivery are pushed separately as
+        // events; this is the steady-state line. Deliberately NOT the score line: the
+        // plate's pacing shorthand ("pace N kg/h") reads as noise spoken aloud.
+        function ariaLiveLine({ altitudeM, speedKmh, chargePct, delivered, deliveredKg }) {
+            if (delivered) return `Delivered ${deliveredKg.toFixed(0)} kg to the Kármán line.`;
+            const km = altitudeM >= 1000 ? `${(altitudeM / 1000).toFixed(1)} km` : `${Math.round(altitudeM)} m`;
+            return `Altitude ${km}, speed ${Math.round(speedKmh)} km/h, buffer ${Math.round(chargePct * 100)} percent.`;
         }
 
         // Shift E (first-rhythm hint): should the one-time rhythm hint be up? The
@@ -3299,6 +3381,16 @@
                                + '#pause-overlay, #loading-overlay, button, input, select, textarea, a';
         const _isChromeTarget = (t) => !!(t && t.closest && t.closest(_CHROME_SELECTOR));
 
+        // Shift F: the single DOM write path for the settings panel. Sets a slider's
+        // raw value and dispatches its own input/change event, so labels, readouts and
+        // game state all update through the listeners above - never a parallel write.
+        // Shared by the preset buttons (M3.7) and the share-URL loader (Shift F).
+        // Deliberately OUTSIDE the pure-helpers block: it touches the DOM by design.
+        function fireSliderDom(id, raw, evt = 'input') {
+            const el = document.getElementById(id);
+            if (el) { el.value = String(raw); el.dispatchEvent(new Event(evt)); }
+        }
+
         class InputManager {
             constructor(eventBus) {
                 this.eventBus = eventBus;
@@ -3435,14 +3527,13 @@
                 // update through the single slider path; there is no parallel write path
                 // to drift. Material first (the stress cap reads strength), then budget
                 // and carrier, amplitude LAST so it clamps against the final cap.
+                // Shift F hoisted the fire helper to _fireSlider so the share-URL loader
+                // applies through this identical path.
                 document.querySelectorAll('[data-preset]').forEach((btn) => {
                     btn.addEventListener('click', () => {
                         const p = PRESETS.find((preset) => preset.id === btn.dataset.preset);
                         if (!p) return;
-                        const fire = (id, raw, evt = 'input') => {
-                            const el = document.getElementById(id);
-                            if (el) { el.value = String(raw); el.dispatchEvent(new Event(evt)); }
-                        };
+                        const fire = (id, raw, evt = 'input') => fireSliderDom(id, raw, evt);
                         fire('material', p.material, 'change');
                         fire('stressBudget', p.stressBudget);
                         fire('taper', p.taper);
@@ -3661,6 +3752,10 @@
                 
                 this.setupEventListeners();
                 this.initGame();
+                // Shift F: a share link's ?config= applies through the same DOM events a
+                // player's fingers use (the preset rule), AFTER initGame so it overrides
+                // the defaults; a present result rides along as the challenge toast.
+                this._applyShareUrl();
                 window.addEventListener('resize', () => this.resizeCanvas());
                 this.lastTime = 0;
                 this._boundUpdate = this.update.bind(this);
@@ -3761,6 +3856,18 @@
                 const goSettingsLink = document.getElementById('go-settings-link');
                 if (goSettingsLink) goSettingsLink.addEventListener('click', () => {
                     document.getElementById('settingsPanel').classList.toggle('visible');
+                });
+
+                // Shift F: the share copy button. The URL input is the visible source of
+                // truth (selectable fallback); the clipboard write is best-effort only.
+                const goShareCopy = document.getElementById('go-share-copy');
+                if (goShareCopy) goShareCopy.addEventListener('click', () => {
+                    const urlEl = document.getElementById('go-share-url');
+                    if (!urlEl || !urlEl.value) return;
+                    urlEl.select();
+                    try { navigator.clipboard && navigator.clipboard.writeText(urlEl.value).catch(() => {}); } catch(e) {}
+                    goShareCopy.textContent = 'copied';
+                    setTimeout(() => { goShareCopy.textContent = 'copy link'; }, 1500);
                 });
                 
                 // Defer game loop until loading completes
@@ -4668,6 +4775,73 @@
                 }
             }
             
+            // Shift F (shareable runs): apply a ?config= payload through the SAME DOM
+            // events a player's fingers use (fireSliderDom - the preset rule). Runs after
+            // initGame so the link overrides defaults; clamps land where they always land
+            // (stress-cap etc.). The wave type has no slider: it applies via the same
+            // setType the 1-3 keys call. A present result rides along as the challenge
+            // toast; a malformed payload decodes to null and is ignored, never fatal.
+            _applyShareUrl() {
+                const parsed = shareUrlParse(window.location.search);
+                if (!parsed) return;
+                const { config, result } = parsed;
+                const waveTypes = ['sine', 'square', 'sawtooth'];
+                if (waveTypes[config.waveType]) this.waveSystem.setType(waveTypes[config.waveType]);
+                fireSliderDom('material', config.material, 'change');
+                fireSliderDom('stressBudget', config.stressBudget);
+                fireSliderDom('taper', config.taper);
+                fireSliderDom('resonance', config.resonance);
+                fireSliderDom('powerShare', config.powerShare);
+                fireSliderDom('frequency', config.frequency);
+                fireSliderDom('width', config.width);
+                fireSliderDom('thickness', config.thickness);
+                fireSliderDom('tension', config.tension);
+                fireSliderDom('nPairs', config.nPairs);
+                fireSliderDom('airGap', config.airGap);
+                fireSliderDom('weight', config.weight);
+                fireSliderDom('gravity', config.gravity);
+                // Amplitude LAST so it clamps against the final cap, exactly like presets.
+                fireSliderDom('amplitude', config.amplitude);
+                this._sharedConfigFromUrl = true;   // debug/smoke handle
+                if (result) {
+                    const mm = Math.floor(result.timeS / 60), ss = String(Math.floor(result.timeS % 60)).padStart(2, '0');
+                    const bits = [`${mm}:${ss} to 100 km`];
+                    if (result.kgH) bits.push(`${Math.round(result.kgH)} kg/h`);
+                    this.showToast('a shared run: ' + bits.join(' · ') + '. Beat it?', 4000);
+                }
+            }
+
+            // Shift F: build the share URL from the panel's CURRENT raw slider values
+            // (single source: what the player has), plus the run's result if it earned
+            // one. The report card's share row reads this; smoke parses it back.
+            _buildShareUrl() {
+                const raw = (id) => parseFloat(document.getElementById(id).value);
+                const waveIdx = ['sine', 'square', 'sawtooth'].indexOf(this.waveSystem.type);
+                const values = SHARE_SETTINGS_ORDER.map((key) => {
+                    if (key === 'waveType') return Math.max(0, waveIdx);
+                    if (key === 'material') return parseInt(document.getElementById('material').value, 10) || 0;
+                    return raw(key);
+                });
+                const payload = shareConfigEncode(values);
+                const base = location.origin + location.pathname;
+                let url = `${base}?config=${encodeURIComponent(payload)}`;
+                if (this.cargoDelivered && this._deliveredInS) {
+                    const kgH = throughputKgPerHour(this.deliveredKg, this._deliveredInS);
+                    url += `&time=${Math.round(this._deliveredInS * 10) / 10}&kgh=${Math.round(kgH)}`;
+                }
+                return url;
+            }
+
+            // Shift F (aria-live mirror): everything on screen is canvas, so a screen
+            // reader would get only the static page shell. This pushes short plain
+            // sentences into an offscreen polite region: the steady-state line
+            // (ariaLiveLine) on a 2 s throttle, plus the event pushes below. Dedupe
+            // identical strings so a parked run never re-announces.
+            _pushAriaLive(text) {
+                const el = this._ariaLiveEl || (this._ariaLiveEl = document.getElementById('ux-live'));
+                if (el && text && el.textContent !== text) el.textContent = text;
+            }
+
             // Polish (Stage 4): transient toast, reusing the restart-toast element.
             showToast(msg, ms = 1200) {
                 const toast = document.getElementById('restart-toast');
@@ -4690,6 +4864,10 @@
                 this.gameOver = true;
                 this.gameOverTime = performance.now();
                 this.running = false;
+                // Shift F: the run's end lands in the aria-live mirror immediately
+                // (the throttle would otherwise wait up to 2 s, or miss it entirely).
+                this._pushAriaLive(
+                    `Run over at ${(this.maxAltitude / 1000).toFixed(1)} km. ${this.cargoDelivered ? 'Delivered ' + this.deliveredKg.toFixed(0) + ' kg.' : 'No delivery this run.'}`);
                 
                 const currentAltitude = this.maxAltitude;
                 const isNewBest = currentAltitude > this.bestAltitude;
@@ -4768,6 +4946,14 @@
                 // Shift E3: the presets pointer rides the report card's visibility.
                 const noteEl = document.getElementById('go-report-note');
                 if (noteEl) noteEl.style.display = reportEl && reportEl.style.display === 'block' ? 'block' : 'none';
+                // Shift F: the share row - the URL is visible and selectable even if the
+                // clipboard write is denied (the click handler only best-effort copies).
+                const shareEl = document.getElementById('go-share');
+                const shareUrlEl = document.getElementById('go-share-url');
+                if (shareEl && shareUrlEl) {
+                    shareUrlEl.value = this._buildShareUrl();
+                    shareEl.style.display = 'flex';
+                }
                 // "What's above 100 km" teaching panel — shown once the player reaches Kármán.
                 const geoEl = document.getElementById('go-geo');
                 if (geoEl) geoEl.style.display = this.cargoDelivered ? 'block' : 'none';
@@ -4976,6 +5162,8 @@
                     // M3.1: capture WHY the loop browned out, in words, at the moment it
                     // bites — the gauge shows it for the whole episode.
                     this._brownoutWhy = this.brownoutReason();
+                    // Shift F: the failure explains itself to a screen reader too.
+                    this._pushAriaLive('Brownout. ' + this._brownoutWhy);
                     // Shift E: the first brownout retires the rhythm hint forever — from
                     // here the brownout plate is the teacher. Persisted per profile.
                     if (!this._rhythmHintDone) {
@@ -5336,6 +5524,9 @@
                 if (!this._beatCard && this._beatQueue.length) {
                     this._beatCard = this._beatQueue.shift();
                     this._beatCardTimer = 7;
+                    // Shift F: the card's title is an announcement for a screen reader
+                    // (the body stays canvas; the title carries the teaching beat).
+                    this._pushAriaLive(this._beatCard.title);
                 }
             }
 
@@ -5401,6 +5592,20 @@
                 if (!_uxReducedMotion) {
                     this._shapeTimeS = (this._shapeTimeS || 0)
                         + dt * (drawnOscillationHz(this.waveSystem.frequency) / Math.max(1e-6, this.waveSystem.frequency));
+                }
+                // Shift F: the aria-live steady-state line, throttled to one announcement
+                // per 2 s (polite regions speak; a per-frame region would read as a
+                // seizure). Event pushes (brownout, delivery, card, report) happen at
+                // their own sites.
+                this._ariaLiveTimer = (this._ariaLiveTimer || 0) - dt;
+                if (this._ariaLiveTimer <= 0) {
+                    this._ariaLiveTimer = 2;
+                    this._pushAriaLive(ariaLiveLine({
+                        altitudeM: this.monkey.altitude,
+                        speedKmh: Math.abs(this.monkey.velocityY) / GameConfig.PHYSICS.ALTITUDE_CONVERSION * 3.6,
+                        chargePct: (this.epmCharge || 0) / GameConfig.EPM.CAPACITY,
+                        delivered: this.cargoDelivered, deliveredKg: this.deliveredKg,
+                    }));
                 }
                 // M3.6: run clock (sim time — pauses with the game) and the climb
                 // segment it measures for the throughput score. The clock starts at
@@ -5479,6 +5684,9 @@
                     this._deliveredInS = this._runTimeS - (this._climbStartS ?? this._runTimeS);
                     try { localStorage.setItem(BOOTSTRAP_KG_KEY, this.bootstrapKg.toString()); } catch(e) {}
                     this.triggerMilestone('CARGO DELIVERED');
+                    // Shift F: the delivery lands in the aria-live mirror immediately.
+                    this._pushAriaLive(ariaLiveLine({ altitudeM: this.monkey.altitude, speedKmh: 0,
+                        chargePct: 1, delivered: true, deliveredKg: this.deliveredKg }));
                 }
                 
                 // UX: distance milestones every MILESTONE_INTERVAL_M (2a)
