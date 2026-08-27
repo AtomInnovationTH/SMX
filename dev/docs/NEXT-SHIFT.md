@@ -11,7 +11,7 @@ traps that have already cost time. The per-shift narrative record lives in
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half;
   `VISUAL_REGRESS=1` to add the advisory frame diff). Currently 149 unit tests,
-  41 smoke checks, 98 = 98 asset references, 71 pure helpers, all green.
+  42 smoke checks, 98 = 98 asset references, 71 pure helpers, all green.
 - **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -26,7 +26,10 @@ traps that have already cost time. The per-shift narrative record lives in
 - **Default climb**: MOVED by the 2026-08-22 integrity shift (deliberately, explained
   in the snapshot diff and DESIGN.md: the invented cold-coupling penalty is deleted,
   so the low climb runs 5 s faster; cruise never moved because the penalty never
-  reached vacuum). Unchanged by everything before it, most recently the phone-forms
+  reached vacuum). Unchanged by everything before it, most recently the key-cap
+  glyph shift (render-only: the new instrument rides the compact plate; no
+  `updateContinuous` change, so the trace cannot move, and the advisory frame diff
+  verified the committed stills bit-exact), the phone-forms
   fix (render-only short forms at the
   full level; `updateContinuous` byte-identical), the bootstrap-progress shift
   (presentation-only: one
@@ -220,7 +223,23 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
    before the bar empties") shown until the first catch-then-coast cycle completes, then never
    again. Copy rules apply (encouragement layer, everyday words, fits the 390 px
    plate); it is a hint the player can act on without leaving the game.
-6. **Desktop key-cap feedback.** The whole game is one held key; a small SPACE glyph
+6. **(done) Desktop key-cap feedback.** Shipped this shift (Shift H): the whole game
+   is one held key, so a SPACE key-cap now rides the compact plate's first line
+   (right end, same band) and lights gold while the PHYSICAL key is down, closing
+   the input loop for first-timers. It reads `InputManager.keys[' ']` directly -
+   the game's own input state - so a focused form control leaves it dark, blur can
+   never stick it lit, and a mouse/touch hold does not light it (the monkey's
+   glowing hands stay the game-state half of the loop). Never on touch (a key that
+   is not there stays un-named), never at HUD off (?clean stays clean), and it
+   yields rather than crowd the instruction line on a very narrow window (the
+   rail's never-cramp rule, measured on the real font). Static in both states, so
+   the 3 Hz and reduced-motion rules are met by construction; the lit face routes
+   through COLOR_PALETTE for the Okabe-Ito swap. One new smoke check (31) plus the
+   touch-null pin in check 16 (42 total), no pure helpers, `updateContinuous`
+   untouched, staged A/B frames verified (unlit whispers, lit warms gold, 390 px
+   sits clear), the advisory frame diff reports both committed stills bit-exact.
+   Narrative in [`shift-log.md`](shift-log.md). The original entry is kept for the
+   record: The whole game is one held key; a small SPACE glyph
    that lights while held closes the input loop for first-timers. Static while idle,
    so photosafe by construction.
 7. **(done) Settings projected-outcome readout.** Shipped this shift: the

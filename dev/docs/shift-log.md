@@ -9,7 +9,49 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The Shift G tooling shift (most recent)
+### The Shift H key-cap shift (most recent)
+
+Updated at the end of Shift H: the last open queued candidate (6, desktop key-cap
+feedback) shipped. The queue is now empty.
+
+**What shipped.** The whole game is one held key, and nothing on screen used to say
+"the game saw that" until the world reacted. A SPACE key-cap now rides the compact
+plate's first line at its right end and lights gold while the PHYSICAL key is down,
+closing the input loop for first-timers. It reads `InputManager.keys[' ']` directly,
+the game's own input state, so the wiring is honest in three directions a naive copy
+of `monkey.isGrabbing` would not be: a focused form control gates the keydown, so the
+cap stays dark while a slider is being tuned (it depicts the key, never the physics);
+the blur/visibility sweep can never leave it stuck lit; and a mouse or touch hold does
+not light it (the monkey's glowing hands remain the game-state half of the loop). It
+is static in both states - the toggle follows the player's own key rate and nothing
+animates on its own - so the 3 Hz and reduced-motion rules are met by construction,
+the same pattern as the rail's live dot.
+
+**Where it sits and where it refuses to.** It rides the compact plate because that
+plate is drawn at EVERY level that shows instruments and at every width (the phone
+plate carries the one instruction), so the cap shows at both minimal and full with one
+draw. Never on touch (naming a key that is not there is what used to send phone
+players away), never at HUD off (it rides the plate, so ?clean stays clean), and it
+yields rather than crowd the instruction line on a very narrow window - the rail's
+never-cramp rule, measured on the real 11 px monospace font (needs 380 px; the 300 px
+floor and the 390 px smoke phone both behave). The band claim is zero-cost: the
+plate's band already existed; the cap adds nothing new, which is why the committed
+stills and the default trace cannot move (verified, not argued: the advisory frame
+diff reports both stills bit-exact).
+
+**The pins.** One new smoke check (31) on its own page asserts the whole lifecycle:
+armed unlit at minimal, lit on a real `page.keyboard.down(' ')` (and the grab latches
+with it), dark on release, null at the full level on a wide window, null at HUD off,
+re-armed back at minimal, null on a 360 px desktop window (the never-cramp yield) and
+re-armed on restore. The touch-null half rides check 16 (a phone boots with no cap at
+all). No pure helper: the helper count stays 71 and the geometry is two multiplies on
+the plate's own rect, so the pins are state-level (`_keycapState`, re-armed each frame
+so they can never drift from the picture) plus exact x/y for the 1280x800 viewport.
+Gate numbers: 149 unit / 71 helpers / 42 smoke. The render was verified the house way
+(staged A/B frames: unlit whispers, lit warms gold, 390 px sits clear), which is what
+the gate cannot see.
+
+### The Shift G tooling shift
 
 Updated at the end of Shift G: the two queued tooling candidates shipped, one source
 hook and two new tools, with the usual fan-out (a subagent built the ritual generator

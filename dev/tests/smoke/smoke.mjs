@@ -1355,12 +1355,14 @@ try {
     panelWord: document.getElementById('grab-input-word').textContent,
     heading: document.getElementById('settings-heading').textContent,
     compact: window.__smokeGame._compactHud,
+    // Shift H: the key-cap names a key, so on touch it must not exist at all.
+    keycapNull: window.__smokeGame._keycapState === null,
     booted: !!window.__smokeGame.monkey,
   }));
-  record('touch: a phone viewport boots the game (no keyboard notice), copy follows the device',
+  record('touch: a phone viewport boots the game (no keyboard notice), copy follows the device, no key-cap',
     touchBoot.booted === true && touchBoot.notice === 'none' && touchBoot.touchClass === true &&
     !/SPACE/i.test(touchBoot.panelWord) && !/Press S/i.test(touchBoot.heading) &&
-    touchBoot.compact === true,
+    touchBoot.compact === true && touchBoot.keycapNull === true,
     JSON.stringify(touchBoot));
 
   // 17) Hold anywhere IS the button: a press on the play surface engages the stack and the
@@ -1839,6 +1841,88 @@ try {
   record('face states: calm on the pad, smile climbing, grimace on a stall slide, surprised coasting airborne',
     faces.pad === 'idle' && faces.climb === 'smile' && faces.slide === 'grimace' && faces.coast === 'surprised',
     JSON.stringify(faces));
+
+  // 31) Shift H (queued candidate 6): the SPACE key-cap rides the compact plate's first
+  //     line and lights while the PHYSICAL key is down - the keyboard half of "the game
+  //     saw that", closing the input loop for first-timers. The pin is the re-armed
+  //     state, not the pixels: armed unlit at minimal, lit on a real SPACE press (the
+  //     game's own keys[' '], so a focused form control would keep it dark and blur can
+  //     never stick it lit), dark again on release, null at the full level on a wide
+  //     window (no compact plate there), null at HUD off (?clean stays clean), re-armed
+  //     back at minimal, and null on a very narrow window where the cap would crowd the
+  //     instruction line (the never-cramp yield, measured on the real font). The touch
+  //     half is pinned in check 16: no key, no cap.
+  const keycapCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const keycapPage = await keycapCtx.newPage();
+  await keycapPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await keycapPage.waitForFunction(
+    () => window.__smokeGame && window.__smokeGame._keycapState,
+    null, { timeout: 20000, polling: 100 });
+  const keycap = await keycapPage.evaluate(() => ({ ...window.__smokeGame._keycapState }));
+  await keycapPage.keyboard.down(' ');
+  const keycapHeld = await keycapPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    const t0 = Date.now();
+    while (!(g._keycapState && g._keycapState.lit === true)) {
+      if (Date.now() - t0 > 5000) break;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    return { lit: !!(g._keycapState && g._keycapState.lit), grab: g.monkey.isGrabbing };
+  });
+  await keycapPage.keyboard.up(' ');
+  const keycapCycle = await keycapPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    const until = async (fn, maxMs = 5000) => {
+      const t0 = Date.now();
+      while (!fn()) { if (Date.now() - t0 > maxMs) return false; await new Promise((r) => setTimeout(r, 25)); }
+      return true;
+    };
+    const pressH = async (want) => {
+      const prev = g._hudLevelDrawn;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+      await until(() => g._hudLevelDrawn !== prev && g._hudLevelDrawn === want);
+      return g._hudLevelDrawn;
+    };
+    const out = {};
+    out.released = await until(() => g._keycapState && g._keycapState.lit === false);
+    await pressH(1);                       // -> full (wide: no compact plate)
+    out.atFull = g._keycapState;
+    await pressH(2);                       // -> off
+    out.atOff = g._keycapState;
+    await pressH(0);                       // -> minimal again
+    out.backLevel = g._hudLevelDrawn;
+    out.back = g._keycapState ? { ...g._keycapState } : null;
+    return out;
+  });
+  await keycapPage.setViewportSize({ width: 360, height: 800 });
+  const keycapNarrow = await keycapPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    let frames = 0; const orig = g._boundUpdate;
+    g._boundUpdate = (t) => { frames++; return orig(t); };
+    const t0 = Date.now();
+    while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = orig;
+    return { state: g._keycapState, compact: g._compactHud, frames };
+  });
+  await keycapPage.setViewportSize({ width: 1280, height: 800 });
+  const keycapRestored = await keycapPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    let frames = 0; const orig = g._boundUpdate;
+    g._boundUpdate = (t) => { frames++; return orig(t); };
+    const t0 = Date.now();
+    while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = orig;
+    return g._keycapState ? { ...g._keycapState } : null;
+  });
+  record('key-cap glyph: armed unlit at minimal, lights with the real SPACE key, hidden at full/off, yields to a narrow window',
+    keycap.lit === false && keycap.x === 1220 && keycap.y === 743 && keycap.w === 46 && keycap.h === 17 &&
+    keycapHeld.lit === true && keycapHeld.grab === true &&
+    keycapCycle.released === true && keycapCycle.atFull === null && keycapCycle.atOff === null &&
+    keycapCycle.backLevel === 0 && keycapCycle.back && keycapCycle.back.lit === false &&
+    keycapNarrow.state === null && keycapNarrow.compact === true && keycapNarrow.frames >= 2 &&
+    keycapRestored && keycapRestored.x === 1220 && keycapRestored.lit === false,
+    JSON.stringify({ keycap, keycapHeld, keycapCycle, keycapNarrow, keycapRestored }));
+  await keycapCtx.close();
 
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {

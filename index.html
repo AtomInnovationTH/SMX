@@ -6588,9 +6588,10 @@
                 ctx.textAlign = 'left';
                 ctx.font = 'bold 11px monospace';
                 ctx.fillStyle = 'rgba(190, 240, 255, 0.9)';
-                ctx.fillText(_touchPlay ? 'HOLD anywhere: pulse / catch the wave'
-                                        : 'SPACE: pulse · S: settings · H: instruments',
-                             plateX + 8, plateY + 15);
+                const line1 = _touchPlay ? 'HOLD anywhere: pulse / catch the wave'
+                                         : 'SPACE: pulse · S: settings · H: instruments';
+                ctx.fillText(line1, plateX + 8, plateY + 15);
+                const line1W = ctx.measureText(line1).width;
                 ctx.font = '9px monospace';
                 ctx.fillStyle = COLOR_PALETTE.GRAB_GOLD;
                 // In the 0.01-1 Hz band the table's own verdict is the reflection warning,
@@ -6604,6 +6605,42 @@
                     ctx.fillStyle = this.cargoDelivered ? 'rgba(0, 229, 255, 0.95)' : 'rgba(190, 240, 255, 0.85)';
                     ctx.fillText(scoreLine, plateX + 8, plateY + 43);
                 }
+                // Queued candidate 6: the SPACE key-cap at the plate's right end, closing
+                // the input loop for first-timers - press the key and the glyph lights, so
+                // "the game saw that" is on screen from the first press instead of being
+                // inferred from the world reacting. It lights on the PHYSICAL key
+                // (InputManager's own keys[' '], state the game already owns): a focused
+                // form control gates the keydown, so the cap stays dark while a slider is
+                // being tuned, and the blur/visibility sweep can never leave it stuck lit.
+                // A mouse/touch hold does not light it - the cap depicts the key, and the
+                // monkey's glowing hands remain the game-state half of the loop. Static in
+                // both states (the toggle follows the player's own key rate; nothing
+                // animates on its own), so the 3 Hz and reduced-motion rules are met by
+                // construction, the same pattern as the rail's live dot. Never on touch
+                // (a key that is not there stays un-named, the grabHintText rule) and
+                // never at HUD off (it rides this plate, so ?clean stays clean). It yields
+                // rather than crowd line 1 on a very narrow window: the rail's never-cramp
+                // rule, measured on the real font. Lit colour routes through
+                // COLOR_PALETTE so the Okabe-Ito swap keeps working, and the legend,
+                // border and fill change together, so colour is never the only signal.
+                if (!_touchPlay) {
+                    const capW = 46, capH = 17, capX = plateX + plateW - capW - 8, capY = plateY + 3;
+                    if (capX >= plateX + 8 + line1W + 10) {
+                        const lit = this.inputManager.isKeyPressed(' ');
+                        this._keycapState = { lit, x: capX, y: capY, w: capW, h: capH };
+                        ctx.fillStyle = lit ? COLOR_PALETTE.GRAB_GOLD : 'rgba(255, 255, 255, 0.08)';
+                        ctx.globalAlpha = lit ? 0.22 : 1;
+                        this.roundRect(ctx, capX, capY, capW, capH, 4);
+                        ctx.globalAlpha = 1;
+                        ctx.strokeStyle = lit ? COLOR_PALETTE.GRAB_GOLD : 'rgba(255, 255, 255, 0.45)';
+                        ctx.lineWidth = 1.5;
+                        this.roundRect(ctx, capX, capY, capW, capH, 4, false);
+                        ctx.fillStyle = lit ? COLOR_PALETTE.GRAB_GOLD : 'rgba(255, 255, 255, 0.6)';
+                        ctx.font = 'bold 10px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('SPACE', capX + capW / 2, capY + 12.5);
+                    }
+                }
                 ctx.restore();
             }
 
@@ -6613,6 +6650,9 @@
                 // renderers below read them (and the smoke test asserts them).
                 this._compactHud = compactHudLayout(width);
                 this._hudLevelDrawn = _uxHudLevel;
+                // Shift H: the key-cap state, re-armed each frame by renderCompactHud when
+                // (and only when) the cap draws, so the smoke pin can never drift from it.
+                this._keycapState = null;
 
                 this.webglBg.render();
                 

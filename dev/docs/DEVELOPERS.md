@@ -188,8 +188,9 @@ width, 38 px for its two lines and 52 px when it also carries the minimal score 
 Instrument detail is a level, not a toggle: `_uxHudLevel` is minimal (the default) /
 full / off, cycled by `H`, with `?clean` booting straight to off for captures. Every
 instrument is drawn on the canvas, so nothing can be hidden with CSS: anything new must
-read `_uxHudLevel` itself. Minimal is the badge, the energy bar, the compact plate (one
-instruction, the p.11 carrier line and the throughput score) and a beat's title,
+read `_uxHudLevel` itself. Minimal is the badge, the energy bar, the altitude rail, the
+compact plate (one instruction, the p.11 carrier line, the throughput score and the
+SPACE key-cap that lights while the physical key is down, Shift H) and a beat's title,
 except trivia beats flagged `minimalQuiet` (stack heat, the mode question, the
 resonance offer, gigacycle fatigue): those draw only at full, and the pump skips
 them outright at minimal so an
@@ -589,7 +590,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   gate.
 - **Current gate numbers** (keep these updated when they move): **149 unit tests**
   (pure 128, sliders 12, balance 9), **71 pure helpers** in the delimited block,
-  **98 = 98** asset references, **41 browser smoke checks**, `index.html` **435 KB**.
+  **98 = 98** asset references, **42 browser smoke checks**, `index.html` **435 KB**.
 - Adding a pure helper: write it in the block, then run `node dev/tools/sync_test_exports.mjs
   --write` (Shift G). The script scans the delimited block and lands the three
   mechanical edits (`EXPORTED_SYMBOLS`, the pure.test.mjs destructure and sanity
