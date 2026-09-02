@@ -26,7 +26,10 @@ traps that have already cost time. The per-shift narrative record lives in
 - **Default climb**: MOVED by the 2026-08-22 integrity shift (deliberately, explained
   in the snapshot diff and DESIGN.md: the invented cold-coupling penalty is deleted,
   so the low climb runs 5 s faster; cruise never moved because the penalty never
-  reached vacuum). Unchanged by everything before it, most recently the key-cap
+  reached vacuum). Unchanged by everything before it, most recently the
+  sources-screen shift (DOM chrome only: the citations page plus the settings
+  panel's desktop scroll; `updateContinuous` untouched, and the advisory frame
+  diff verified the committed stills bit-exact), the key-cap
   glyph shift (render-only: the new instrument rides the compact plate; no
   `updateContinuous` change, so the trace cannot move, and the advisory frame diff
   verified the committed stills bit-exact), the phone-forms
@@ -43,11 +46,15 @@ traps that have already cost time. The per-shift narrative record lives in
 
 ## Priorities for this shift
 
-The most recent completed work is the **integrity shift** (2026-08-22): the
-invented cold-coupling penalty deleted from `updateContinuous` and the scored cargo
-frozen at liftoff (`_runCargoKg`), trace moved deliberately and explained. The
+The most recent completed work is the **sources-screen shift** (Shift I,
+2026-09-03): the citations moved into the game (a Sources & credits button in
+Settings), the settings panel gained the desktop scroll it had silently needed,
+and the review pass pinned the CSS at the exact failing viewports. Before it,
+the **integrity shift** (2026-08-22) deleted the
+invented cold-coupling penalty from `updateContinuous` and froze the scored cargo
+at liftoff (`_runCargoKg`), trace moved deliberately and explained. The
 narrative is in [`shift-log.md`](shift-log.md); the rules are pinned in
-[`DESIGN.md`](DESIGN.md). Nothing from it remains open.
+[`DESIGN.md`](DESIGN.md). Nothing from either remains open.
 
 The thermal shift's priority 1 is **done**: the hot side of thermal shipped as the
 exact bookkeeping the sources support and nothing more (the section-0 verdict: the

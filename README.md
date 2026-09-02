@@ -22,7 +22,7 @@ magnets run flat, then catch it again. Get 3 kg to the Kármán line as fast as 
 |---|---|
 | `SPACE` / hold anywhere | Engage the magnets (hold) |
 | `1` `2` `3` | Sine, square or sawtooth carrier |
-| `S` | Settings: ground station, film, climber |
+| `S` | Settings: ground station, tether, climber, sources |
 | `R` `P` | Restart, pause |
 | `H` | Instruments: minimal, all readouts, none |
 | `C` `M` | Colourblind palette, sound |
@@ -66,7 +66,8 @@ Also cited by the paper, and used here:
 * **Zubax [FluxGrip FG40](https://fluxgrip.zubax.com/)**, the real electro-permanent magnet hardware, including its
   published force-versus-airgap curve. No affiliation.
 
-Full citations and art provenance: [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md).
+Full citations and art provenance: [`ATTRIBUTIONS.md`](ATTRIBUTIONS.md). In the game
+itself: the Sources & credits button in Settings.
 
 ---
 

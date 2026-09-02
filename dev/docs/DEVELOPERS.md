@@ -165,7 +165,8 @@ CI remains the authority.
 
 Rough top-to-bottom structure of `Space_Monkey_Elevator.html`:
 
-- **`<head>` / `<body>`** — styles, settings panel, overlays (loading, pause,
+- **`<head>` / `<body>`** — styles, settings panel, the sources page (Shift I: the
+  citations in-game, chrome not play surface), overlays (loading, pause,
   game-over, mobile gate), `<noscript>`, the two canvases.
 - **Tunable constants & storage keys** — UX constants and `localStorage` keys.
 - **`GameConfig`** — central tuning: `PHYSICS`, `GRAB`, `COUPLING`, `EPM`, `TETHER`,
