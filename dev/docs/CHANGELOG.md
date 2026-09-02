@@ -22,7 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a real reachability bug: the settings panel had outgrown every desktop
   viewport and only the phone layout could scroll, so everything under the fold
   (the colorblind toggle included) was unreachable on desktop; the panel now
-  caps at the viewport and scrolls everywhere. The Still Unsolved hint that
+  caps at the viewport and scrolls everywhere. The review pass caught what the
+  smoke could not: the new cap leaked into the phone layout (24 px short of its
+  bottom edge; `max-height: none` there now), both panels were content-box so
+  the cap overshot the viewport by the padding (`box-sizing: border-box`), and
+  the close button was absolute, so a short desktop window could scroll it away
+  (sticky now). The Still Unsolved hint that
   said "See ATTRIBUTIONS.md" points at the button now. Gate: 149 unit tests
   (unchanged), 71 pure helpers (unchanged), 43/43 smoke (was 42; the sources
   lifecycle takes its check).

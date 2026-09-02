@@ -53,6 +53,16 @@ hides sources while Settings stays open, focus dropped both times. Gate
 numbers: 149 unit / 71 helpers / 43 smoke. No pure helper: the page is markup
 and two toggles, so the helper ritual stays untouched.
 
+**The review pass.** A second look at the shipped commit caught three CSS nits
+the smoke could not see, all verified headlessly at the exact failing sizes:
+the new desktop cap leaked into the phone layout through the media query
+(`max-height: none` there now; the panel reaches its bottom-8px edge again),
+both panels were content-box so the cap overshot the viewport by the padding
+(`box-sizing: border-box`; both bottoms now land exactly 20 px above the fold),
+and the sources close button was absolute, so a 561-700px-tall desktop window
+that scrolls the page could carry it out of view (sticky + float now; it rides
+the scroll).
+
 ### The Shift H key-cap shift
 
 Updated at the end of Shift H: the last open queued candidate (6, desktop key-cap

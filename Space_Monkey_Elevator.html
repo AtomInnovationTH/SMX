@@ -83,7 +83,7 @@
            read), and only the small-screen layout below could scroll: on a tall desktop
            everything under the fold, the colorblind toggle included, was unreachable.
            Cap it to the viewport and scroll. */
-        #settingsPanel { position: fixed; top: 20px; left: 20px; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 100; touch-action: pan-y; }
+        #settingsPanel { position: fixed; top: 20px; left: 20px; box-sizing: border-box; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 100; touch-action: pan-y; }
         #settingsPanel.visible { display: block; }
         /* Close button: only shown in the small-screen layout below, where the panel fills
            the viewport (it covers the gear button) and there is no S key to toggle it. */
@@ -107,11 +107,14 @@
            scrolls the same way. Play-surface safety is in _CHROME_SELECTOR, not here. */
         #sources-btn { font-size: 10px; margin: 0 0 10px; padding: 3px 7px; background: rgba(0, 90, 130, 0.35); color: #cfe6f5; border: 1px solid rgba(0, 180, 230, 0.45); border-radius: 4px; cursor: pointer; }
         #sources-btn:hover { background: rgba(0, 130, 180, 0.5); }
-        #sourcesPanel { position: fixed; top: 20px; left: 20px; max-width: 430px; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; background: rgba(0, 0, 0, 0.88); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 102; touch-action: pan-y; }
+        #sourcesPanel { position: fixed; top: 20px; left: 20px; box-sizing: border-box; max-width: 430px; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; background: rgba(0, 0, 0, 0.88); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 102; touch-action: pan-y; }
         #sourcesPanel.visible { display: block; }
         #sourcesPanel a { color: #6bc8ff; }
         #sourcesPanel h3 { margin: 0 40px 8px 0; }
-        #sources-close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; font: 16px/1 monospace; color: #cfe6f5; background: rgba(0, 90, 130, 0.55); border: 1px solid rgba(0, 180, 230, 0.5); border-radius: 6px; cursor: pointer; padding: 0; }
+        /* Sticky, not absolute: the page can scroll on short desktop windows, and an
+           absolute button would ride the content out of view. The small-screen layout
+           below pins it to the viewport instead. */
+        #sources-close { position: sticky; top: 0; float: right; width: 28px; height: 28px; font: 16px/1 monospace; color: #cfe6f5; background: rgba(0, 90, 130, 0.55); border: 1px solid rgba(0, 180, 230, 0.5); border-radius: 6px; cursor: pointer; padding: 0; margin: 0 0 4px 8px; }
         .source-entry { font-size: 11px; color: #cfe6f5; background: rgba(0, 90, 130, 0.18); border-radius: 4px; padding: 7px 9px; margin: 6px 0; line-height: 1.45; }
         .source-entry b { color: #ffe08a; }
         .source-foot { display: block; font-size: 10px; color: #9bb6c9; opacity: 0.85; margin-top: 8px; line-height: 1.35; }
@@ -133,6 +136,7 @@
         @media (max-width: 820px), (max-height: 560px) {
             #settingsPanel {
                 top: 8px; left: 8px; right: 8px; bottom: 8px;
+                max-height: none;
                 overflow-y: auto; -webkit-overflow-scrolling: touch;
                 padding: 12px 12px 28px; border-radius: 8px;
             }
