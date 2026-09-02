@@ -177,7 +177,7 @@ a share-or-refuse decision the paper itself leaves unsolved.
 ## Run and build
 
 ```bash
-node --test dev/tests/*.test.mjs   # 141 tests, no dependencies
+node --test dev/tests/*.test.mjs   # 149 tests, no dependencies
 bash dev/tools/check.sh            # tests, rebuild check, asset check, browser smoke
 python3 embed_assets.py        # Space_Monkey_Elevator.html -> index.html
 ```
