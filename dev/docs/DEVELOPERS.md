@@ -590,7 +590,7 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
   gate.
 - **Current gate numbers** (keep these updated when they move): **149 unit tests**
   (pure 128, sliders 12, balance 9), **71 pure helpers** in the delimited block,
-  **98 = 98** asset references, **42 browser smoke checks**, `index.html` **435 KB**.
+  **98 = 98** asset references, **43 browser smoke checks**, `index.html` **490 KB**.
 - Adding a pure helper: write it in the block, then run `node dev/tools/sync_test_exports.mjs
   --write` (Shift G). The script scans the delimited block and lands the three
   mechanical edits (`EXPORTED_SYMBOLS`, the pure.test.mjs destructure and sanity

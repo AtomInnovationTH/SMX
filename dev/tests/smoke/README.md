@@ -14,9 +14,10 @@ cannot boot the game, render, or catch asset 404s. This smoke test drives the bu
   the literal 8-pair FG40 stack and its firing sweep, the film band, both photosafety
   ceilings and the reduced-motion freezes, the event schedule, the descenders, the
   multi-climber power sharing, the presets, the persistence purge, touch play, the HUD
-  levels, the slip-crest overlay and the climber's face states (calm on the pad, smile
-  climbing, grimace on a stall slide, surprised coasting airborne)
-  (30 checks today; the script's own comments are the per-check record).
+  levels, the slip-crest overlay, the climber's face states (calm on the pad, smile
+  climbing, grimace on a stall slide, surprised coasting airborne), the share-URL boot
+  and toast, the aria-live cadence, the SPACE key-cap lifecycle, and the sources screen
+  (43 checks today; the script's own comments are the per-check record).
 
 ## It is optional and adds no committed dependency
 

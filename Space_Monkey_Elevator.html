@@ -79,7 +79,11 @@
         .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('assets/noise.jpeg'); background-size: 400px 400px; mix-blend-mode: overlay; opacity: 0.12; pointer-events: none; z-index: 9; }
         .grass-ground.visible { opacity: 1; }
         
-        #settingsPanel { position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 100; touch-action: pan-y; }
+        /* The panel long ago outgrew every desktop viewport (the M4 hints alone are a
+           read), and only the small-screen layout below could scroll: on a tall desktop
+           everything under the fold, the colorblind toggle included, was unreachable.
+           Cap it to the viewport and scroll. */
+        #settingsPanel { position: fixed; top: 20px; left: 20px; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 100; touch-action: pan-y; }
         #settingsPanel.visible { display: block; }
         /* Close button: only shown in the small-screen layout below, where the panel fills
            the viewport (it covers the gear button) and there is no S key to toggle it. */
@@ -96,6 +100,21 @@
         .preset-row button { font-size: 10px; margin: 2px 2px 2px 0; padding: 3px 7px; background: rgba(0, 90, 130, 0.35); color: #cfe6f5; border: 1px solid rgba(0, 180, 230, 0.45); border-radius: 4px; cursor: pointer; }
         .preset-row button:hover { background: rgba(0, 130, 180, 0.5); }
         .preset-row .setting-hint b { color: #ffe08a; }
+
+        /* Sources screen (Shift I): the citations leave GitHub and enter the game. One
+           button in Settings opens it; its own close button is the only way out (S keeps
+           meaning Settings, and no new key is taken). Sits above the settings panel and
+           scrolls the same way. Play-surface safety is in _CHROME_SELECTOR, not here. */
+        #sources-btn { font-size: 10px; margin: 0 0 10px; padding: 3px 7px; background: rgba(0, 90, 130, 0.35); color: #cfe6f5; border: 1px solid rgba(0, 180, 230, 0.45); border-radius: 4px; cursor: pointer; }
+        #sources-btn:hover { background: rgba(0, 130, 180, 0.5); }
+        #sourcesPanel { position: fixed; top: 20px; left: 20px; max-width: 430px; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; background: rgba(0, 0, 0, 0.88); padding: 15px; border-radius: 5px; color: white; font-size: 12px; display: none; z-index: 102; touch-action: pan-y; }
+        #sourcesPanel.visible { display: block; }
+        #sourcesPanel a { color: #6bc8ff; }
+        #sourcesPanel h3 { margin: 0 40px 8px 0; }
+        #sources-close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; font: 16px/1 monospace; color: #cfe6f5; background: rgba(0, 90, 130, 0.55); border: 1px solid rgba(0, 180, 230, 0.5); border-radius: 6px; cursor: pointer; padding: 0; }
+        .source-entry { font-size: 11px; color: #cfe6f5; background: rgba(0, 90, 130, 0.18); border-radius: 4px; padding: 7px 9px; margin: 6px 0; line-height: 1.45; }
+        .source-entry b { color: #ffe08a; }
+        .source-foot { display: block; font-size: 10px; color: #9bb6c9; opacity: 0.85; margin-top: 8px; line-height: 1.35; }
         input[type="range"] { width: 200px; }
         
         /* Style monkey sliders brown to match monkey */
@@ -127,6 +146,17 @@
                 width: 44px; height: 44px; font: 22px/1 monospace; color: #cfe6f5;
                 background: rgba(0, 90, 130, 0.55); border: 1px solid rgba(0, 180, 230, 0.5);
                 border-radius: 8px; cursor: pointer; padding: 0;
+            }
+            /* The sources page gets the same fill-and-scroll treatment, and its close
+               button pins to the viewport so scrolling can never carry it away. */
+            #sourcesPanel {
+                top: 8px; left: 8px; right: 8px; bottom: 8px;
+                max-width: none; max-height: none;
+                padding: 12px 12px 28px; border-radius: 8px;
+            }
+            #sources-close {
+                position: fixed; top: 14px; right: 14px; z-index: 103;
+                width: 44px; height: 44px; font: 22px/1 monospace; border-radius: 8px;
             }
         }
         
@@ -367,6 +397,7 @@
     <div id="settingsPanel">
         <button id="settings-close" title="Close settings" aria-label="Close settings">&times;</button>
         <h3 id="settings-heading">Settings (Press S to toggle)</h3>
+        <button id="sources-btn" title="Every source behind the game's numbers">Sources &amp; credits</button>
         <div class="settings-concept">
             Your climber's propulsion is a <b>stack of electro-permanent magnets (EPMs)</b>:
             momentum crosses an air gap by pulsed eddy-current traction in the conductive
@@ -577,7 +608,52 @@
             to standing, the resonance lever (p.10).
         </div>
         <small class="setting-hint">If you have an answer to any of these, the author is
-        actively asking for one. See ATTRIBUTIONS.md for the paper and where to find it.</small>
+        actively asking for one. The paper and where to find it: the Sources &amp; credits
+        button at the top of this panel.</small>
+    </div>
+
+    <!-- Sources screen (Shift I): the four sources behind every number, readable without
+         leaving the game. The repo's ATTRIBUTIONS.md stays the long form; this page is
+         the player-facing credit the paper deck earns on every load. -->
+    <div id="sourcesPanel" aria-labelledby="sources-heading">
+        <button id="sources-close" title="Close sources" aria-label="Close sources">&times;</button>
+        <h3 id="sources-heading">Sources</h3>
+        <div class="source-entry">
+            <b>Blaise Gassend</b>, <i>Powering Climbers Using Mechanical Waves: Fundamental
+            Limits, Getting Around Them, and One Climber Concept</i>. ISDC 2025, Space
+            Elevator Technical Session, Orlando, 21 June 2025. The primary source: every
+            idea this game simulates comes from this deck, and the report card measures
+            your run against its own figures. Not affiliated; not endorsed.<br>
+            <a href="https://gassend.net/spaceelevator/isdc2025/" target="_blank" rel="noopener">author's page ↗</a> ·
+            <a href="https://www.isec.org/s/ISDC2025-05-Powering-Climbers-Using-Mechanical-Waves.pdf" target="_blank" rel="noopener">ISEC mirror (PDF) ↗</a>
+        </div>
+        <div class="source-entry">
+            <b>Mark A. Wessels</b>, <i>Space Elevator Propulsion with Mechanical Waves</i>,
+            arXiv:1802.07443 (2018), and patent US 8,196,867 B1. His 92 Hz carrier and
+            60 cm stroke are the Wessels preset.<br>
+            <a href="https://arxiv.org/abs/1802.07443" target="_blank" rel="noopener">arXiv ↗</a> ·
+            <a href="https://patents.google.com/patent/US8196867B1" target="_blank" rel="noopener">patent ↗</a>
+        </div>
+        <div class="source-entry">
+            <b>Keith Lofstrom</b>, <i>Acoustic Wave Powered Climbers</i>. Independent prior
+            work: 100-1000 Hz longitudinal waves with 1.2-18 cm strokes (the low end of the
+            Amplitude slider), and the observation that descending climbers dump energy
+            into ribbon vibrations, which is why the monkeys passing you on the way down
+            leave a ripple in the film.<br>
+            <a href="http://www.launchloop.com/AcousticClimber" target="_blank" rel="noopener">launchloop.com ↗</a>
+        </div>
+        <div class="source-entry">
+            <b>Zubax Robotics FluxGrip FG40</b>. The real electro-permanent magnets the
+            climber's stack is modelled on, including the published force-versus-airgap
+            curve the Air gap slider reads. No affiliation or endorsement implied.<br>
+            <a href="https://fluxgrip.zubax.com/" target="_blank" rel="noopener">fluxgrip.zubax.com ↗</a>
+        </div>
+        <small class="source-foot">Climbing past landmarks to the Kármán line is a tribute to
+            <a href="https://neal.fun/space-elevator/" target="_blank" rel="noopener">Neal Agarwal's Space Elevator</a>.
+            All code and art here is original, MIT licensed. Full provenance, including how
+            every art asset was made:
+            <a href="https://github.com/AtomInnovationTH/SMX/blob/main/ATTRIBUTIONS.md" target="_blank" rel="noopener">ATTRIBUTIONS.md ↗</a>
+            · <a href="https://github.com/AtomInnovationTH/SMX" target="_blank" rel="noopener">source code ↗</a></small>
     </div>
 
     <script>
@@ -3395,7 +3471,7 @@
         // overlay already restarts on click, and giving one tap two restart paths is how
         // you get a double restart. `closest` needs an Element — the document does not
         // have it, hence the guard.
-        const _CHROME_SELECTOR = '#settingsPanel, #game-over-overlay, #mobile-notice, '
+        const _CHROME_SELECTOR = '#settingsPanel, #sourcesPanel, #game-over-overlay, #mobile-notice, '
                                + '#pause-overlay, #loading-overlay, button, input, select, textarea, a';
         const _isChromeTarget = (t) => !!(t && t.closest && t.closest(_CHROME_SELECTOR));
 
@@ -3861,6 +3937,21 @@
                 if (closeBtn) closeBtn.addEventListener('click', () => {
                     document.getElementById('settingsPanel').classList.remove('visible');
                     closeBtn.blur();   // same focus-gating reason as the gear button above
+                });
+                // Sources screen (Shift I): the Sources & credits button in Settings opens
+                // the citations page; its own close button is the only way out (S keeps
+                // meaning Settings, and no new key is taken). The page is chrome, not play
+                // surface: #sourcesPanel rides _CHROME_SELECTOR, so a hold on it never
+                // engages the stack.
+                const sourcesBtn = document.getElementById('sources-btn');
+                if (sourcesBtn) sourcesBtn.addEventListener('click', () => {
+                    document.getElementById('sourcesPanel').classList.toggle('visible');
+                    sourcesBtn.blur();   // same focus-gating reason as the gear button above
+                });
+                const sourcesClose = document.getElementById('sources-close');
+                if (sourcesClose) sourcesClose.addEventListener('click', () => {
+                    document.getElementById('sourcesPanel').classList.remove('visible');
+                    sourcesClose.blur(); // same focus-gating reason as the gear button above
                 });
                 // UX: in-panel colorblind toggle button (2f); label refreshed via the
                 // shared refreshColorblindToggleLabel() so it can never drift from state.

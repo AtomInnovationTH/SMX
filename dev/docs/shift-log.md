@@ -9,7 +9,51 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The Shift H key-cap shift (most recent)
+### The Shift I sources-screen shift (most recent)
+
+Updated at the end of Shift I: the first parked lift got its owner sign-off (the
+in-game sources screen) and shipped.
+
+**What shipped.** The citations leave GitHub and enter the game. A Sources &
+credits button sits in Settings right under the panel heading (first thing
+seen, on screen at any viewport the panel opens on), and it opens
+a page: four source entries with real links (Gassend's author page and the ISEC
+mirror, Wessels' arXiv paper and his US 8,196,867 B1 patent, Lofstrom's
+launchloop page, Zubax's FluxGrip site), each with one line on what the game
+took from it, then a footer for the Neal Agarwal tribute, the MIT licence and
+the ATTRIBUTIONS.md long form. Every claim on the page was already true
+somewhere in the repo; the page makes them visible from inside the game, which
+is where the credit is owed. No key is taken: S keeps meaning Settings, and the
+page's own close button is the only way out, visible on desktop too (unlike the
+settings close, which only phones need because desktops have S).
+
+**The fix it forced.** The settings panel long ago outgrew every desktop
+viewport, and only the phone layout could scroll: on a tall desktop everything
+under the fold (the colorblind toggle and Still Unsolved included) was
+unreachable short of shrinking the window under the 560 px media query. The
+panel now caps at the viewport and scrolls on desktop too (max-height plus
+overflow-y, overscroll contained; the phone layout is untouched). The Sources
+button still sits near the TOP on purpose: found without scrolling, or not
+found.
+
+**Chrome, not play surface.** The page rides _CHROME_SELECTOR, so a hold on its
+body never engages the stack (shift 9's phone lesson, applied before it could
+bite). Both buttons blur themselves after click, the gear pattern, so SPACE
+never re-activates them. Nothing on the page animates: photosafety and reduced
+motion are met by construction.
+
+**The pins.** One new smoke check (32) on its own page asserts the lifecycle:
+hidden on boot, the button inside the settings panel AND on-screen without
+scrolling at 1280x800 (the found-without-scrolling rule as a rect assertion),
+a real gear click then a real button click opens it, exactly 4 source entries
+carrying the exact hrefs (author's page, ISEC PDF, arXiv, patent, launchloop,
+fluxgrip, ATTRIBUTIONS.md), a held mouse on the page body never grabs (two real
+frames observed via the keycap check's counter pattern), and the close click
+hides sources while Settings stays open, focus dropped both times. Gate
+numbers: 149 unit / 71 helpers / 43 smoke. No pure helper: the page is markup
+and two toggles, so the helper ritual stays untouched.
+
+### The Shift H key-cap shift
 
 Updated at the end of Shift H: the last open queued candidate (6, desktop key-cap
 feedback) shipped. The queue is now empty.

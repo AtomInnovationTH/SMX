@@ -1924,6 +1924,102 @@ try {
     JSON.stringify({ keycap, keycapHeld, keycapCycle, keycapNarrow, keycapRestored }));
   await keycapCtx.close();
 
+  // 32) Shift I, the sources screen: the citations leave GitHub and enter the game. One
+  //     button in Settings (on-screen without scrolling, or first-timers never find it)
+  //     opens the page: four source entries with real links (Gassend author page + ISEC
+  //     mirror, Wessels arXiv + patent, Lofstrom, Zubax) plus the ATTRIBUTIONS.md long
+  //     form. The page is chrome, not play surface: a mouse hold on its body must never
+  //     engage the stack (#sourcesPanel rides _CHROME_SELECTOR). Its own close button is
+  //     the only way out and must leave Settings still open underneath.
+  const srcCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const srcPage = await srcCtx.newPage();
+  await srcPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await srcPage.waitForFunction(() => window.__smokeGame && window.__smokeGame.monkey, null, { timeout: 20000, polling: 100 });
+  await srcPage.waitForFunction(() => {
+    const o = document.getElementById('loading-overlay');
+    return !o || getComputedStyle(o).display === 'none';
+  }, null, { timeout: 20000 });
+  const srcBoot = await srcPage.evaluate(() => ({
+    hidden: !document.getElementById('sourcesPanel').classList.contains('visible'),
+    btnInSettings: !!document.querySelector('#settingsPanel #sources-btn'),
+  }));
+  const srcGear = await srcPage.evaluate(() => {
+    const r = document.getElementById('ux-settings-btn').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await srcPage.mouse.click(srcGear.x, srcGear.y);
+  await srcPage.waitForFunction(
+    () => document.getElementById('settingsPanel').classList.contains('visible'),
+    null, { timeout: 5000, polling: 100 });
+  const srcBtnRect = await srcPage.evaluate(() => {
+    const r = document.getElementById('sources-btn').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2,
+             onScreen: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 };
+  });
+  await srcPage.mouse.click(srcBtnRect.x, srcBtnRect.y);
+  await srcPage.waitForFunction(
+    () => document.getElementById('sourcesPanel').classList.contains('visible'),
+    null, { timeout: 5000, polling: 100 });
+  const srcOpen = await srcPage.evaluate(() => {
+    const panel = document.getElementById('sourcesPanel');
+    const hrefs = Array.from(panel.querySelectorAll('a')).map((a) => a.href);
+    const has = (frag) => hrefs.some((h) => h.includes(frag));
+    return {
+      visible: panel.classList.contains('visible'),
+      entries: panel.querySelectorAll('.source-entry').length,
+      gassend: has('gassend.net/spaceelevator/isdc2025'),
+      isec: has('isec.org') && has('Powering-Climbers-Using-Mechanical-Waves.pdf'),
+      wessels: has('arxiv.org/abs/1802.07443'), patent: has('US8196867'),
+      lofstrom: has('launchloop.com/AcousticClimber'), zubax: has('fluxgrip.zubax.com'),
+      attributions: has('ATTRIBUTIONS.md'),
+      activeTag: document.activeElement && document.activeElement.tagName,
+    };
+  });
+  // A hold on the page body is chrome, never a pulse. State cannot signal a
+  // non-event, so wait two real frames (the keycap check's counter pattern)
+  // with the button held before reading the latch.
+  const srcBody = await srcPage.evaluate(() => {
+    const r = document.getElementById('sourcesPanel').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + 14 };
+  });
+  await srcPage.mouse.move(srcBody.x, srcBody.y);
+  await srcPage.mouse.down();
+  const srcGrab = await srcPage.evaluate(async () => {
+    const g = window.__smokeGame;
+    let frames = 0; const orig = g._boundUpdate;
+    g._boundUpdate = (t) => { frames++; return orig(t); };
+    const t0 = Date.now();
+    while (frames < 2) { if (Date.now() - t0 > 5000) break; await new Promise((r) => setTimeout(r, 25)); }
+    g._boundUpdate = orig;
+    return { grab: g.monkey.isGrabbing, frames };
+  });
+  await srcPage.mouse.up();
+  const srcCloseRect = await srcPage.evaluate(() => {
+    const r = document.getElementById('sources-close').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await srcPage.mouse.click(srcCloseRect.x, srcCloseRect.y);
+  await srcPage.waitForFunction(
+    () => !document.getElementById('sourcesPanel').classList.contains('visible'),
+    null, { timeout: 5000, polling: 100 });
+  const srcAfter = await srcPage.evaluate(() => ({
+    sourcesHidden: !document.getElementById('sourcesPanel').classList.contains('visible'),
+    settingsStill: document.getElementById('settingsPanel').classList.contains('visible'),
+    activeTag: document.activeElement && document.activeElement.tagName,
+  }));
+  record('sources: the Settings button opens the citations page (4 entries, real links), body is chrome, close leaves Settings open',
+    srcBoot.hidden === true && srcBoot.btnInSettings === true &&
+    srcBtnRect.onScreen === true &&
+    srcOpen.visible === true && srcOpen.entries === 4 &&
+    srcOpen.gassend && srcOpen.isec && srcOpen.wessels && srcOpen.patent &&
+    srcOpen.lofstrom && srcOpen.zubax && srcOpen.attributions &&
+    srcOpen.activeTag !== 'BUTTON' &&
+    srcGrab.grab === false && srcGrab.frames >= 2 &&
+    srcAfter.sourcesHidden === true && srcAfter.settingsStill === true &&
+    srcAfter.activeTag !== 'BUTTON',
+    JSON.stringify({ srcBoot, srcBtnRect, srcOpen, srcGrab, srcAfter }));
+  await srcCtx.close();
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

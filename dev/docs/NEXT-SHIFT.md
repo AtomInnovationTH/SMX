@@ -11,8 +11,8 @@ traps that have already cost time. The per-shift narrative record lives in
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half;
   `VISUAL_REGRESS=1` to add the advisory frame diff). Currently 149 unit tests,
-  42 smoke checks, 98 = 98 asset references, 71 pure helpers, all green.
-- **Payload**: `index.html` is 435 KB. Only assets under 20 KB are inlined; the clouds,
+  43 smoke checks, 98 = 98 asset references, 71 pure helpers, all green.
+- **Payload**: `index.html` is 490 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
   standing-wave resonance (p.10), multi-climber power sharing (p.14), mode conversion
@@ -276,8 +276,10 @@ owns). Tooling items are exempt from section 0 by nature but not from the gate.
    change is a no-op at the stills' low altitudes).
 
 Bigger lifts parked pending owner sign-off: scenario mode (presets as goal-bearing
-lessons), localization, an in-game sources screen listing every citation, wind audio
-tied to air density (needs a decision on default-on sound).
+lessons), localization, wind audio tied to air density (needs a decision on
+default-on sound). The in-game sources screen shipped (Shift I, owner-approved):
+the Sources & credits button in Settings opens the citations page, and the
+settings panel finally scrolls on desktop too.
 
 ### 2. (done) Phase 2 of the copy pass (presentation-only, no physics)
 

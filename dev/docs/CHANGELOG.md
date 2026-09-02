@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The sources screen: the citations leave GitHub and enter the game (Shift I).**
+  A Sources & credits button in Settings (right under the panel heading, on
+  screen without scrolling) opens the citations page: Gassend's deck (author's
+  page and the ISEC mirror), Wessels' arXiv paper and US 8,196,867 B1 patent,
+  Lofstrom's *Acoustic Wave Powered Climbers*, and Zubax's FluxGrip FG40, each
+  with one line on what the game took from it, plus the Neal Agarwal tribute,
+  the MIT licence and the ATTRIBUTIONS.md long form. The page is chrome, not
+  play surface (`#sourcesPanel` rides `_CHROME_SELECTOR`, so a hold on it never
+  engages the stack), takes no key (its own close button is the only way out,
+  and S keeps meaning Settings), and nothing on it animates. Shipping it fixed
+  a real reachability bug: the settings panel had outgrown every desktop
+  viewport and only the phone layout could scroll, so everything under the fold
+  (the colorblind toggle included) was unreachable on desktop; the panel now
+  caps at the viewport and scrolls everywhere. The Still Unsolved hint that
+  said "See ATTRIBUTIONS.md" points at the button now. Gate: 149 unit tests
+  (unchanged), 71 pure helpers (unchanged), 43/43 smoke (was 42; the sources
+  lifecycle takes its check).
+
 ## [1.2.0] - 2026-09-03
 
 The presentation arc. No new physics: the run becomes shareable, legible and
