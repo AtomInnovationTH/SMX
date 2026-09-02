@@ -7,8 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-03
+
+The presentation arc. No new physics: the run becomes shareable, legible and
+glanceable, the rhythm is taught before it is failed, the score freezes at
+liftoff, the invented cold-coupling penalty is deleted (the one deliberate
+trace move), and the gate grows a ritual generator plus an advisory frame diff.
+
 ### Added
 
+- **The SPACE key-cap closes the input loop (Shift H).** The whole game is one
+  held key, and nothing on screen said "the game saw that" until the world
+  reacted. A key-cap now rides the compact plate's first line and lights gold
+  while the physical key is down. It reads `InputManager.keys[' ']` directly,
+  the key and never the physics: a focused form control gates the keydown (the
+  cap stays dark while a slider is tuned), the blur/visibility sweep can never
+  leave it stuck lit, and a mouse or touch hold does not light it (the monkey's
+  glowing hands remain the game-state half of the loop). Static in both states,
+  so the 3 Hz and reduced-motion rules hold by construction. Never on touch
+  (naming a key that is not there is what used to send phone players away),
+  never at HUD off, and it yields on very narrow windows rather than crowd the
+  instruction line (needs 380 px on the real font). Render-only: the committed
+  stills and the default trace are bit-exact unchanged (the advisory frame diff
+  verified both). Gate: 149 unit tests (unchanged), 71 pure helpers (unchanged),
+  42/42 smoke (was 41; the key-cap lifecycle takes its check).
 - **Tooling: the ritual and the frame-diff (Shift G).** `dev/tools/sync_test_exports.mjs`
   turns the four-edit helper ritual into one command: it scans the pure-helpers block and
   lands the three mechanical edits (export, destructure, sanity object) idempotently, with
@@ -1044,7 +1066,8 @@ full pre-publish engineering review.
 
 - _Nothing else this release._
 
-[Unreleased]: https://github.com/AtomInnovationTH/SMX/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/AtomInnovationTH/SMX/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/AtomInnovationTH/SMX/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/AtomInnovationTH/SMX/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/AtomInnovationTH/SMX/compare/v0.1.0...v0.2.0
