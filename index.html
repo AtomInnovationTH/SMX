@@ -1751,9 +1751,10 @@
         // sign, the decimals and the state words are pinned by test; the renderer owns only
         // the colour and the caret. Returns { state, sign, text }:
         //   'earning' (+, net >= 0) / 'burning' (-, net < 0)  while firing
-        //   'recover' (brownout, stack off) / 'full' (at cap) / 'coast' (refilling)
+        //   'recover' (brownout, stack off, no caret - the bar is climbing back on the
+        //   trickle, so a down arrow would lie) / 'full' (at cap) / 'coast' (refilling)
         function epmFlowLabel({ engaged, brownout, extractionW, switchingW, full }) {
-            if (brownout) return { state: 'recover', sign: -1, text: 'stalled' };
+            if (brownout) return { state: 'recover', sign: 0, text: 'stalled' };
             if (engaged) {
                 const kw = ((extractionW || 0) - (switchingW || 0)) / 1000;
                 const mag = Math.abs(kw);

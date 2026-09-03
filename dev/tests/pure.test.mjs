@@ -1501,8 +1501,10 @@ test('epmFlowLabel: the switching-bill balance in words, live only while firing 
   assert.equal(even.text, '+0.0 kW');
 
   // A latched brownout: the stack is off, so there is no balance — it shows the stall.
+  // No caret (sign 0): during a brownout the bar is climbing back on the trickle, so a
+  // down arrow would contradict the picture.
   const bo = epmFlowLabel({ engaged: false, brownout: true, extractionW: 0, switchingW: 11776, full: false });
-  assert.deepEqual(bo, { state: 'recover', sign: -1, text: 'stalled' });
+  assert.deepEqual(bo, { state: 'recover', sign: 0, text: 'stalled' });
 
   // Not firing and not full: you are not switching, so it is not a loss — the bar
   // refills on its own and the readout says so, never a phantom negative.
