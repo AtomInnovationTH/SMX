@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The EPM gauge reads as a decision, not a dead bar (Shift J).** At the shipped
+  defaults the charge bar sits pinned at 100% for almost the whole climb (the
+  92 Hz carrier earns back its switching bill about two seconds off the pad), so
+  it looked stuck and pointless. It now carries a live label of the
+  switching-bill balance: the skimmed mechanical power minus the flat switching
+  draw (`extraction - switching`, the same two watts the brownout reason quotes),
+  in kW, with a caret and sign. A pinned bar now reads `+1.6 kW` green (earning
+  more than it burns, which is *why* it is full and is the paper's whole point);
+  the first seconds off the pad read `-8 kW` red (spending the buffer down until
+  speed carries the skim past the bill); a hot carrier on the wall reads a deep
+  red deficit, and a latched brownout reads `stalled`. Live only while the stack
+  is firing (coasting is not a loss, so it shows the bar's own refill instead of
+  a phantom negative). The number is a new pure helper (`epmFlowLabel`, 72 in the
+  block) so its sign, decimals and state words are pinned by test; the gauge owns
+  only the colour and the caret. Render-only: `updateContinuous` is untouched, the
+  balance trace cannot move, and the gauge is HUD-only so the `?clean` capture
+  stills are unaffected. Gate: 150 unit tests (was 149), 72 pure helpers (was 71),
+  44/44 smoke (was 43; the flow lifecycle takes its check).
+
 - **The sources screen: the citations leave GitHub and enter the game (Shift I).**
   A Sources & credits button in Settings (right under the panel heading, on
   screen without scrolling) opens the citations page: Gassend's deck (author's

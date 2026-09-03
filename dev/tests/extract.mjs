@@ -111,6 +111,7 @@ const EXPORTED_SYMBOLS = [
   'FILM_BAND_MIN_HALF_PX',
   'FILM_BAND_MAX_HALF_PX',
   'frozenSkyTimeS',
+  'epmFlowLabel',
 ];
 
 // Pull out the body of the single largest <script> block.

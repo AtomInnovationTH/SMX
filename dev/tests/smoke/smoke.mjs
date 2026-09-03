@@ -2020,6 +2020,44 @@ try {
     JSON.stringify({ srcBoot, srcBtnRect, srcOpen, srcGrab, srcAfter }));
   await srcCtx.close();
 
+  // 33) Shift J, the gauge flow readout: the EPM bar sits pinned at 100% for almost the
+  //     whole default climb, which read as a dead instrument ("what is the point?"). The
+  //     fix labels it with the switching-bill balance (extraction - switching, in kW), so
+  //     a full bar reads as a decision. The pin is the lifecycle on the SHARED state
+  //     (_gaugeFlow, the same object the renderer draws): full at boot (not firing, at
+  //     cap), burning the instant the stack engages from the grass (skim ~0 < the flat
+  //     11.8 kW bill), then earning once speed carries the skim past the bill - the
+  //     steady state the player actually stares at. The exact sign/decimals/words are
+  //     pinned in pure.test.mjs; this proves the wiring and the state machine on the
+  //     real build.
+  const flowCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const flowPage = await flowCtx.newPage();
+  await flowPage.goto(`${BASE}/index.html?debug`, { waitUntil: 'load' });
+  await flowPage.waitForFunction(() => window.__smokeGame && window.__smokeGame.monkey, null, { timeout: 20000 });
+  await flowPage.waitForFunction(() => {
+    const o = document.getElementById('loading-overlay');
+    return !o || getComputedStyle(o).display === 'none';
+  }, null, { timeout: 20000 });
+  // Boot: not firing, buffer at capacity -> the gauge reads 'full' (no caret).
+  await flowPage.waitForFunction(() => window.__smokeGame._gaugeFlow, null, { timeout: 5000, polling: 50 });
+  const flowBoot = await flowPage.evaluate(() => ({ ...window.__smokeGame._gaugeFlow }));
+  // Engage from the grass: the first firing frame is a deficit (skim has not ramped).
+  // _gaugeFlow is written in render(), a frame behind the input latch, so wait for the
+  // state itself rather than for isGrabbing (which would race the render and read stale).
+  await flowPage.keyboard.down(' ');
+  await flowPage.waitForFunction(() => window.__smokeGame._gaugeFlow.state === 'burning', null, { timeout: 5000, polling: 20 });
+  const flowLaunch = await flowPage.evaluate(() => ({ ...window.__smokeGame._gaugeFlow }));
+  // Hold: speed carries the skim past the flat bill, and the readout crosses to earning.
+  await flowPage.waitForFunction(() => window.__smokeGame._gaugeFlow.state === 'earning', null, { timeout: 15000, polling: 100 });
+  const flowCruise = await flowPage.evaluate(() => ({ ...window.__smokeGame._gaugeFlow }));
+  await flowPage.keyboard.up(' ');
+  record('gauge flow: full at boot, burning on the first engaged frame, earning at speed (the pinned bar reads as a decision)',
+    flowBoot.state === 'full' && flowBoot.sign === 0 && flowBoot.text === 'full' &&
+    flowLaunch.state === 'burning' && flowLaunch.sign === -1 && /^-\d/.test(flowLaunch.text) && flowLaunch.text.endsWith(' kW') &&
+    flowCruise.state === 'earning' && flowCruise.sign === 1 && /^\+\d/.test(flowCruise.text) && flowCruise.text.endsWith(' kW'),
+    JSON.stringify({ flowBoot, flowLaunch, flowCruise }));
+  await flowCtx.close();
+
   record('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 6).join(' | '));
 } catch (err) {
   record('harness', false, String(err && err.stack || err));

@@ -9,7 +9,54 @@ Nothing below was reworded in the move; entries are verbatim from NEXT-SHIFT.md.
 
 ---
 
-### The Shift I sources-screen shift (most recent)
+### The Shift J gauge-flow shift (most recent)
+
+A player question, straight to the point: the EPM meter on the right sits stuck
+above 90% the whole time, so what is the point of it? They were right, and the
+game's own design bar agrees: the code comment on that gauge says it "MUST track
+the switching draw, or the gauge stops being a decision." At the shipped
+defaults it had.
+
+**Why it looked stuck (and was, at defaults).** Verified against the real
+extracted physics: holding from the grass at 92 Hz / 8 pairs, the buffer dips to
+96.7% at t=2.3 s and then pins at 100% for the rest of the climb. The switching
+bill is flat at 11.8 kW; the skim (thrust x speed) crosses it about two seconds
+off the pad and then holds ~13-15 kW against it forever, so the bar fills and
+stays. That is not a bug, it is the paper's argument: 92 Hz is the carrier
+*because* the energy loop closes comfortably there. Push the Carrier slider past
+~200 Hz and the same bar becomes the entire game (250 Hz browns out at 14 s,
+the Lofstrom 1000 Hz preset is dead in 1.6 s). But at the default the instrument
+in prime screen space did nothing after second two, and the tutorial copy ("let
+go before your magnets run flat") taught a rhythm the screen then never showed.
+
+**The fix (presentation only).** The bar now carries a live label of the
+switching-bill balance: skim minus the flat draw (`extraction - switching`), in
+kW, caret and sign. Pinned bar -> `+1.6 kW` green: earning more than it burns,
+which is why it is full. First seconds -> `-8 kW` red climbing to zero: spending
+the buffer down until fast enough. Hot carrier -> deep red. Brownout ->
+`stalled`. Coasting is not a loss (you are not switching), so it shows the bar's
+own refill, never a phantom negative. This surfaces exactly the insight the
+question was missing: full is not free, it is earned, and the number says by how
+much.
+
+**Section-0 verdict.** No new physics and no relitigating the M2.11 tune: the
+two watts were already computed every frame (`_switchingW`, `_extractionW`, the
+same pair `brownoutReason` quotes). The label only presents numbers the game
+already owns, which is the bar for any presentation-only change here.
+
+**Discipline.** The logic is a pure helper (`epmFlowLabel`), not render code:
+the sign, the decimals (one near zero, whole kW past 9.95), and the state words
+(earning/burning/recover/coast/full) are pinned in pure.test.mjs, and the
+renderer owns only the colour and the caret. The caret shape and the +/- glyph
+carry direction, so the cue survives a colourblind palette and is never colour
+alone. The helper ritual ran clean (71 -> 72; sync_test_exports wired the three
+surfaces). Smoke check 33 pins the lifecycle on the shared `_gaugeFlow` state
+(full at boot, burning on the first engaged frame, earning at speed) on the real
+build. Render-only and HUD-only: `updateContinuous` untouched (the balance trace
+cannot move), and the `?clean` capture stills have no gauge, so the frame diff
+stays clean. Gate: 150 unit / 72 helpers / 44 smoke.
+
+### The Shift I sources-screen shift
 
 Updated at the end of Shift I: the first parked lift got its owner sign-off (the
 in-game sources screen) and shipped.

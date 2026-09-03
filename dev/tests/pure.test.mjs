@@ -100,6 +100,7 @@ const {
   FILM_BAND_MIN_HALF_PX,
   FILM_BAND_MAX_HALF_PX,
   frozenSkyTimeS,
+  epmFlowLabel,
 } = game;
 
 const approx = (a, b, eps = 1e-9) =>
@@ -130,6 +131,7 @@ test('extraction exposes the core pure symbols', () => {
     filmBandHalfPx, minimalScoreLine, waveDrawAmpPx, drawnOscillationHz,
     railAltitudeToFrac,
     frozenSkyTimeS,
+    epmFlowLabel,
   })) {
     assert.notEqual(val, undefined, `symbol ${name} should be defined`);
   }
@@ -152,7 +154,7 @@ test('every function in the pure-helpers block is exported for testing', () => {
   }
 });
 
-test('the pure-helpers block contains exactly 71 declared helpers (guard against an over-broad regex)', () => {
+test('the pure-helpers block contains exactly 72 declared helpers (guard against an over-broad regex)', () => {
   // The guard regex now also matches const/let arrow forms, but MUST NOT sweep in
   // non-helper declarations such as the ATMO_DENSITY_KGM3 array const. If this count
   // drifts, the regex grew too broad (or a helper was removed) — make it fail loudly.
@@ -163,7 +165,8 @@ test('the pure-helpers block contains exactly 71 declared helpers (guard against
   // 65 -> 66: rhythmHintDue, the first-rhythm-hint decision.
   // 66 -> 70: the Shift F share codec (encode/decode/urlParse) + ariaLiveLine.
   // 70 -> 71: frozenSkyTimeS, the deterministic-sky capture hook.
-  assert.equal(declaredPureHelpers().length, 71);
+  // 71 -> 72: epmFlowLabel, the gauge's switching-bill flow readout (Shift J).
+  assert.equal(declaredPureHelpers().length, 72);
 });
 
 // ---------------------------------------------------------------------------
@@ -1467,6 +1470,48 @@ test('epm: extraction above switching is net-positive; break-even nets exactly T
   // Break-even: extraction == switching -> net is the ambient trickle alone.
   const even = epmStep({ charge: 50, pulsing: true, drainPerSec: 26.9, regenPerSec: 26.9, dt });
   approx(even.netPerSec, EPM.TRICKLE, 1e-9);
+});
+
+test('epmFlowLabel: the switching-bill balance in words, live only while firing (Shift J)', () => {
+  // Firing, income above the flat bill -> earning, one decimal near zero, + sign.
+  // The shipped default cruise (~13.4 kW skim vs 11.8 kW switching) is the +1.6 kW case.
+  const cruise = epmFlowLabel({ engaged: true, brownout: false, extractionW: 13385, switchingW: 11776, full: true });
+  assert.equal(cruise.state, 'earning');
+  assert.equal(cruise.sign, 1);
+  assert.equal(cruise.text, '+1.6 kW');   // NOT 'full' — engaged wins, the balance is the point
+
+  // Firing, income below the bill -> burning, minus sign, one decimal under 10.
+  const early = epmFlowLabel({ engaged: true, brownout: false, extractionW: 3054, switchingW: 11776, full: false });
+  assert.equal(early.state, 'burning');
+  assert.equal(early.sign, -1);
+  assert.equal(early.text, '-8.7 kW');
+
+  // A deep deficit (a hot carrier on the wall) rounds to whole kW past 9.95.
+  const wall = epmFlowLabel({ engaged: true, brownout: false, extractionW: 3684, switchingW: 25600, full: false });
+  assert.equal(wall.state, 'burning');
+  assert.equal(wall.text, '-22 kW');
+
+  // The decimal/whole-kW boundary: 9.95 rounds up to a whole number, 9.94 keeps its decimal.
+  assert.equal(epmFlowLabel({ engaged: true, brownout: false, extractionW: 0, switchingW: 9950, full: false }).text, '-10 kW');
+  assert.equal(epmFlowLabel({ engaged: true, brownout: false, extractionW: 0, switchingW: 9940, full: false }).text, '-9.9 kW');
+
+  // Exact break-even reads as not-losing: net 0 is +, earning, one decimal.
+  const even = epmFlowLabel({ engaged: true, brownout: false, extractionW: 11776, switchingW: 11776, full: false });
+  assert.equal(even.state, 'earning');
+  assert.equal(even.text, '+0.0 kW');
+
+  // A latched brownout: the stack is off, so there is no balance — it shows the stall.
+  const bo = epmFlowLabel({ engaged: false, brownout: true, extractionW: 0, switchingW: 11776, full: false });
+  assert.deepEqual(bo, { state: 'recover', sign: -1, text: 'stalled' });
+
+  // Not firing and not full: you are not switching, so it is not a loss — the bar
+  // refills on its own and the readout says so, never a phantom negative.
+  const coast = epmFlowLabel({ engaged: false, brownout: false, extractionW: 0, switchingW: 11776, full: false });
+  assert.deepEqual(coast, { state: 'coast', sign: 1, text: 'coast' });
+
+  // Not firing and at the cap: full, no caret (sign 0).
+  const full = epmFlowLabel({ engaged: false, brownout: false, extractionW: 0, switchingW: 11776, full: true });
+  assert.deepEqual(full, { state: 'full', sign: 0, text: 'full' });
 });
 
 test('epm: brownout latches, and tripped fires only on the transition frame', () => {

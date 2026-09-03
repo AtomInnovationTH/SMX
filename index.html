@@ -1741,6 +1741,33 @@
             return { charge: next, brownout, tripped, netPerSec };
         }
 
+        // UX (Shift J): the EPM gauge's flow readout, in words, so a bar pinned at 100%
+        // reads as a decision ("earning more than it burns") instead of a dead instrument.
+        // The number is the switching-bill balance: skimmed mechanical power minus the flat
+        // switching draw (extraction - switching, the same two watts brownoutReason quotes),
+        // live ONLY while the stack is actually firing - that is the moment the balance is a
+        // choice. Coasting is not a loss (you are not switching), so it shows the bar's own
+        // refill instead of a phantom -12 kW; a latched brownout shows the stall. Pure so the
+        // sign, the decimals and the state words are pinned by test; the renderer owns only
+        // the colour and the caret. Returns { state, sign, text }:
+        //   'earning' (+, net >= 0) / 'burning' (-, net < 0)  while firing
+        //   'recover' (brownout, stack off) / 'full' (at cap) / 'coast' (refilling)
+        function epmFlowLabel({ engaged, brownout, extractionW, switchingW, full }) {
+            if (brownout) return { state: 'recover', sign: -1, text: 'stalled' };
+            if (engaged) {
+                const kw = ((extractionW || 0) - (switchingW || 0)) / 1000;
+                const mag = Math.abs(kw);
+                // One decimal near zero (the default cruise sits at +1.6 kW and the sign is
+                // the whole message there); whole kW once it is large enough not to need it.
+                const num = mag >= 9.95 ? String(Math.round(mag)) : mag.toFixed(1);
+                const sign = kw >= 0 ? 1 : -1;
+                return { state: sign > 0 ? 'earning' : 'burning',
+                         sign, text: `${sign > 0 ? '+' : '-'}${num} kW` };
+            }
+            if (full) return { state: 'full', sign: 0, text: 'full' };
+            return { state: 'coast', sign: 1, text: 'coast' };
+        }
+
         // SIM (2a): which distance milestone (if any) this altitude crosses. Pure: the
         // orchestrator owns the `milestonesPassed` Set mutation and the shake/particle
         // side effects; this just decides the marker. Returns the integer km marker to
@@ -7232,15 +7259,40 @@
                 ctx.font = 'bold 10px monospace';
                 ctx.fillText('EPM', x + w / 2, y - 16);
                 ctx.fillText(Math.round(charge) + '%', x + w / 2, y - 5);
-                // net-flow arrow below the bar
-                const up = (this.epmNetPerSec || 0) >= 0;
-                ctx.fillStyle = up ? '#2ecc71' : '#e74c3c';
-                const ax = x + w / 2, ay = y + h + 14;
-                ctx.beginPath();
-                if (up) { ctx.moveTo(ax, ay - 7); ctx.lineTo(ax - 6, ay + 3); ctx.lineTo(ax + 6, ay + 3); }
-                else { ctx.moveTo(ax, ay + 3); ctx.lineTo(ax - 6, ay - 7); ctx.lineTo(ax + 6, ay - 7); }
-                ctx.closePath();
-                ctx.fill();
+                // Flow readout below the bar (Shift J): the switching-bill balance in
+                // words, so a bar pinned at 100% reads as "earning more than it burns"
+                // instead of a dead instrument. epmFlowLabel owns the sign, the decimals
+                // and the state words (pinned by test); the gauge owns only colour and the
+                // caret. Right-aligned to the bar's right edge so it never runs off-screen.
+                const ay = y + h + 14;
+                const flow = epmFlowLabel({
+                    engaged: this.monkey.isGrabbing && !this.epmBrownout,
+                    brownout: this.epmBrownout,
+                    extractionW: this._extractionW, switchingW: this._switchingW,
+                    full: pct >= 0.999,
+                });
+                this._gaugeFlow = flow;   // debug handle for the smoke suite (state, not pixels)
+                const flowCol = flow.state === 'earning' ? '#2ecc71'
+                    : flow.state === 'coast' ? '#8fb7c9'
+                    : flow.state === 'full' ? 'rgba(255,255,255,0.55)'
+                    : '#e74c3c';   // burning + recover
+                ctx.fillStyle = flowCol;
+                ctx.textAlign = 'right';
+                ctx.font = 'bold 10px monospace';
+                const tx = x + w;
+                ctx.fillText(flow.text, tx, ay + 3);
+                // Caret left of the text; the SHAPE carries direction, so the cue survives
+                // a colourblind palette and the sign glyph does too (never colour alone).
+                if (flow.sign !== 0) {
+                    const tw = ctx.measureText(flow.text).width;
+                    const cxp = tx - tw - 7, cyp = ay;
+                    ctx.beginPath();
+                    if (flow.sign > 0) { ctx.moveTo(cxp, cyp - 6); ctx.lineTo(cxp - 5, cyp + 2); ctx.lineTo(cxp + 5, cyp + 2); }
+                    else { ctx.moveTo(cxp, cyp + 2); ctx.lineTo(cxp - 5, cyp - 6); ctx.lineTo(cxp + 5, cyp - 6); }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.textAlign = 'center';
                 // Shift E1: low-charge warning state. The game's one decision is "release
                 // before this empties", and nothing used to warn before the first
                 // brownout bit. Below a quarter of the buffer while engaged the plate

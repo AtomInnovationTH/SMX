@@ -189,7 +189,9 @@ width, 38 px for its two lines and 52 px when it also carries the minimal score 
 Instrument detail is a level, not a toggle: `_uxHudLevel` is minimal (the default) /
 full / off, cycled by `H`, with `?clean` booting straight to off for captures. Every
 instrument is drawn on the canvas, so nothing can be hidden with CSS: anything new must
-read `_uxHudLevel` itself. Minimal is the badge, the energy bar, the altitude rail, the
+read `_uxHudLevel` itself. Minimal is the badge, the energy bar (labelled with
+the live switching-bill balance, earning vs burning in kW, Shift J), the
+altitude rail, the
 compact plate (one instruction, the p.11 carrier line, the throughput score and the
 SPACE key-cap that lights while the physical key is down, Shift H) and a beat's title,
 except trivia beats flagged `minimalQuiet` (stack heat, the mode question, the
@@ -589,9 +591,9 @@ The climber is contactless: its hands are **electro-permanent magnets (EPMs)** t
 - No em dash (U+2014) in player-facing or repo-facing prose, comments excluded. Enforced
   by `dev/tools/check_emdash.py` against `Space_Monkey_Elevator.html`, run as part of the
   gate.
-- **Current gate numbers** (keep these updated when they move): **149 unit tests**
-  (pure 128, sliders 12, balance 9), **71 pure helpers** in the delimited block,
-  **98 = 98** asset references, **43 browser smoke checks**, `index.html` **490 KB**.
+- **Current gate numbers** (keep these updated when they move): **150 unit tests**
+  (pure 129, sliders 12, balance 9), **72 pure helpers** in the delimited block,
+  **98 = 98** asset references, **44 browser smoke checks**, `index.html` **490 KB**.
 - Adding a pure helper: write it in the block, then run `node dev/tools/sync_test_exports.mjs
   --write` (Shift G). The script scans the delimited block and lands the three
   mechanical edits (`EXPORTED_SYMBOLS`, the pure.test.mjs destructure and sanity

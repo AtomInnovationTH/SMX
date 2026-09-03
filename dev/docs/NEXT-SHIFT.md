@@ -10,8 +10,8 @@ traps that have already cost time. The per-shift narrative record lives in
   `.github/workflows/deploy.yml` on every push. The published site is only `index.html`,
   `assets/` and `social.png`.
 - **Gate**: `bash dev/tools/check.sh` (add `SKIP_SMOKE=1` to skip the browser half;
-  `VISUAL_REGRESS=1` to add the advisory frame diff). Currently 149 unit tests,
-  43 smoke checks, 98 = 98 asset references, 71 pure helpers, all green.
+  `VISUAL_REGRESS=1` to add the advisory frame diff). Currently 150 unit tests,
+  44 smoke checks, 98 = 98 asset references, 72 pure helpers, all green.
 - **Payload**: `index.html` is 490 KB. Only assets under 20 KB are inlined; the clouds,
   ground and noise stream from `assets/`.
 - **Physics**: M1, M2, M3.1-M3.8 and ALL of M4 are complete: taper (p.9), wave drag (p.7),
@@ -27,6 +27,9 @@ traps that have already cost time. The per-shift narrative record lives in
   in the snapshot diff and DESIGN.md: the invented cold-coupling penalty is deleted,
   so the low climb runs 5 s faster; cruise never moved because the penalty never
   reached vacuum). Unchanged by everything before it, most recently the
+  gauge-flow shift (render-only: the EPM bar gained a switching-bill label; no
+  `updateContinuous` change, so the trace cannot move, and the stills are shot
+  `?clean` where the gauge is off, so the frame diff stays clean), the
   sources-screen shift (DOM chrome only: the citations page plus the settings
   panel's desktop scroll; `updateContinuous` untouched, and the advisory frame
   diff verified the committed stills bit-exact), the key-cap
@@ -46,10 +49,13 @@ traps that have already cost time. The per-shift narrative record lives in
 
 ## Priorities for this shift
 
-The most recent completed work is the **sources-screen shift** (Shift I,
-2026-09-03): the citations moved into the game (a Sources & credits button in
-Settings), the settings panel gained the desktop scroll it had silently needed,
-and the review pass pinned the CSS at the exact failing viewports. Before it,
+The most recent completed work is the **gauge-flow shift** (Shift J,
+2026-09-03): the EPM bar sat pinned at 100% for almost the whole default climb
+and read as a dead instrument, so it gained a live switching-bill label
+(earning vs burning, in kW) that turns the pinned bar into a decision. Before
+it, the **sources-screen shift** (Shift I) moved the citations into the game (a
+Sources & credits button in Settings) and gave the settings panel the desktop
+scroll it had silently needed. Before that,
 the **integrity shift** (2026-08-22) deleted the
 invented cold-coupling penalty from `updateContinuous` and froze the scored cargo
 at liftoff (`_runCargoKg`), trace moved deliberately and explained. The
